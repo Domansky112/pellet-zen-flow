@@ -60,9 +60,8 @@ export const calculateTransport = createServerFn({ method: "POST" })
 
     const fuelCost = (km / 100) * data.consumption * data.fuelPrice;
     const kmCost = km * data.perKmRate;
-    const tonCost = data.tons * data.perTonRate;
-    const dayCost = data.driverDays * data.perDayRate;
-    const total = fuelCost + kmCost + tonCost + dayCost;
+    const driverCost = data.driverDays * data.driverDayRate;
+    const total = fuelCost + kmCost + driverCost;
     const perTon = data.tons > 0 ? total / data.tons : 0;
 
     return {
@@ -74,8 +73,7 @@ export const calculateTransport = createServerFn({ method: "POST" })
       breakdown: {
         fuel: Math.round(fuelCost),
         km: Math.round(kmCost),
-        tons: Math.round(tonCost),
-        days: Math.round(dayCost),
+        driver: Math.round(driverCost),
       },
       total: Math.round(total),
       perTon: Math.round(perTon),
