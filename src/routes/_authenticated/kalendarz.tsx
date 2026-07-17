@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/kalendarz")({
 const productLabel: Record<string, string> = {
   pellet_paleta: "Pellet — paleta",
   pellet_bigbag: "Pellet — big bag",
-  brykiet: "Brykiet",
+  
   inne: "Inne",
 };
 
@@ -210,7 +210,7 @@ function NewTransportDialog() {
   const [destination, setDestination] = useState("");
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
-  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne">(
+  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">(
     "pellet_bigbag",
   );
   const [quantity, setQuantity] = useState<number>(20);
@@ -278,7 +278,7 @@ function NewTransportDialog() {
           const map: Record<string, typeof product> = {
             pellet_paleta: "pellet_paleta",
             pellet_bigbag: "pellet_bigbag",
-            brykiet: "brykiet",
+            inne: "inne",
           };
           if (map[lead.product]) setProduct(map[lead.product]);
         }
@@ -394,7 +394,7 @@ function NewTransportDialog() {
                 <SelectContent>
                   <SelectItem value="pellet_bigbag">Pellet — big bag</SelectItem>
                   <SelectItem value="pellet_paleta">Pellet — paleta</SelectItem>
-                  <SelectItem value="brykiet">Brykiet</SelectItem>
+                  
                   <SelectItem value="inne">Inne</SelectItem>
                 </SelectContent>
               </Select>

@@ -48,11 +48,11 @@ export const Route = createFileRoute("/_authenticated/magazyn")({
   component: WarehousePage,
 });
 
-type Product = "pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne";
+type Product = "pellet_paleta" | "pellet_bigbag" | "inne";
 const PRODUCTS: { key: Product; label: string; unit: string }[] = [
   { key: "pellet_paleta", label: "Palety", unit: "t" },
   { key: "pellet_bigbag", label: "Big Bagi", unit: "t" },
-  { key: "brykiet", label: "Brykiet", unit: "t" },
+  { key: "inne", label: "Inne", unit: "t" },
 ];
 
 const txnLabel: Record<string, string> = {

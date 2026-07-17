@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Palety",
   pellet_bigbag: "Big Bag",
-  brykiet: "Brykiet",
+  
   inne: "Inne",
 };
 
@@ -73,7 +73,7 @@ function Dashboard() {
   }
   const palety = balByProduct["pellet_paleta"] ?? { physical: 0, reserved: 0, available: 0 };
   const bigbag = balByProduct["pellet_bigbag"] ?? { physical: 0, reserved: 0, available: 0 };
-  const brykiet = balByProduct["brykiet"] ?? { physical: 0, reserved: 0, available: 0 };
+  
 
   const transportsThisWeek = (transports as any[]).filter((t) => {
     const d = new Date(t.scheduled_date);
@@ -247,7 +247,7 @@ function Dashboard() {
               {[
                 { label: "Palety", bal: palety },
                 { label: "Big Bagi", bal: bigbag },
-                { label: "Brykiet", bal: brykiet },
+                
               ].map((row) => {
                 const pct = row.bal.physical > 0 ? (row.bal.available / row.bal.physical) * 100 : 0;
                 return (

@@ -31,7 +31,7 @@ type Props = {
   defaults?: Partial<{
     source: "www" | "email" | "b2b" | "telefon" | "inne";
     pooling_enabled: boolean;
-    product: "pellet_worki" | "pellet_bigbag" | "pellet_luz" | "brykiet" | "inne";
+    product: "pellet_paleta" | "pellet_bigbag" | "inne";
   }>;
   triggerLabel?: string;
   variant?: "default" | "outline" | "secondary";
@@ -49,7 +49,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
     city: "",
     postal_code: "",
     source: defaults?.source ?? "telefon",
-    product: defaults?.product ?? "pellet_worki",
+    product: defaults?.product ?? "pellet_paleta",
     quantity: "",
     notes: "",
     pooling_enabled: defaults?.pooling_enabled ?? false,
@@ -146,10 +146,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               <Select value={form.product} onValueChange={(v) => set("product", v as typeof form.product)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pellet_worki">Pellet worki</SelectItem>
+                  <SelectItem value="pellet_paleta">Pellet paleta</SelectItem>
                   <SelectItem value="pellet_bigbag">Pellet big-bag</SelectItem>
-                  <SelectItem value="pellet_luz">Pellet luz</SelectItem>
-                  <SelectItem value="brykiet">Brykiet</SelectItem>
                   <SelectItem value="inne">Inne</SelectItem>
                 </SelectContent>
               </Select>

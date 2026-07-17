@@ -25,16 +25,21 @@ async function replyToChat(chatId: number | string, text: string, html = true) {
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Pellet (paleta)",
   pellet_bigbag: "Pellet (big bag)",
-  brykiet: "Brykiet",
+  inne: "Inne",
 };
 
 async function renderStockSummary(admin: any) {
-  const { data, error } = await admin.from("stock_balance").select("product, physical_kg, reserved_kg, available_kg");
+  const { data, error } = await admin.from("stock_balance").select("product, physical, reserved");
   if (error) return `❌ Błąd magazynu: ${error.message}`;
   if (!data || data.length === 0) return "📦 Magazyn pusty.";
   const lines = ["📦 <b>Stan magazynu</b>"];
   for (const r of data) {
-    lines.push(`• <b>${PRODUCT_LABEL[r.product] ?? r.product}</b>: ${r.available_kg} kg dost. (fiz. ${r.physical_kg} / rez. ${r.reserved_kg})`);
+    const physical = Number(r.physical ?? 0);
+    const reserved = Number(r.reserved ?? 0);
+    const available = physical - reserved;
+    lines.push(
+      `• <b>${PRODUCT_LABEL[r.product] ?? r.product}</b>: ${available.toFixed(1)} t dost. (fiz. ${physical.toFixed(1)} / rez. ${reserved.toFixed(1)})`,
+    );
   }
   return lines.join("\n");
 }
@@ -54,7 +59,8 @@ async function renderUpcomingTransports(admin: any) {
   const lines = ["🚚 <b>Transporty (7 dni)</b>"];
   for (const t of data) {
     const d = new Date(t.scheduled_date).toLocaleDateString("pl-PL", { weekday: "short", day: "2-digit", month: "2-digit" });
-    lines.push(`• <b>${d}</b> · ${t.zone ?? "—"} · ${t.city ?? "—"}${t.postal_code ? " " + t.postal_code : ""}${t.capacity_kg ? ` · ${t.capacity_kg} kg` : ""}${t.driver ? ` · ${t.driver}` : ""}`);
+    const tons = t.capacity_kg != null ? ` · ${Number(t.capacity_kg).toFixed(1)} t` : "";
+    lines.push(`• <b>${d}</b> · ${t.zone ?? "—"} · ${t.city ?? "—"}${t.postal_code ? " " + t.postal_code : ""}${tons}${t.driver ? ` · ${t.driver}` : ""}`);
   }
   return lines.join("\n");
 }

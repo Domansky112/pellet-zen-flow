@@ -422,7 +422,7 @@ export type Database = {
       app_role: "admin" | "sales" | "warehouse" | "transport"
       lead_source: "www" | "email" | "telefon" | "b2b" | "inne"
       lead_status: "nowy" | "w_kontakcie" | "oferta" | "wygrany" | "przegrany"
-      product_type: "pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne"
+      product_type: "pellet_paleta" | "pellet_bigbag" | "inne"
       stock_txn_type:
         | "przyjecie"
         | "wydanie"
@@ -565,7 +565,7 @@ export const Constants = {
       app_role: ["admin", "sales", "warehouse", "transport"],
       lead_source: ["www", "email", "telefon", "b2b", "inne"],
       lead_status: ["nowy", "w_kontakcie", "oferta", "wygrany", "przegrany"],
-      product_type: ["pellet_paleta", "pellet_bigbag", "brykiet", "inne"],
+      product_type: ["pellet_paleta", "pellet_bigbag", "inne"],
       stock_txn_type: [
         "przyjecie",
         "wydanie",

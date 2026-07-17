@@ -392,7 +392,7 @@ const ConfirmInput = z.object({
   scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   driver: z.string().max(120).optional().nullable(),
   vehicle: z.string().max(120).optional().nullable(),
-  product: z.enum(["pellet_paleta", "pellet_bigbag", "brykiet", "inne"]).default("pellet_paleta"),
+  product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).default("pellet_paleta"),
   reserve_stock: z.boolean().default(true),
 });
 

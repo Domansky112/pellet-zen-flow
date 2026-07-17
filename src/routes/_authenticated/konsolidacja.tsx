@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/konsolidacja")({
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Palety",
   pellet_bigbag: "Big Bag",
-  brykiet: "Brykiet",
+  
   inne: "Inne",
 };
 
@@ -371,7 +371,7 @@ function ConfirmDialog({
   const [date, setDate] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
-  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne">("pellet_paleta");
+  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">("pellet_paleta");
 
   const mut = useMutation({
     mutationFn: () =>
@@ -419,7 +419,7 @@ function ConfirmDialog({
             >
               <option value="pellet_paleta">Pellet — palety</option>
               <option value="pellet_bigbag">Pellet — Big Bag</option>
-              <option value="brykiet">Brykiet</option>
+              
               <option value="inne">Inne</option>
             </select>
           </div>

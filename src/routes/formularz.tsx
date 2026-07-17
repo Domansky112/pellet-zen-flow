@@ -118,7 +118,7 @@ function FormPage() {
                 <option value="">— wybierz —</option>
                 <option value="pellet_paleta">Pellet (paleta 65 worków × 15 kg)</option>
                 <option value="pellet_bigbag">Pellet Big Bag (~1 t)</option>
-                <option value="brykiet">Brykiet</option>
+                
                 <option value="inne">Inne</option>
               </select>
             </div>
