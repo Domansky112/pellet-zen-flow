@@ -394,7 +394,7 @@ function NewTransportDialog() {
                 <SelectContent>
                   <SelectItem value="pellet_bigbag">Pellet — big bag</SelectItem>
                   <SelectItem value="pellet_paleta">Pellet — paleta</SelectItem>
-                  <SelectItem value="brykiet">Brykiet</SelectItem>
+                  
                   <SelectItem value="inne">Inne</SelectItem>
                 </SelectContent>
               </Select>
