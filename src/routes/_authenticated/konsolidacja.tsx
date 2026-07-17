@@ -123,16 +123,19 @@ function Konsolidacja() {
       <PageHeader
         title="Wspólny transport"
         description="Algorytm dobiera klientów w promieniu tras i wypełnia auto do 24 t — koszt dostawy rozbijasz między nich."
-      >
-        <Button onClick={() => geocode.mutate()} disabled={geocode.isPending} variant="outline">
-          {geocode.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
-          Geokoduj ({needsGeocoding})
-        </Button>
-        <Button onClick={() => suggestions.refetch()} disabled={suggestions.isFetching}>
-          {suggestions.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          Szukaj grup
-        </Button>
-      </PageHeader>
+        actions={
+          <>
+            <Button onClick={() => geocode.mutate()} disabled={geocode.isPending} variant="outline">
+              {geocode.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+              Geokoduj ({needsGeocoding})
+            </Button>
+            <Button onClick={() => suggestions.refetch()} disabled={suggestions.isFetching}>
+              {suggestions.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              Szukaj grup
+            </Button>
+          </>
+        }
+      />
 
       <div className="p-6 space-y-6">
         {/* Parametry */}
