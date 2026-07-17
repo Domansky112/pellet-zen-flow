@@ -1,137 +1,146 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bot, Shield, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Bot, Shield, Send, Bell, Sparkles } from "lucide-react";
+import { listTelegramChats, sendTestBroadcast, setChatWhitelist, runTransportRemindersNow } from "@/lib/telegram.functions";
+import { formatDistanceToNow } from "date-fns";
+import { pl } from "date-fns/locale";
+
+const chatsQuery = queryOptions({ queryKey: ["telegram", "chats"], queryFn: () => listTelegramChats() });
 
 export const Route = createFileRoute("/_authenticated/bot")({
   head: () => ({
     meta: [
-      { title: "Bot magazynowy — Słoneczny Pellet OS" },
-      { name: "description", content: "Mobilny interfejs Telegram dla placu i kierowców: /menu, dodawanie palet, korekty stanów." },
+      { title: "Bot Telegram — Słoneczny Pellet OS" },
+      { name: "description", content: "Bot Telegram: webhook, whitelist czatów, alerty T-7/T-4 przed transportem." },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(chatsQuery),
   component: BotPage,
 });
 
-const chats = [
-  { name: "Placowy — Krzysiek", id: "784***112", role: "Magazynier", ostatnia: "8 min temu", ok: true },
-  { name: "Kierowca Marek", id: "521***809", role: "Kierowca", ostatnia: "2 h temu", ok: true },
-  { name: "Handlowiec 1", id: "601***334", role: "Sprzedaż", ostatnia: "1 dzień temu", ok: true },
-];
-
 function BotPage() {
+  const { data: chats } = useSuspenseQuery(chatsQuery);
+  const qc = useQueryClient();
+  const [text, setText] = useState("🔔 Test z Pellet OS — jeśli to widzisz, alerty działają.");
+  const [busy, setBusy] = useState(false);
+  const broadcast = useServerFn(sendTestBroadcast);
+  const runReminders = useServerFn(runTransportRemindersNow);
+  const toggle = useServerFn(setChatWhitelist);
+
+  async function onBroadcast() {
+    setBusy(true);
+    try {
+      const r = await broadcast({ data: { text } });
+      toast.success(`Wysłano do ${r.sent}/${r.total} czatów${r.failed ? ` · ${r.failed} błędów` : ""}`);
+    } catch (e: any) { toast.error(e?.message ?? "Błąd"); }
+    finally { setBusy(false); }
+  }
+
+  async function onRunReminders() {
+    setBusy(true);
+    try {
+      const r = await runReminders();
+      toast.success(`T-7/T-4: sprawdzono ${r.checked} transportów, powiadomień ${r.sent}, pominięto ${r.skipped}`);
+    } catch (e: any) { toast.error(e?.message ?? "Błąd"); }
+    finally { setBusy(false); }
+  }
+
+  const whitelisted = chats.filter((c) => c.is_whitelisted).length;
+
   return (
     <>
       <PageHeader
-        title="Bot magazynowy (Telegram)"
-        description="Dwukierunkowa komunikacja z placu. Maszyna stanów: przycisk → ilość → komentarz → potwierdzenie."
+        title="Bot Telegram"
+        description="Webhook nasłuchuje /start · /stop · /id. Alerty T-7 i T-4 lecą automatycznie do whitelisty."
       />
-      <div className="p-6 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="p-6 space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard icon={<Bot className="h-5 w-5" />} label="Czaty łącznie" value={String(chats.length)} />
+          <StatCard icon={<Shield className="h-5 w-5" />} label="Aktywne (whitelist)" value={String(whitelisted)} />
+          <StatCard icon={<Bell className="h-5 w-5" />} label="Alerty automatyczne" value="T-7 · T-4" />
+        </div>
+
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-primary" /> Podgląd rozmowy
-            </CardTitle>
-            <CardDescription>Symulacja: /menu z dozwolonego czatu</CardDescription>
+            <CardTitle>Ręczne akcje admina</CardTitle>
+            <CardDescription>Broadcast testowy oraz ręczne odpalenie silnika przypomnień.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-2xl border bg-muted/40 p-4 space-y-3 max-w-lg">
-              <BotBubble side="user">/menu</BotBubble>
-              <BotBubble side="bot">
-                <div className="font-medium mb-1">Menu magazynu</div>
-                <div className="grid grid-cols-2 gap-1.5 text-xs">
-                  <button className="rounded-md bg-background border px-2 py-1.5 text-left">📊 Dostępne</button>
-                  <button className="rounded-md bg-background border px-2 py-1.5 text-left">📦 Pełny stan</button>
-                  <button className="rounded-md bg-background border px-2 py-1.5 text-left">🚚 Transporty</button>
-                  <button className="rounded-md bg-background border px-2 py-1.5 text-left">➕ Dodaj Palety</button>
-                </div>
-              </BotBubble>
-              <BotBubble side="user">➕ Dodaj Palety</BotBubble>
-              <BotBubble side="bot">Ile ton palet dodać? (np. 5 lub 5.5)</BotBubble>
-              <BotBubble side="user">8</BotBubble>
-              <BotBubble side="bot">Komentarz (np. nazwa dostawcy/klienta):</BotBubble>
-              <BotBubble side="user">Dostawa producent · Radom</BotBubble>
-              <BotBubble side="bot">
-                <div className="flex items-center gap-1.5 text-success font-medium mb-1">
-                  <CheckCircle2 className="h-4 w-4" /> Zapisano
-                </div>
-                <div className="text-xs">
-                  +8 t · Palety · „Dostawa producent · Radom”<br />
-                  Nowy stan fizyczny: <b>248 t</b> · dostępny: <b>90,4 t</b><br />
-                  <span className="text-muted-foreground">16.09.2025 · 10:47</span>
-                </div>
-              </BotBubble>
+          <CardContent className="space-y-3">
+            <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={onBroadcast} disabled={busy || whitelisted === 0}>
+                <Send className="mr-2 h-4 w-4" /> Wyślij broadcast ({whitelisted})
+              </Button>
+              <Button variant="outline" onClick={onRunReminders} disabled={busy}>
+                <Sparkles className="mr-2 h-4 w-4" /> Odpal T-7/T-4 teraz
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" /> Dozwolone czaty
-              </CardTitle>
-              <CardDescription>Zabezpieczony kanał · DOZWOLONE_CZATY</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Czaty</CardTitle>
+            <CardDescription>Wpisz w Telegramie <code>/start</code> do bota, żeby dołączyć. Admin może przełączać whitelistę ręcznie.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chats.length === 0 && (
+              <p className="text-muted-foreground text-sm py-8 text-center">
+                Brak czatów — wyślij <code>/start</code> do bota z Telegrama, a pojawi się tutaj.
+              </p>
+            )}
+            <div className="space-y-2">
               {chats.map((c) => (
-                <div key={c.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={c.id} className="flex items-center justify-between rounded-md border border-border/60 p-3">
                   <div>
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.role} · {c.id}</p>
+                    <div className="font-medium">{c.label ?? c.chat_id}</div>
+                    <div className="text-xs text-muted-foreground">
+                      chat_id: {c.chat_id} · dołączył {formatDistanceToNow(new Date(c.created_at), { addSuffix: true, locale: pl })}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <Badge className="bg-success/15 text-success border-success/30" variant="outline">aktywny</Badge>
-                    <p className="text-[11px] text-muted-foreground mt-1">{c.ostatnia}</p>
+                  <div className="flex items-center gap-3">
+                    <Badge variant={c.is_whitelisted ? "default" : "outline"}>
+                      {c.is_whitelisted ? "aktywny" : "wyłączony"}
+                    </Badge>
+                    <Switch
+                      checked={c.is_whitelisted}
+                      onCheckedChange={async (v) => {
+                        try {
+                          await toggle({ data: { id: c.id, whitelisted: v } });
+                          qc.invalidateQueries({ queryKey: ["telegram", "chats"] });
+                        } catch (e: any) { toast.error(e?.message ?? "Błąd"); }
+                      }}
+                    />
                   </div>
                 </div>
               ))}
-              <Button variant="outline" className="w-full">+ Dodaj chat ID</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" /> Konfiguracja
-              </CardTitle>
-              <CardDescription>Tokeny w zmiennych środowiskowych</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <ConfigRow k="BOT_MAGAZYN_TOKEN" v="••••••••••1a2b" />
-              <ConfigRow k="PELLET_BOT_TOKEN" v="••••••••••7f0c" />
-              <ConfigRow k="PELLET_CHAT_ID" v="-100••••44" />
-              <ConfigRow k="TELEGRAM_TOKEN (CRM)" v="••••••••••ff23" />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
 }
 
-function BotBubble({ side, children }: { side: "user" | "bot"; children: React.ReactNode }) {
-  const isUser = side === "user";
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-          isUser ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border rounded-bl-sm"
-        }`}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ConfigRow({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 font-mono text-xs">
-      <span className="text-muted-foreground">{k}</span>
-      <span>{v}</span>
-    </div>
+    <Card>
+      <CardContent className="pt-6 flex items-center justify-between">
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="font-display text-2xl font-semibold">{value}</div>
+        </div>
+        <div className="text-primary">{icon}</div>
+      </CardContent>
+    </Card>
   );
 }
