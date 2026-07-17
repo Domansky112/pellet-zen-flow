@@ -26,6 +26,7 @@ function FormPage() {
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const quantityRaw = fd.get("quantity")?.toString().trim();
+    const pooling = fd.get("pooling_enabled") === "on";
     const payload = {
       name: fd.get("name"),
       email: fd.get("email"),
@@ -37,6 +38,8 @@ function FormPage() {
       notes: fd.get("notes"),
       website: fd.get("website"), // honeypot
       source: "www",
+      pooling_enabled: pooling,
+      pooling_wait_days: pooling ? 14 : undefined,
     };
     const res = await fetch("/api/public/leads", {
       method: "POST",
