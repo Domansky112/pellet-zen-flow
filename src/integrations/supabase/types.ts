@@ -186,6 +186,7 @@ export type Database = {
           capacity_kg: number | null
           city: string | null
           created_at: string
+          destination_address: string | null
           driver: string | null
           id: string
           notes: string | null
@@ -203,6 +204,7 @@ export type Database = {
           capacity_kg?: number | null
           city?: string | null
           created_at?: string
+          destination_address?: string | null
           driver?: string | null
           id?: string
           notes?: string | null
@@ -220,6 +222,7 @@ export type Database = {
           capacity_kg?: number | null
           city?: string | null
           created_at?: string
+          destination_address?: string | null
           driver?: string | null
           id?: string
           notes?: string | null
