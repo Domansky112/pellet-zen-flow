@@ -104,7 +104,7 @@ export const listWaitlist = createServerFn({ method: "GET" })
         "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, created_at",
       )
       .eq("pooling_enabled", true)
-      .eq("pooling_status", "oczekuje")
+      .eq("pooling_status", "poczekalnia")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -140,7 +140,7 @@ export const findPoolSuggestions = createServerFn({ method: "POST" })
         "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until",
       )
       .eq("pooling_enabled", true)
-      .eq("pooling_status", "oczekuje")
+      .eq("pooling_status", "poczekalnia")
       .not("pooling_lat", "is", null)
       .not("quantity", "is", null)
       .or(`pooling_wait_until.is.null,pooling_wait_until.gte.${today}`);
@@ -380,7 +380,7 @@ export const cancelPool = createServerFn({ method: "POST" })
     if (leadIds.length > 0) {
       await context.supabase
         .from("leads")
-        .update({ pooling_status: "oczekuje" })
+        .update({ pooling_status: "poczekalnia" })
         .in("id", leadIds);
     }
     return { ok: true };
