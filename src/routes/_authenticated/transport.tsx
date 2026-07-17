@@ -132,17 +132,12 @@ function TransportPage() {
                 step={0.1}
               />
               <Field
-                label="Stawka zł/tonę"
-                value={perTonRate}
-                onChange={setPerTonRate}
+                label="Stawka kierowcy zł/dzień"
+                value={driverDayRate}
+                onChange={setDriverDayRate}
                 step={10}
               />
-              <Field
-                label="Dieta / dzień"
-                value={perDayRate}
-                onChange={setPerDayRate}
-                step={10}
-              />
+
               <div className="flex items-end">
                 <label className="flex items-center gap-2 text-sm">
                   <input
