@@ -69,7 +69,7 @@ function Konsolidacja() {
   });
 
   const geocode = useMutation({
-    mutationFn: () => geocodeFn({ data: {} }),
+    mutationFn: () => geocodeFn(),
     onSuccess: (r: any) => {
       toast.success(`Geokodowanie: ${r.done} ok, ${r.failed} błędów`);
       qc.invalidateQueries({ queryKey: ["waitlist"] });
