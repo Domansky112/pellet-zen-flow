@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Minus, Lock, Unlock, RefreshCw } from "lucide-react";
 
-export const Route = createFileRoute("/magazyn")({
+export const Route = createFileRoute("/_authenticated/magazyn")({
   head: () => ({
     meta: [
       { title: "Magazyn — Słoneczny Pellet OS" },

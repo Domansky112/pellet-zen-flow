@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calculator, MapPin, Users, TrendingDown } from "lucide-react";
 
-export const Route = createFileRoute("/transport")({
+export const Route = createFileRoute("/_authenticated/transport")({
   head: () => ({
     meta: [
       { title: "Transport — Słoneczny Pellet OS" },

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bot, Shield, MessageSquare, CheckCircle2 } from "lucide-react";
 
-export const Route = createFileRoute("/bot")({
+export const Route = createFileRoute("/_authenticated/bot")({
   head: () => ({
     meta: [
       { title: "Bot magazynowy — Słoneczny Pellet OS" },

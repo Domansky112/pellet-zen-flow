@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
 import { Inbox, Warehouse, Truck, CalendarDays, TrendingUp, AlertTriangle, Package, Boxes } from "lucide-react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — Słoneczny Pellet OS" },

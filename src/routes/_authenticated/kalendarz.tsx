@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bell, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/kalendarz")({
+export const Route = createFileRoute("/_authenticated/kalendarz")({
   head: () => ({
     meta: [
       { title: "Kalendarz transportów — Słoneczny Pellet OS" },
