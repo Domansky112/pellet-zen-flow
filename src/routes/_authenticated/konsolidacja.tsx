@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/konsolidacja")({
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Palety",
   pellet_bigbag: "Big Bag",
-  brykiet: "Brykiet",
+  
   inne: "Inne",
 };
 
