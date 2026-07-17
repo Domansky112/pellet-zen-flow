@@ -65,7 +65,7 @@ function Konsolidacja() {
 
   const suggestions = useQuery({
     queryKey: ["pool-suggestions", params],
-    queryFn: () => findFn({ data: params }),
+    queryFn: () => findFn({ data: params as any }),
   });
 
   const geocode = useMutation({
