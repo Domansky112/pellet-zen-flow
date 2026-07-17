@@ -9,6 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
 import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
 import { Route as AuthenticatedKalendarzRouteImport } from './routes/_authenticated/kalendarz'
@@ -16,38 +19,54 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedBotRouteImport } from './routes/_authenticated/bot'
 
-const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
-  id: '/_authenticated/transport',
-  path: '/transport',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMagazynRoute = AuthenticatedMagazynRouteImport.update({
-  id: '/_authenticated/magazyn',
+  id: '/magazyn',
   path: '/magazyn',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedKalendarzRoute = AuthenticatedKalendarzRouteImport.update({
-  id: '/_authenticated/kalendarz',
+  id: '/kalendarz',
   path: '/kalendarz',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/_authenticated/dashboard',
+  id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
-  id: '/_authenticated/crm',
+  id: '/crm',
   path: '/crm',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBotRoute = AuthenticatedBotRouteImport.update({
-  id: '/_authenticated/bot',
+  id: '/bot',
   path: '/bot',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/bot': typeof AuthenticatedBotRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -56,6 +75,8 @@ export interface FileRoutesByFullPath {
   '/transport': typeof AuthenticatedTransportRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/bot': typeof AuthenticatedBotRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -65,6 +86,9 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/_authenticated/bot': typeof AuthenticatedBotRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -75,6 +99,8 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
+    | '/auth'
     | '/bot'
     | '/crm'
     | '/dashboard'
@@ -82,9 +108,20 @@ export interface FileRouteTypes {
     | '/magazyn'
     | '/transport'
   fileRoutesByTo: FileRoutesByTo
-  to: '/bot' | '/crm' | '/dashboard' | '/kalendarz' | '/magazyn' | '/transport'
+  to:
+    | '/'
+    | '/auth'
+    | '/bot'
+    | '/crm'
+    | '/dashboard'
+    | '/kalendarz'
+    | '/magazyn'
+    | '/transport'
   id:
     | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
     | '/_authenticated/bot'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
@@ -94,6 +131,80 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+}
+
+declare module '@tanstack/react-router' {
+  interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/transport': {
+      id: '/_authenticated/transport'
+      path: '/transport'
+      fullPath: '/transport'
+      preLoaderRoute: typeof AuthenticatedTransportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/magazyn': {
+      id: '/_authenticated/magazyn'
+      path: '/magazyn'
+      fullPath: '/magazyn'
+      preLoaderRoute: typeof AuthenticatedMagazynRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kalendarz': {
+      id: '/_authenticated/kalendarz'
+      path: '/kalendarz'
+      fullPath: '/kalendarz'
+      preLoaderRoute: typeof AuthenticatedKalendarzRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bot': {
+      id: '/_authenticated/bot'
+      path: '/bot'
+      fullPath: '/bot'
+      preLoaderRoute: typeof AuthenticatedBotRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+  }
+}
+
+interface AuthenticatedRouteRouteChildren {
   AuthenticatedBotRoute: typeof AuthenticatedBotRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -102,60 +213,22 @@ export interface RootRouteChildren {
   AuthenticatedTransportRoute: typeof AuthenticatedTransportRoute
 }
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/_authenticated/transport': {
-      id: '/_authenticated/transport'
-      path: '/transport'
-      fullPath: '/transport'
-      preLoaderRoute: typeof AuthenticatedTransportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/magazyn': {
-      id: '/_authenticated/magazyn'
-      path: '/magazyn'
-      fullPath: '/magazyn'
-      preLoaderRoute: typeof AuthenticatedMagazynRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/kalendarz': {
-      id: '/_authenticated/kalendarz'
-      path: '/kalendarz'
-      fullPath: '/kalendarz'
-      preLoaderRoute: typeof AuthenticatedKalendarzRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/crm': {
-      id: '/_authenticated/crm'
-      path: '/crm'
-      fullPath: '/crm'
-      preLoaderRoute: typeof AuthenticatedCrmRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/bot': {
-      id: '/_authenticated/bot'
-      path: '/bot'
-      fullPath: '/bot'
-      preLoaderRoute: typeof AuthenticatedBotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-  }
-}
-
-const rootRouteChildren: RootRouteChildren = {
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBotRoute: AuthenticatedBotRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKalendarzRoute: AuthenticatedKalendarzRoute,
   AuthenticatedMagazynRoute: AuthenticatedMagazynRoute,
   AuthenticatedTransportRoute: AuthenticatedTransportRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
