@@ -17,6 +17,8 @@ const LeadSchema = z.object({
   quantity: z.number().positive().max(1000).optional(),
   source: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("www"),
   notes: z.string().max(2000).optional().or(z.literal("")),
+  pooling_enabled: z.boolean().optional().default(false),
+  pooling_wait_days: z.number().int().min(1).max(60).optional(),
   // honeypot — boty wypełniają, ludzie nie
   website: z.string().max(0).optional().or(z.literal("")),
 });
