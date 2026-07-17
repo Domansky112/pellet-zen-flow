@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Słoneczny Pellet OS — CRM, magazyn i logistyka pelletu" },
+      { title: "Słoneczny Pellet OS - CRM, magazyn i logistyka pelletu" },
       {
         name: "description",
         content:
-          "System operacyjny dla dystrybucji pelletu: CRM omnichannel, silnik magazynowy, kalkulator dostaw i bot Telegram.",
+          "System operacyjny dla dystrybucji pelletu: CRM",
       },
     ],
   }),
