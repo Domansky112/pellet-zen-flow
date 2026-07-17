@@ -14,16 +14,279 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leads: {
+        Row: {
+          assigned_to: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          priority: number
+          product: Database["public"]["Enums"]["product_type"] | null
+          quantity: number | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          priority?: number
+          product?: Database["public"]["Enums"]["product_type"] | null
+          quantity?: number | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          priority?: number
+          product?: Database["public"]["Enums"]["product_type"] | null
+          quantity?: number | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stock_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string | null
+          note: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          reference: string | null
+          txn_type: Database["public"]["Enums"]["stock_txn_type"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string | null
+          note?: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          reference?: string | null
+          txn_type: Database["public"]["Enums"]["stock_txn_type"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string | null
+          note?: string | null
+          product?: Database["public"]["Enums"]["product_type"]
+          quantity?: number
+          reference?: string | null
+          txn_type?: Database["public"]["Enums"]["stock_txn_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_chats: {
+        Row: {
+          chat_id: string
+          created_at: string
+          id: string
+          is_whitelisted: boolean
+          label: string | null
+        }
+        Insert: {
+          chat_id: string
+          created_at?: string
+          id?: string
+          is_whitelisted?: boolean
+          label?: string | null
+        }
+        Update: {
+          chat_id?: string
+          created_at?: string
+          id?: string
+          is_whitelisted?: boolean
+          label?: string | null
+        }
+        Relationships: []
+      }
+      transport_items: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          transport_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          transport_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          product?: Database["public"]["Enums"]["product_type"]
+          quantity?: number
+          transport_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_items_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "transports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transports: {
+        Row: {
+          capacity_kg: number | null
+          city: string | null
+          created_at: string
+          driver: string | null
+          id: string
+          notes: string | null
+          postal_code: string | null
+          scheduled_date: string
+          status: Database["public"]["Enums"]["transport_status"]
+          telegram_alert_sent_at: string | null
+          updated_at: string
+          vehicle: string | null
+          zone: string | null
+        }
+        Insert: {
+          capacity_kg?: number | null
+          city?: string | null
+          created_at?: string
+          driver?: string | null
+          id?: string
+          notes?: string | null
+          postal_code?: string | null
+          scheduled_date: string
+          status?: Database["public"]["Enums"]["transport_status"]
+          telegram_alert_sent_at?: string | null
+          updated_at?: string
+          vehicle?: string | null
+          zone?: string | null
+        }
+        Update: {
+          capacity_kg?: number | null
+          city?: string | null
+          created_at?: string
+          driver?: string | null
+          id?: string
+          notes?: string | null
+          postal_code?: string | null
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["transport_status"]
+          telegram_alert_sent_at?: string | null
+          updated_at?: string
+          vehicle?: string | null
+          zone?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      stock_balance: {
+        Row: {
+          physical: number | null
+          product: Database["public"]["Enums"]["product_type"] | null
+          reserved: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "sales" | "warehouse" | "transport"
+      lead_source: "www" | "email" | "telefon" | "b2b" | "inne"
+      lead_status: "nowy" | "w_kontakcie" | "oferta" | "wygrany" | "przegrany"
+      product_type: "pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne"
+      stock_txn_type:
+        | "przyjecie"
+        | "wydanie"
+        | "rezerwacja"
+        | "zwolnienie_rez"
+        | "korekta"
+      transport_status:
+        | "planowany"
+        | "potwierdzony"
+        | "w_trasie"
+        | "dostarczony"
+        | "anulowany"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +413,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "sales", "warehouse", "transport"],
+      lead_source: ["www", "email", "telefon", "b2b", "inne"],
+      lead_status: ["nowy", "w_kontakcie", "oferta", "wygrany", "przegrany"],
+      product_type: ["pellet_paleta", "pellet_bigbag", "brykiet", "inne"],
+      stock_txn_type: [
+        "przyjecie",
+        "wydanie",
+        "rezerwacja",
+        "zwolnienie_rez",
+        "korekta",
+      ],
+      transport_status: [
+        "planowany",
+        "potwierdzony",
+        "w_trasie",
+        "dostarczony",
+        "anulowany",
+      ],
+    },
   },
 } as const
