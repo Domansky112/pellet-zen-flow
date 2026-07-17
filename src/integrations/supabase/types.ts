@@ -193,6 +193,8 @@ export type Database = {
           scheduled_date: string
           status: Database["public"]["Enums"]["transport_status"]
           telegram_alert_sent_at: string | null
+          telegram_t4_sent_at: string | null
+          telegram_t7_sent_at: string | null
           updated_at: string
           vehicle: string | null
           zone: string | null
@@ -208,6 +210,8 @@ export type Database = {
           scheduled_date: string
           status?: Database["public"]["Enums"]["transport_status"]
           telegram_alert_sent_at?: string | null
+          telegram_t4_sent_at?: string | null
+          telegram_t7_sent_at?: string | null
           updated_at?: string
           vehicle?: string | null
           zone?: string | null
@@ -223,6 +227,8 @@ export type Database = {
           scheduled_date?: string
           status?: Database["public"]["Enums"]["transport_status"]
           telegram_alert_sent_at?: string | null
+          telegram_t4_sent_at?: string | null
+          telegram_t7_sent_at?: string | null
           updated_at?: string
           vehicle?: string | null
           zone?: string | null
