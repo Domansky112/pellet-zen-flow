@@ -278,7 +278,7 @@ function NewTransportDialog() {
           const map: Record<string, typeof product> = {
             pellet_paleta: "pellet_paleta",
             pellet_bigbag: "pellet_bigbag",
-            brykiet: "brykiet",
+            inne: "inne",
           };
           if (map[lead.product]) setProduct(map[lead.product]);
         }
