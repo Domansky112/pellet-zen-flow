@@ -28,6 +28,7 @@ import {
   confirmPool,
 } from "@/lib/pooling.functions";
 import { format, addDays } from "date-fns";
+import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { pl } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
@@ -125,6 +126,11 @@ function Konsolidacja() {
         description="Algorytm dobiera klientów w promieniu tras i wypełnia auto do 24 t — koszt dostawy rozbijasz między nich."
         actions={
           <>
+            <NewLeadDialog
+              defaults={{ source: "telefon", pooling_enabled: true }}
+              triggerLabel="Dodaj do poczekalni"
+              variant="outline"
+            />
             <Button onClick={() => geocode.mutate()} disabled={geocode.isPending} variant="outline">
               {geocode.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
               Geokoduj ({needsGeocoding})

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw } from "lucide-react";
 import { listLeads, updateLeadStatus, assignToMe } from "@/lib/leads.functions";
+import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -84,6 +85,7 @@ function CrmPage() {
             >
               <RefreshCw className="mr-2 h-4 w-4" /> Odśwież
             </Button>
+            <NewLeadDialog />
           </>
         }
       />
