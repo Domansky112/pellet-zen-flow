@@ -1,9 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
-import { Inbox, Warehouse, Truck, CalendarDays, TrendingUp, AlertTriangle, Package, Boxes } from "lucide-react";
+import {
+  Inbox,
+  Warehouse,
+  Truck,
+  CalendarDays,
+  TrendingUp,
+  AlertTriangle,
+  Package,
+  Boxes,
+} from "lucide-react";
+import { listLeads } from "@/lib/leads.functions";
+import { listStockBalance } from "@/lib/stock.functions";
+import { listTransports } from "@/lib/transport-crud.functions";
+import { format, isToday, isYesterday, startOfDay, addDays, differenceInCalendarDays } from "date-fns";
+import { pl } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -15,28 +31,127 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-const kpis = [
-  { label: "Nowe zgłoszenia dziś", value: "14", change: "+3 vs wczoraj", icon: Inbox, tone: "text-primary" },
-  { label: "Dostępne palety (t)", value: "82,4", change: "z 240 t fizycznie", icon: Package, tone: "text-info" },
-  { label: "Dostępne Big Bagi (t)", value: "31,0", change: "z 96 t fizycznie", icon: Boxes, tone: "text-warning" },
-  { label: "Transporty w tym tygodniu", value: "7", change: "2 wymagają alertu 4-dni", icon: Truck, tone: "text-success" },
-];
+const PRODUCT_LABEL: Record<string, string> = {
+  pellet_paleta: "Palety",
+  pellet_bigbag: "Big Bag",
+  brykiet: "Brykiet",
+  inne: "Inne",
+};
 
-const feed = [
-  { time: "10:42", type: "WWW", label: "quick-quote", who: "Marek Kowalski · 480 m²", tag: "Nowe" },
-  { time: "10:31", type: "Email", label: "formularz@", who: "Anna Zielińska · tel. 512-***-201", tag: "Do oddzwonienia" },
-  { time: "09:58", type: "B2B", label: "detailed-contact", who: "Drob-Pol Sp. z o.o. · Goleniów · 24 t", tag: "Priorytet" },
-  { time: "09:12", type: "Telegram", label: "Bot Magazyn", who: "Placowy: +8 palet · komentarz „dostawa Radom”", tag: "Magazyn" },
-  { time: "08:44", type: "WWW", label: "quick-quote", who: "Piotr Nowak · Złoty Stok · 5 t", tag: "Transport" },
-];
-
-const alerts = [
-  { text: "Transport #TR-241 do Goleniowa — 4 dni do wyjazdu", level: "warning" },
-  { text: "Big Bag: stan dostępny <20 t — warto uzupełnić", level: "warning" },
-  { text: "3 zgłoszenia z woj. dolnośląskiego — kandydat do konsolidacji auta 24 t", level: "info" },
-];
+const SOURCE_LABEL: Record<string, string> = {
+  www_quick: "WWW",
+  www_detailed: "B2B",
+  email: "Email",
+  telegram: "Telegram",
+  telefon: "Telefon",
+  inne: "Inne",
+};
 
 function Dashboard() {
+  const leadsFn = useServerFn(listLeads);
+  const stockFn = useServerFn(listStockBalance);
+  const transportsFn = useServerFn(listTransports);
+
+  const { data: leads } = useSuspenseQuery({ queryKey: ["leads"], queryFn: () => leadsFn() });
+  const { data: stock } = useSuspenseQuery({ queryKey: ["stock-balance"], queryFn: () => stockFn() });
+  const { data: transports } = useSuspenseQuery({ queryKey: ["transports"], queryFn: () => transportsFn() });
+
+  // KPIs
+  const today = startOfDay(new Date());
+  const in7 = addDays(today, 7);
+  const leadsToday = leads.filter((l: any) => isToday(new Date(l.created_at))).length;
+  const leadsYesterday = leads.filter((l: any) => isYesterday(new Date(l.created_at))).length;
+  const deltaLeads = leadsToday - leadsYesterday;
+
+  const balByProduct: Record<string, { physical: number; reserved: number; available: number }> = {};
+  for (const b of stock as any[]) {
+    balByProduct[b.product] = {
+      physical: Number(b.physical ?? 0),
+      reserved: Number(b.reserved ?? 0),
+      available: Number(b.available ?? 0),
+    };
+  }
+  const palety = balByProduct["pellet_paleta"] ?? { physical: 0, reserved: 0, available: 0 };
+  const bigbag = balByProduct["pellet_bigbag"] ?? { physical: 0, reserved: 0, available: 0 };
+  const brykiet = balByProduct["brykiet"] ?? { physical: 0, reserved: 0, available: 0 };
+
+  const transportsThisWeek = (transports as any[]).filter((t) => {
+    const d = new Date(t.scheduled_date);
+    return d >= today && d <= in7;
+  });
+  const needT4 = transportsThisWeek.filter((t) => {
+    const diff = differenceInCalendarDays(new Date(t.scheduled_date), today);
+    return diff <= 4 && !t.telegram_t4_sent_at;
+  }).length;
+
+  const kpis = [
+    {
+      label: "Nowe zgłoszenia dziś",
+      value: String(leadsToday),
+      change: deltaLeads === 0 ? "bez zmian vs wczoraj" : `${deltaLeads > 0 ? "+" : ""}${deltaLeads} vs wczoraj`,
+      icon: Inbox,
+      tone: "text-primary",
+    },
+    {
+      label: "Dostępne palety (t)",
+      value: palety.available.toFixed(1),
+      change: `z ${palety.physical.toFixed(1)} t fizycznie`,
+      icon: Package,
+      tone: "text-info",
+    },
+    {
+      label: "Dostępne Big Bagi (t)",
+      value: bigbag.available.toFixed(1),
+      change: `z ${bigbag.physical.toFixed(1)} t fizycznie`,
+      icon: Boxes,
+      tone: "text-warning",
+    },
+    {
+      label: "Transporty w tym tygodniu",
+      value: String(transportsThisWeek.length),
+      change: needT4 > 0 ? `${needT4} wymaga alertu T-4` : "wszystkie zaplanowane",
+      icon: Truck,
+      tone: "text-success",
+    },
+  ];
+
+  // Feed — ostatnie leady
+  const feed = (leads as any[]).slice(0, 6).map((l) => ({
+    time: format(new Date(l.created_at), "HH:mm"),
+    date: format(new Date(l.created_at), "d MMM", { locale: pl }),
+    type: SOURCE_LABEL[l.source] ?? l.source ?? "—",
+    who: [l.name, l.city, l.quantity ? `${l.quantity} t` : null].filter(Boolean).join(" · "),
+    label: PRODUCT_LABEL[l.product] ?? l.product ?? "—",
+    tag: l.priority === "wysoki" ? "Priorytet" : l.status ?? "Nowe",
+    priority: l.priority,
+  }));
+
+  // Alerty
+  const alerts: { text: string; level: "warning" | "info" }[] = [];
+  transportsThisWeek.forEach((t) => {
+    const diff = differenceInCalendarDays(new Date(t.scheduled_date), today);
+    if (diff <= 4 && diff >= 0 && !t.telegram_t4_sent_at) {
+      alerts.push({
+        text: `Transport ${format(new Date(t.scheduled_date), "d MMM", { locale: pl })} → ${t.city} — ${diff} ${
+          diff === 1 ? "dzień" : "dni"
+        } do wyjazdu`,
+        level: "warning",
+      });
+    }
+  });
+  if (palety.available < 20)
+    alerts.push({ text: `Palety: dostępne ${palety.available.toFixed(1)} t (<20 t) — warto uzupełnić`, level: "warning" });
+  if (bigbag.available < 20)
+    alerts.push({ text: `Big Bag: dostępne ${bigbag.available.toFixed(1)} t (<20 t) — warto uzupełnić`, level: "warning" });
+  const openB2B = (leads as any[]).filter(
+    (l) => l.source === "www_detailed" && ["nowy", "w_kontakcie", "oferta"].includes(l.status),
+  ).length;
+  if (openB2B >= 3)
+    alerts.push({ text: `${openB2B} otwartych leadów B2B — kandydat do konsolidacji auta 24 t`, level: "info" });
+  if (alerts.length === 0) alerts.push({ text: "Brak alertów — wszystko pod kontrolą.", level: "info" });
+
+  const upcoming = transportsThisWeek.slice(0, 6);
+
   return (
     <>
       <PageHeader
@@ -65,20 +180,32 @@ function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" /> Feed omnichannel
               </CardTitle>
-              <CardDescription>
-                Zgłoszenia WWW, e-mail (formularz@pelletdrob.pl), B2B i akcje Telegram — na żywo.
-              </CardDescription>
+              <CardDescription>Najnowsze zgłoszenia z WWW, e-mail, B2B i innych kanałów.</CardDescription>
             </CardHeader>
             <CardContent className="divide-y divide-border">
+              {feed.length === 0 && (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Brak zgłoszeń. <Link to="/formularz" className="text-primary underline">Przetestuj formularz</Link>.
+                </p>
+              )}
               {feed.map((f, i) => (
                 <div key={i} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="text-xs text-muted-foreground w-12 shrink-0 mt-0.5">{f.time}</div>
-                  <Badge variant="outline" className="shrink-0">{f.type}</Badge>
+                  <div className="text-xs text-muted-foreground w-16 shrink-0 mt-0.5">
+                    {f.date} {f.time}
+                  </div>
+                  <Badge variant="outline" className="shrink-0">
+                    {f.type}
+                  </Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{f.who}</p>
+                    <p className="text-sm font-medium truncate">{f.who || "—"}</p>
                     <p className="text-xs text-muted-foreground">{f.label}</p>
                   </div>
-                  <Badge className="shrink-0" variant="secondary">{f.tag}</Badge>
+                  <Badge
+                    className="shrink-0"
+                    variant={f.priority === "wysoki" ? "default" : "secondary"}
+                  >
+                    {f.tag}
+                  </Badge>
                 </div>
               ))}
             </CardContent>
@@ -114,23 +241,32 @@ function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <Warehouse className="h-5 w-5 text-primary" /> Bilans magazynu
               </CardTitle>
-              <CardDescription>Fizyczny / zarezerwowany / dostępny</CardDescription>
+              <CardDescription>Dostępne / fizyczne (t)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">Palety</span>
-                  <span className="text-muted-foreground">82,4 t / 240 t</span>
-                </div>
-                <Progress value={(82.4 / 240) * 100} />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">Big Bagi</span>
-                  <span className="text-muted-foreground">31,0 t / 96 t</span>
-                </div>
-                <Progress value={(31 / 96) * 100} />
-              </div>
+              {[
+                { label: "Palety", bal: palety },
+                { label: "Big Bagi", bal: bigbag },
+                { label: "Brykiet", bal: brykiet },
+              ].map((row) => {
+                const pct = row.bal.physical > 0 ? (row.bal.available / row.bal.physical) * 100 : 0;
+                return (
+                  <div key={row.label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{row.label}</span>
+                      <span className="text-muted-foreground">
+                        {row.bal.available.toFixed(1)} t / {row.bal.physical.toFixed(1)} t
+                      </span>
+                    </div>
+                    <Progress value={Math.max(0, Math.min(100, pct))} />
+                    {row.bal.reserved > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Zarezerwowane: {row.bal.reserved.toFixed(1)} t
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -139,20 +275,38 @@ function Dashboard() {
               <CardTitle className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-primary" /> Ten tydzień
               </CardTitle>
-              <CardDescription>Poniedziałek – niedziela</CardDescription>
+              <CardDescription>Najbliższe 7 dni</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {[
-                { d: "Pon 15.09", t: "TR-238 · Radom · 8 t · Palety" },
-                { d: "Wt 16.09", t: "TR-240 · Lublin · 5 t · Big Bag" },
-                { d: "Czw 18.09", t: "TR-241 · Goleniów · 24 t · Palety (konsolidacja)" },
-                { d: "Pt 19.09", t: "TR-243 · Złoty Stok · 3 t · Big Bag" },
-              ].map((row, i) => (
-                <div key={i} className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/50">
-                  <span className="text-sm font-medium">{row.d}</span>
-                  <span className="text-sm text-muted-foreground">{row.t}</span>
-                </div>
-              ))}
+              {upcoming.length === 0 && (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Brak transportów.{" "}
+                  <Link to="/kalendarz" className="text-primary underline">
+                    Dodaj nowy
+                  </Link>
+                  .
+                </p>
+              )}
+              {upcoming.map((t: any) => {
+                const items = t.transport_items ?? [];
+                const tons = items.reduce((s: number, i: any) => s + Number(i.quantity ?? 0), 0);
+                const products = [...new Set(items.map((i: any) => PRODUCT_LABEL[i.product] ?? i.product))].join(", ");
+                return (
+                  <Link
+                    key={t.id}
+                    to="/kalendarz"
+                    className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/50"
+                  >
+                    <span className="text-sm font-medium">
+                      {format(new Date(t.scheduled_date), "EEE d.MM", { locale: pl })}
+                    </span>
+                    <span className="text-sm text-muted-foreground truncate ml-3">
+                      {t.city} · {tons.toFixed(1)} t{products ? ` · ${products}` : ""}
+                      {t.driver ? ` · ${t.driver}` : ""}
+                    </span>
+                  </Link>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
