@@ -51,7 +51,7 @@ function Landing() {
           </div>
           {signedIn ? (
             <Button asChild>
-              <Link to="/_authenticated/dashboard">
+              <Link to="/dashboard">
                 Otwórz panel <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -75,7 +75,7 @@ function Landing() {
         <div className="mt-8 flex gap-3">
           {signedIn ? (
             <Button size="lg" asChild>
-              <Link to="/_authenticated/dashboard">Wejdź do panelu</Link>
+              <Link to="/dashboard">Wejdź do panelu</Link>
             </Button>
           ) : (
             <Button size="lg" asChild>
