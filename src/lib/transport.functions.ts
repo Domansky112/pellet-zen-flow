@@ -12,8 +12,7 @@ const CalcInput = z.object({
   fuelPrice: z.number().positive().max(20).default(6.8),
   consumption: z.number().positive().max(100).default(30), // l/100km
   perKmRate: z.number().min(0).max(20).default(0.4),
-  perTonRate: z.number().min(0).max(2000).default(350),
-  perDayRate: z.number().min(0).max(2000).default(0),
+  driverDayRate: z.number().min(0).max(2000).default(350),
   roundTrip: z.boolean().default(true),
 });
 
