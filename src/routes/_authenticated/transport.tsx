@@ -1,157 +1,335 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, MapPin, Users, TrendingDown } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Calculator, MapPin, Loader2, Users } from "lucide-react";
+import { toast } from "sonner";
+import {
+  calculateTransport,
+  suggestConsolidation,
+} from "@/lib/transport.functions";
 
 export const Route = createFileRoute("/_authenticated/transport")({
   head: () => ({
     meta: [
       { title: "Transport — Słoneczny Pellet OS" },
-      { name: "description", content: "Kalkulator strefowy dostaw i konsolidacja ładunków po regionach." },
+      {
+        name: "description",
+        content:
+          "Kalkulator transportu od bazy Witoroża 21-570 — km, paliwo, koszt.",
+      },
     ],
   }),
   component: TransportPage,
 });
 
-const konsolidacje = [
-  {
-    region: "Dolnośląskie · rejon Złoty Stok / Ząbkowice",
-    liczba: 3,
-    lacznie: 8.5,
-    klienci: ["Piotr Nowak · 5 t", "Krzysztof M. · 2 t", "Ewa S. · 1,5 t"],
-    oszczednosc: "≈ 900 zł / klient",
-  },
-  {
-    region: "Zachodniopomorskie · Goleniów + Szczecin",
-    liczba: 2,
-    lacznie: 27,
-    klienci: ["Drob-Pol · 24 t", "GastroPl · 3 t"],
-    oszczednosc: "auto 24 t + doładunek",
-  },
-  {
-    region: "Mazowieckie · Radom / Kozienice",
-    liczba: 4,
-    lacznie: 14,
-    klienci: ["Marek K. · 6 t", "Beata W. · 4 t", "AgroFarm · 3 t", "Jan S. · 1 t"],
-    oszczednosc: "≈ 650 zł / klient",
-  },
-];
-
-const strefy = [
-  { name: "Strefa I (do 100 km)", stawka: "180 zł/t", eta: "24 h" },
-  { name: "Strefa II (100–250 km)", stawka: "260 zł/t", eta: "48 h" },
-  { name: "Strefa III (250–450 km)", stawka: "340 zł/t", eta: "48–72 h" },
-  { name: "Strefa IV (>450 km)", stawka: "420 zł/t + FTL", eta: "72 h" },
-];
+type CalcResult = Awaited<ReturnType<typeof calculateTransport>>;
 
 function TransportPage() {
+  const calcFn = useServerFn(calculateTransport);
+  const consolidationFn = useServerFn(suggestConsolidation);
+
+  const [destination, setDestination] = useState("");
+  const [tons, setTons] = useState(24);
+  const [driverDays, setDriverDays] = useState(1);
+  const [fuelPrice, setFuelPrice] = useState(6.8);
+  const [consumption, setConsumption] = useState(30);
+  const [perKmRate, setPerKmRate] = useState(0.4);
+  const [perTonRate, setPerTonRate] = useState(350);
+  const [perDayRate, setPerDayRate] = useState(0);
+  const [roundTrip, setRoundTrip] = useState(true);
+  const [result, setResult] = useState<CalcResult | null>(null);
+
+  const calc = useMutation({
+    mutationFn: () =>
+      calcFn({
+        data: {
+          destination,
+          tons,
+          driverDays,
+          fuelPrice,
+          consumption,
+          perKmRate,
+          perTonRate,
+          perDayRate,
+          roundTrip,
+        },
+      }),
+    onSuccess: (r) => setResult(r),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const consolidation = useQuery({
+    queryKey: ["transport", "consolidation"],
+    queryFn: () => consolidationFn(),
+  });
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Logistyka i kalkulator dostaw"
-        description="Wycena po kodzie pocztowym oraz sugestie konsolidacji ładunków."
+        title="Transport"
+        description="Kalkulator kosztu transportu od bazy Witoroża, 21-570 Drelów."
       />
-      <div className="p-6 grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calculator className="h-5 w-5 text-primary" /> Kalkulator strefowy
-            </CardTitle>
-            <CardDescription>Wpisz kod pocztowy klienta i tonaż.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="kod">Kod pocztowy</Label>
-                <Input id="kod" placeholder="99-320" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tony">Tony</Label>
-                <Input id="tony" type="number" placeholder="5" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="miasto">Miejscowość (opcjonalnie)</Label>
-              <Input id="miasto" placeholder="Goleniów" />
-            </div>
-            <Button className="w-full">Oblicz koszt dostawy</Button>
-
-            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Odległość</span>
-                <span className="font-medium">— km</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Strefa</span>
-                <span className="font-medium">—</span>
-              </div>
-              <div className="flex items-center justify-between text-base pt-2 border-t border-border/60">
-                <span className="font-medium">Koszt transportu</span>
-                <span className="font-display text-2xl font-semibold text-primary">— zł</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" /> Sugestie konsolidacji
+              <Calculator className="h-5 w-5 text-primary" />
+              Kalkulator trasy
             </CardTitle>
             <CardDescription>
-              Zapytania z podobnego regionu i tonażu — jedno auto zamiast trzech.
+              Podaj adres docelowy — Google Maps policzy km od bazy, a system
+              rozbije koszt.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {konsolidacje.map((k, i) => (
-              <div key={i} className="rounded-lg border p-4 hover:border-primary/40 transition-colors">
-                <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                  <div>
-                    <p className="font-medium flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-primary" /> {k.region}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {k.liczba} zgłoszeń · łącznie {k.lacznie} t
-                    </p>
-                  </div>
-                  <Badge className="bg-success/15 text-success border-success/30" variant="outline">
-                    <TrendingDown className="mr-1 h-3 w-3" /> {k.oszczednosc}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {k.klienci.map((c, j) => (
-                    <Badge key={j} variant="secondary" className="font-normal">{c}</Badge>
-                  ))}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm">Utwórz transport zbiorczy</Button>
-                  <Button size="sm" variant="outline">Powiadom klientów</Button>
-                </div>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dest">Adres docelowy</Label>
+              <Input
+                id="dest"
+                placeholder="np. Wrocław, ul. Legnicka 55"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Tony" value={tons} onChange={setTons} step={0.5} />
+              <Field
+                label="Dni kierowcy"
+                value={driverDays}
+                onChange={setDriverDays}
+                step={1}
+              />
+              <Field
+                label="Cena paliwa (zł/l)"
+                value={fuelPrice}
+                onChange={setFuelPrice}
+                step={0.1}
+              />
+              <Field
+                label="Spalanie (l/100km)"
+                value={consumption}
+                onChange={setConsumption}
+                step={1}
+              />
+              <Field
+                label="Stawka zł/km"
+                value={perKmRate}
+                onChange={setPerKmRate}
+                step={0.1}
+              />
+              <Field
+                label="Stawka zł/tonę"
+                value={perTonRate}
+                onChange={setPerTonRate}
+                step={10}
+              />
+              <Field
+                label="Dieta / dzień"
+                value={perDayRate}
+                onChange={setPerDayRate}
+                step={10}
+              />
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={roundTrip}
+                    onChange={(e) => setRoundTrip(e.target.checked)}
+                  />
+                  Trasa w obie strony
+                </label>
               </div>
-            ))}
+            </div>
+
+            <Button
+              onClick={() => calc.mutate()}
+              disabled={!destination || calc.isPending}
+              className="w-full"
+            >
+              {calc.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="mr-2 h-4 w-4" />
+              )}
+              Policz trasę i koszt
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <Card>
           <CardHeader>
-            <CardTitle>Cennik stref</CardTitle>
-            <CardDescription>Bazowa siatka używana przez kalkulator. Nadpisywana ręcznie dla priorytetów.</CardDescription>
+            <CardTitle>Wynik</CardTitle>
+            <CardDescription>
+              {result ? result.destination : "Wypełnij formularz i policz."}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {strefy.map((s) => (
-              <div key={s.name} className="rounded-lg border p-4">
-                <p className="text-xs text-muted-foreground">{s.name}</p>
-                <p className="font-display text-xl font-semibold mt-1">{s.stawka}</p>
-                <p className="text-xs text-muted-foreground mt-1">ETA {s.eta}</p>
+          <CardContent>
+            {result ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <Metric
+                    label={roundTrip ? "Km (tam-powrót)" : "Km"}
+                    value={`${result.km}`}
+                  />
+                  <Metric label="Jednokierunkowo" value={`${result.oneWayKm} km`} />
+                  <Metric
+                    label="Czas jazdy"
+                    value={`${Math.floor(result.durationMin / 60)}h ${result.durationMin % 60}m`}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2 text-sm">
+                  <Row label="Paliwo" value={result.breakdown.fuel} />
+                  <Row label="Amortyzacja/opłaty (zł/km)" value={result.breakdown.km} />
+                  <Row label="Stawka za tony" value={result.breakdown.tons} />
+                  <Row label="Diety kierowcy" value={result.breakdown.days} />
+                  <Separator />
+                  <div className="flex items-center justify-between text-base font-semibold">
+                    <span>Razem</span>
+                    <span className="text-primary">
+                      {result.total.toLocaleString("pl-PL")} zł
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Koszt za tonę</span>
+                    <span>{result.perTon.toLocaleString("pl-PL")} zł/t</span>
+                  </div>
+                </div>
               </div>
-            ))}
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Baza:{" "}
+                <span className="font-medium text-foreground">
+                  Witoroża, 21-570 Drelów
+                </span>
+                . Trasa liczona przez Google Maps.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
-    </>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Konsolidacja
+          </CardTitle>
+          <CardDescription>
+            Otwarte leady zgrupowane po mieście — kandydaci do wspólnego kursu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {consolidation.isLoading ? (
+            <p className="text-sm text-muted-foreground">Ładuję…</p>
+          ) : consolidation.data && consolidation.data.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {consolidation.data.map((g) => (
+                <div
+                  key={g.city}
+                  className="rounded-lg border border-border p-4 space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{g.city}</div>
+                    <Badge variant="secondary">
+                      {g.totalTons.toLocaleString("pl-PL")} t
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {g.leads.length} lead(ów)
+                  </p>
+                  <ul className="text-xs space-y-1">
+                    {g.leads.slice(0, 5).map((l) => (
+                      <li key={l.id} className="flex justify-between">
+                        <span>{l.name}</span>
+                        <span className="text-muted-foreground">
+                          {Number(l.quantity ?? 0)} t
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setDestination(g.city);
+                      setTons(g.totalTons);
+                      toast.info(`Wstawiono ${g.city} do kalkulatora`);
+                    }}
+                  >
+                    Policz kurs
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Brak otwartych leadów z miastem do zgrupowania.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  step,
+}: {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  step: number;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input
+        type="number"
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+      />
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span>{value.toLocaleString("pl-PL")} zł</span>
+    </div>
   );
 }
