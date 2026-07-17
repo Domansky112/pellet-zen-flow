@@ -20,6 +20,8 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedBotRouteImport } from './routes/_authenticated/bot'
 import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicHooksTransportRemindersRouteImport } from './routes/api/public/hooks/transport-reminders'
 
 const FormularzRoute = FormularzRouteImport.update({
   id: '/formularz',
@@ -75,6 +77,18 @@ const ApiPublicLeadsRoute = ApiPublicLeadsRouteImport.update({
   path: '/api/public/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksTransportRemindersRoute =
+  ApiPublicHooksTransportRemindersRouteImport.update({
+    id: '/api/public/hooks/transport-reminders',
+    path: '/api/public/hooks/transport-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +101,8 @@ export interface FileRoutesByFullPath {
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,6 +115,8 @@ export interface FileRoutesByTo {
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,6 +131,8 @@ export interface FileRoutesById {
   '/_authenticated/magazyn': typeof AuthenticatedMagazynRoute
   '/_authenticated/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +147,8 @@ export interface FileRouteTypes {
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/transport-reminders'
+    | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -139,6 +161,8 @@ export interface FileRouteTypes {
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/transport-reminders'
+    | '/api/public/telegram/webhook'
   id:
     | '__root__'
     | '/'
@@ -152,6 +176,8 @@ export interface FileRouteTypes {
     | '/_authenticated/magazyn'
     | '/_authenticated/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/transport-reminders'
+    | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -160,6 +186,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   FormularzRoute: typeof FormularzRoute
   ApiPublicLeadsRoute: typeof ApiPublicLeadsRoute
+  ApiPublicHooksTransportRemindersRoute: typeof ApiPublicHooksTransportRemindersRoute
+  ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,6 +269,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/transport-reminders': {
+      id: '/api/public/hooks/transport-reminders'
+      path: '/api/public/hooks/transport-reminders'
+      fullPath: '/api/public/hooks/transport-reminders'
+      preLoaderRoute: typeof ApiPublicHooksTransportRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -271,6 +313,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   FormularzRoute: FormularzRoute,
   ApiPublicLeadsRoute: ApiPublicLeadsRoute,
+  ApiPublicHooksTransportRemindersRoute: ApiPublicHooksTransportRemindersRoute,
+  ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
