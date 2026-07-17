@@ -192,8 +192,8 @@ function TransportPage() {
                 <div className="space-y-2 text-sm">
                   <Row label="Paliwo" value={result.breakdown.fuel} />
                   <Row label="Amortyzacja/opłaty (zł/km)" value={result.breakdown.km} />
-                  <Row label="Stawka za tony" value={result.breakdown.tons} />
-                  <Row label="Diety kierowcy" value={result.breakdown.days} />
+                  <Row label="Kierowca (dni × stawka)" value={result.breakdown.driver} />
+
                   <Separator />
                   <div className="flex items-center justify-between text-base font-semibold">
                     <span>Razem</span>
