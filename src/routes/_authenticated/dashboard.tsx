@@ -73,7 +73,7 @@ function Dashboard() {
   }
   const palety = balByProduct["pellet_paleta"] ?? { physical: 0, reserved: 0, available: 0 };
   const bigbag = balByProduct["pellet_bigbag"] ?? { physical: 0, reserved: 0, available: 0 };
-  const brykiet = balByProduct["brykiet"] ?? { physical: 0, reserved: 0, available: 0 };
+  
 
   const transportsThisWeek = (transports as any[]).filter((t) => {
     const d = new Date(t.scheduled_date);
