@@ -49,7 +49,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
     city: "",
     postal_code: "",
     source: defaults?.source ?? "telefon",
-    product: defaults?.product ?? "pellet_worki",
+    product: defaults?.product ?? "pellet_paleta",
     quantity: "",
     notes: "",
     pooling_enabled: defaults?.pooling_enabled ?? false,
