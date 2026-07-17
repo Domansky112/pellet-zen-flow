@@ -89,25 +89,26 @@ export const suggestConsolidation = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, name, city, quantity_tons, status, priority")
+      .select("id, name, city, quantity, status, priority, product")
       .in("status", ["nowy", "w_kontakcie", "oferta"])
       .not("city", "is", null);
     if (error) throw new Error(error.message);
 
+    type LeadRow = NonNullable<typeof data>[number];
     const groups = new Map<
       string,
-      { city: string; leads: typeof data; totalTons: number }
+      { city: string; leads: LeadRow[]; totalTons: number }
     >();
     for (const lead of data ?? []) {
       const key = (lead.city ?? "").trim().toLowerCase();
       if (!key) continue;
       const bucket = groups.get(key) ?? {
         city: lead.city as string,
-        leads: [] as typeof data,
+        leads: [] as LeadRow[],
         totalTons: 0,
       };
       bucket.leads.push(lead);
-      bucket.totalTons += Number(lead.quantity_tons ?? 0);
+      bucket.totalTons += Number(lead.quantity ?? 0);
       groups.set(key, bucket);
     }
     return Array.from(groups.values())
