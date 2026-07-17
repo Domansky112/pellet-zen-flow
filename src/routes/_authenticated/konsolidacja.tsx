@@ -28,6 +28,7 @@ import {
   confirmPool,
 } from "@/lib/pooling.functions";
 import { format, addDays } from "date-fns";
+import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { pl } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
