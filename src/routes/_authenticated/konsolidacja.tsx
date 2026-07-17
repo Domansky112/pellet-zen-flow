@@ -371,7 +371,7 @@ function ConfirmDialog({
   const [date, setDate] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
-  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne">("pellet_paleta");
+  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">("pellet_paleta");
 
   const mut = useMutation({
     mutationFn: () =>

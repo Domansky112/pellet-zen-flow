@@ -13,7 +13,7 @@ const LeadSchema = z.object({
   phone: z.string().trim().min(6).max(40).optional().or(z.literal("")),
   city: z.string().trim().max(120).optional().or(z.literal("")),
   postal_code: z.string().trim().max(12).optional().or(z.literal("")),
-  product: z.enum(["pellet_paleta", "pellet_bigbag", "brykiet", "inne"]).optional(),
+  product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
   quantity: z.number().positive().max(1000).optional(),
   source: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("www"),
   notes: z.string().max(2000).optional().or(z.literal("")),

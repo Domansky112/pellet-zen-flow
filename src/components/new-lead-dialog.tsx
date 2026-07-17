@@ -31,7 +31,7 @@ type Props = {
   defaults?: Partial<{
     source: "www" | "email" | "b2b" | "telefon" | "inne";
     pooling_enabled: boolean;
-    product: "pellet_worki" | "pellet_bigbag" | "pellet_luz" | "brykiet" | "inne";
+    product: "pellet_paleta" | "pellet_bigbag" | "inne";
   }>;
   triggerLabel?: string;
   variant?: "default" | "outline" | "secondary";

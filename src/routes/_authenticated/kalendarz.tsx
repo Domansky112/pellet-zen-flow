@@ -210,7 +210,7 @@ function NewTransportDialog() {
   const [destination, setDestination] = useState("");
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
-  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "brykiet" | "inne">(
+  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">(
     "pellet_bigbag",
   );
   const [quantity, setQuantity] = useState<number>(20);

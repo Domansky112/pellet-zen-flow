@@ -52,7 +52,7 @@ const CreateInput = z.object({
   city: z.string().trim().max(120).optional().or(z.literal("")),
   postal_code: z.string().trim().max(12).optional().or(z.literal("")),
   source: z.enum(["www", "email", "b2b", "telefon", "inne"]).default("inne"),
-  product: z.enum(["pellet_worki", "pellet_bigbag", "pellet_luz", "brykiet", "inne"]).optional().nullable(),
+  product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional().nullable(),
   quantity: z.number().nonnegative().optional().nullable(),
   notes: z.string().max(2000).optional().or(z.literal("")),
   priority: z.number().int().min(0).max(5).default(0),
