@@ -82,7 +82,6 @@ function TransportPage() {
       <PageHeader
         title="Transport"
         description="Kalkulator kosztu transportu od bazy Witoroża, 21-570 Drelów."
-        icon={Truck}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
