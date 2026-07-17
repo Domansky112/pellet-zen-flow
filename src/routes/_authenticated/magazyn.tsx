@@ -99,21 +99,14 @@ function WarehousePage() {
         }
       />
       <div className="p-6 space-y-6">
-        <Tabs defaultValue="pellet_paleta">
-          <TabsList>
-            {PRODUCTS.map((p) => (
-              <TabsTrigger key={p.key} value={p.key}>{p.label}</TabsTrigger>
-            ))}
-          </TabsList>
+        <div className="space-y-6">
           {PRODUCTS.map((p) => {
             const b = byProduct.get(p.key) ?? { physical: 0, reserved: 0 };
             return (
-              <TabsContent key={p.key} value={p.key} className="mt-4">
-                <StockPanel product={p} balance={b} openLeads={openLeads} />
-              </TabsContent>
+              <StockPanel key={p.key} product={p} balance={b} openLeads={openLeads} />
             );
           })}
-        </Tabs>
+        </div>
 
         <Card>
           <CardHeader>
