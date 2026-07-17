@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/kalendarz")({
 const productLabel: Record<string, string> = {
   pellet_paleta: "Pellet — paleta",
   pellet_bigbag: "Pellet — big bag",
-  brykiet: "Brykiet",
+  
   inne: "Inne",
 };
 
