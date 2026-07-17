@@ -9,8 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TransportRouteImport } from './routes/transport'
+import { Route as MagazynRouteImport } from './routes/magazyn'
+import { Route as KalendarzRouteImport } from './routes/kalendarz'
+import { Route as CrmRouteImport } from './routes/crm'
+import { Route as BotRouteImport } from './routes/bot'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TransportRoute = TransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MagazynRoute = MagazynRouteImport.update({
+  id: '/magazyn',
+  path: '/magazyn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KalendarzRoute = KalendarzRouteImport.update({
+  id: '/kalendarz',
+  path: '/kalendarz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BotRoute = BotRouteImport.update({
+  id: '/bot',
+  path: '/bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +49,90 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bot': typeof BotRoute
+  '/crm': typeof CrmRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/magazyn': typeof MagazynRoute
+  '/transport': typeof TransportRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bot': typeof BotRoute
+  '/crm': typeof CrmRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/magazyn': typeof MagazynRoute
+  '/transport': typeof TransportRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bot': typeof BotRoute
+  '/crm': typeof CrmRoute
+  '/kalendarz': typeof KalendarzRoute
+  '/magazyn': typeof MagazynRoute
+  '/transport': typeof TransportRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/bot' | '/crm' | '/kalendarz' | '/magazyn' | '/transport'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/bot' | '/crm' | '/kalendarz' | '/magazyn' | '/transport'
+  id:
+    | '__root__'
+    | '/'
+    | '/bot'
+    | '/crm'
+    | '/kalendarz'
+    | '/magazyn'
+    | '/transport'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BotRoute: typeof BotRoute
+  CrmRoute: typeof CrmRoute
+  KalendarzRoute: typeof KalendarzRoute
+  MagazynRoute: typeof MagazynRoute
+  TransportRoute: typeof TransportRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/transport': {
+      id: '/transport'
+      path: '/transport'
+      fullPath: '/transport'
+      preLoaderRoute: typeof TransportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/magazyn': {
+      id: '/magazyn'
+      path: '/magazyn'
+      fullPath: '/magazyn'
+      preLoaderRoute: typeof MagazynRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kalendarz': {
+      id: '/kalendarz'
+      path: '/kalendarz'
+      fullPath: '/kalendarz'
+      preLoaderRoute: typeof KalendarzRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bot': {
+      id: '/bot'
+      path: '/bot'
+      fullPath: '/bot'
+      preLoaderRoute: typeof BotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +145,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BotRoute: BotRoute,
+  CrmRoute: CrmRoute,
+  KalendarzRoute: KalendarzRoute,
+  MagazynRoute: MagazynRoute,
+  TransportRoute: TransportRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
