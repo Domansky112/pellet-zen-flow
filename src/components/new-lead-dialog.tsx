@@ -146,10 +146,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               <Select value={form.product} onValueChange={(v) => set("product", v as typeof form.product)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pellet_worki">Pellet worki</SelectItem>
+                  <SelectItem value="pellet_paleta">Pellet paleta</SelectItem>
                   <SelectItem value="pellet_bigbag">Pellet big-bag</SelectItem>
-                  <SelectItem value="pellet_luz">Pellet luz</SelectItem>
-                  <SelectItem value="brykiet">Brykiet</SelectItem>
                   <SelectItem value="inne">Inne</SelectItem>
                 </SelectContent>
               </Select>
