@@ -48,8 +48,7 @@ function TransportPage() {
   const [fuelPrice, setFuelPrice] = useState(6.8);
   const [consumption, setConsumption] = useState(30);
   const [perKmRate, setPerKmRate] = useState(0.4);
-  const [perTonRate, setPerTonRate] = useState(350);
-  const [perDayRate, setPerDayRate] = useState(0);
+  const [driverDayRate, setDriverDayRate] = useState(350);
   const [roundTrip, setRoundTrip] = useState(true);
   const [result, setResult] = useState<CalcResult | null>(null);
 
@@ -63,8 +62,7 @@ function TransportPage() {
           fuelPrice,
           consumption,
           perKmRate,
-          perTonRate,
-          perDayRate,
+          driverDayRate,
           roundTrip,
         },
       }),
