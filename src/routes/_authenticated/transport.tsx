@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, MapPin, Truck, Loader2, Users } from "lucide-react";
+import { Calculator, MapPin, Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   calculateTransport,
