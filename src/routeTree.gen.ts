@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
 import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
+import { Route as AuthenticatedKonsolidacjaRouteImport } from './routes/_authenticated/konsolidacja'
 import { Route as AuthenticatedKalendarzRouteImport } from './routes/_authenticated/kalendarz'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
@@ -52,6 +53,12 @@ const AuthenticatedMagazynRoute = AuthenticatedMagazynRouteImport.update({
   path: '/magazyn',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedKonsolidacjaRoute =
+  AuthenticatedKonsolidacjaRouteImport.update({
+    id: '/konsolidacja',
+    path: '/konsolidacja',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedKalendarzRoute = AuthenticatedKalendarzRouteImport.update({
   id: '/kalendarz',
   path: '/kalendarz',
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kalendarz': typeof AuthenticatedKalendarzRoute
+  '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -112,6 +120,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kalendarz': typeof AuthenticatedKalendarzRoute
+  '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -128,6 +137,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kalendarz': typeof AuthenticatedKalendarzRoute
+  '/_authenticated/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/_authenticated/magazyn': typeof AuthenticatedMagazynRoute
   '/_authenticated/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/kalendarz'
+    | '/konsolidacja'
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/dashboard'
     | '/kalendarz'
+    | '/konsolidacja'
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
@@ -173,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/kalendarz'
+    | '/_authenticated/konsolidacja'
     | '/_authenticated/magazyn'
     | '/_authenticated/transport'
     | '/api/public/leads'
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMagazynRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/konsolidacja': {
+      id: '/_authenticated/konsolidacja'
+      path: '/konsolidacja'
+      fullPath: '/konsolidacja'
+      preLoaderRoute: typeof AuthenticatedKonsolidacjaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/kalendarz': {
       id: '/_authenticated/kalendarz'
       path: '/kalendarz'
@@ -291,6 +311,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKalendarzRoute: typeof AuthenticatedKalendarzRoute
+  AuthenticatedKonsolidacjaRoute: typeof AuthenticatedKonsolidacjaRoute
   AuthenticatedMagazynRoute: typeof AuthenticatedMagazynRoute
   AuthenticatedTransportRoute: typeof AuthenticatedTransportRoute
 }
@@ -300,6 +321,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKalendarzRoute: AuthenticatedKalendarzRoute,
+  AuthenticatedKonsolidacjaRoute: AuthenticatedKonsolidacjaRoute,
   AuthenticatedMagazynRoute: AuthenticatedMagazynRoute,
   AuthenticatedTransportRoute: AuthenticatedTransportRoute,
 }

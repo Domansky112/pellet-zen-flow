@@ -17,6 +17,8 @@ const LeadSchema = z.object({
   quantity: z.number().positive().max(1000).optional(),
   source: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("www"),
   notes: z.string().max(2000).optional().or(z.literal("")),
+  pooling_enabled: z.boolean().optional().default(false),
+  pooling_wait_days: z.number().int().min(1).max(60).optional(),
   // honeypot — boty wypełniają, ludzie nie
   website: z.string().max(0).optional().or(z.literal("")),
 });
@@ -46,10 +48,14 @@ export const Route = createFileRoute("/api/public/leads")({
           return Response.json({ ok: true }, { status: 200, headers: corsHeaders });
         }
 
-        const { website: _hp, ...clean } = parsed.data;
+        const { website: _hp, pooling_wait_days, pooling_enabled, ...clean } = parsed.data;
         // priorytet: b2b = wysoki, duża ilość = wysoki
         const priority =
           clean.source === "b2b" || (clean.quantity ?? 0) >= 10 ? 2 : 1;
+
+        const pooling_wait_until = pooling_enabled
+          ? new Date(Date.now() + (pooling_wait_days ?? 14) * 86400_000).toISOString().slice(0, 10)
+          : null;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin
@@ -66,6 +72,8 @@ export const Route = createFileRoute("/api/public/leads")({
             notes: clean.notes || null,
             priority,
             status: "nowy",
+            pooling_enabled: !!pooling_enabled,
+            pooling_wait_until,
           })
           .select("id")
           .single();

@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ const nav = [
   { title: "CRM Inbox", url: "/crm", icon: Inbox },
   { title: "Magazyn", url: "/magazyn", icon: Warehouse },
   { title: "Transport", url: "/transport", icon: Truck },
+  { title: "Wspólny transport", url: "/konsolidacja", icon: Users },
   { title: "Kalendarz", url: "/kalendarz", icon: CalendarDays },
   { title: "Bot magazynowy", url: "/bot", icon: Bot },
 ] as const;

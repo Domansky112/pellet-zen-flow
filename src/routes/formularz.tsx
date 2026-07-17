@@ -26,6 +26,7 @@ function FormPage() {
     setLoading(true);
     const fd = new FormData(e.currentTarget);
     const quantityRaw = fd.get("quantity")?.toString().trim();
+    const pooling = fd.get("pooling_enabled") === "on";
     const payload = {
       name: fd.get("name"),
       email: fd.get("email"),
@@ -37,6 +38,8 @@ function FormPage() {
       notes: fd.get("notes"),
       website: fd.get("website"), // honeypot
       source: "www",
+      pooling_enabled: pooling,
+      pooling_wait_days: pooling ? 14 : undefined,
     };
     const res = await fetch("/api/public/leads", {
       method: "POST",
@@ -129,6 +132,16 @@ function FormPage() {
             <Label htmlFor="notes">Uwagi / pytania</Label>
             <Textarea id="notes" name="notes" rows={4} placeholder="Np. rozładunek HDS, dojazd samochodem 24 t, termin dostawy…" />
           </div>
+
+          <label className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 cursor-pointer">
+            <input type="checkbox" name="pooling_enabled" className="mt-1 h-4 w-4 accent-primary" />
+            <div>
+              <div className="font-medium text-sm">Zgadzam się na wspólny transport (do 50% taniej)</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Poczekamy do 14 dni, aż uzbieramy transport w Twojej okolicy — koszt dostawy dzieli się między kilku klientów.
+              </div>
+            </div>
+          </label>
 
           <Button type="submit" disabled={loading} className="w-full md:w-auto">
             {loading ? "Wysyłam…" : "Wyślij zapytanie"}
