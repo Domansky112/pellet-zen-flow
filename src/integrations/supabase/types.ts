@@ -24,6 +24,12 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          pooling_enabled: boolean
+          pooling_km_from_base: number | null
+          pooling_lat: number | null
+          pooling_lng: number | null
+          pooling_status: string
+          pooling_wait_until: string | null
           postal_code: string | null
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
@@ -41,6 +47,12 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          pooling_enabled?: boolean
+          pooling_km_from_base?: number | null
+          pooling_lat?: number | null
+          pooling_lng?: number | null
+          pooling_status?: string
+          pooling_wait_until?: string | null
           postal_code?: string | null
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
@@ -58,6 +70,12 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          pooling_enabled?: boolean
+          pooling_km_from_base?: number | null
+          pooling_lat?: number | null
+          pooling_lng?: number | null
+          pooling_status?: string
+          pooling_wait_until?: string | null
           postal_code?: string | null
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
@@ -181,6 +199,116 @@ export type Database = {
           },
         ]
       }
+      transport_pool_items: {
+        Row: {
+          created_at: string
+          detour_km: number | null
+          id: string
+          lead_id: string
+          pool_id: string
+          share_cost: number | null
+          stop_order: number | null
+          tons: number
+        }
+        Insert: {
+          created_at?: string
+          detour_km?: number | null
+          id?: string
+          lead_id: string
+          pool_id: string
+          share_cost?: number | null
+          stop_order?: number | null
+          tons: number
+        }
+        Update: {
+          created_at?: string
+          detour_km?: number | null
+          id?: string
+          lead_id?: string
+          pool_id?: string
+          share_cost?: number | null
+          stop_order?: number | null
+          tons?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_pool_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_pool_items_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "transport_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transport_pools: {
+        Row: {
+          capacity_tons: number
+          cost_per_ton: number | null
+          created_at: string
+          created_by: string | null
+          estimated_cost: number | null
+          estimated_km: number | null
+          id: string
+          name: string
+          notes: string | null
+          route_from: string
+          route_to: string
+          status: string
+          total_tons: number
+          transport_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          capacity_tons?: number
+          cost_per_ton?: number | null
+          created_at?: string
+          created_by?: string | null
+          estimated_cost?: number | null
+          estimated_km?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          route_from?: string
+          route_to: string
+          status?: string
+          total_tons?: number
+          transport_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          capacity_tons?: number
+          cost_per_ton?: number | null
+          created_at?: string
+          created_by?: string | null
+          estimated_cost?: number | null
+          estimated_km?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          route_from?: string
+          route_to?: string
+          status?: string
+          total_tons?: number
+          transport_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_pools_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "transports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transports: {
         Row: {
           capacity_kg: number | null
@@ -190,6 +318,7 @@ export type Database = {
           driver: string | null
           id: string
           notes: string | null
+          pool_id: string | null
           postal_code: string | null
           scheduled_date: string
           status: Database["public"]["Enums"]["transport_status"]
@@ -208,6 +337,7 @@ export type Database = {
           driver?: string | null
           id?: string
           notes?: string | null
+          pool_id?: string | null
           postal_code?: string | null
           scheduled_date: string
           status?: Database["public"]["Enums"]["transport_status"]
@@ -226,6 +356,7 @@ export type Database = {
           driver?: string | null
           id?: string
           notes?: string | null
+          pool_id?: string | null
           postal_code?: string | null
           scheduled_date?: string
           status?: Database["public"]["Enums"]["transport_status"]
@@ -236,7 +367,15 @@ export type Database = {
           vehicle?: string | null
           zone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transports_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "transport_pools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
