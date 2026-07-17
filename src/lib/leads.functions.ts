@@ -82,7 +82,7 @@ export const createLead = createServerFn({ method: "POST" })
     };
     const { data: row, error } = await context.supabase
       .from("leads")
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     if (error) throw new Error(error.message);
