@@ -247,7 +247,7 @@ function Dashboard() {
               {[
                 { label: "Palety", bal: palety },
                 { label: "Big Bagi", bal: bigbag },
-                { label: "Brykiet", bal: brykiet },
+                
               ].map((row) => {
                 const pct = row.bal.physical > 0 ? (row.bal.available / row.bal.physical) * 100 : 0;
                 return (
