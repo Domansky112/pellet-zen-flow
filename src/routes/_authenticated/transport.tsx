@@ -48,8 +48,7 @@ function TransportPage() {
   const [fuelPrice, setFuelPrice] = useState(6.8);
   const [consumption, setConsumption] = useState(30);
   const [perKmRate, setPerKmRate] = useState(0.4);
-  const [perTonRate, setPerTonRate] = useState(350);
-  const [perDayRate, setPerDayRate] = useState(0);
+  const [driverDayRate, setDriverDayRate] = useState(350);
   const [roundTrip, setRoundTrip] = useState(true);
   const [result, setResult] = useState<CalcResult | null>(null);
 
@@ -63,8 +62,7 @@ function TransportPage() {
           fuelPrice,
           consumption,
           perKmRate,
-          perTonRate,
-          perDayRate,
+          driverDayRate,
           roundTrip,
         },
       }),
@@ -134,17 +132,12 @@ function TransportPage() {
                 step={0.1}
               />
               <Field
-                label="Stawka zł/tonę"
-                value={perTonRate}
-                onChange={setPerTonRate}
+                label="Stawka kierowcy zł/dzień"
+                value={driverDayRate}
+                onChange={setDriverDayRate}
                 step={10}
               />
-              <Field
-                label="Dieta / dzień"
-                value={perDayRate}
-                onChange={setPerDayRate}
-                step={10}
-              />
+
               <div className="flex items-end">
                 <label className="flex items-center gap-2 text-sm">
                   <input
@@ -199,8 +192,8 @@ function TransportPage() {
                 <div className="space-y-2 text-sm">
                   <Row label="Paliwo" value={result.breakdown.fuel} />
                   <Row label="Amortyzacja/opłaty (zł/km)" value={result.breakdown.km} />
-                  <Row label="Stawka za tony" value={result.breakdown.tons} />
-                  <Row label="Diety kierowcy" value={result.breakdown.days} />
+                  <Row label="Kierowca (dni × stawka)" value={result.breakdown.driver} />
+
                   <Separator />
                   <div className="flex items-center justify-between text-base font-semibold">
                     <span>Razem</span>
