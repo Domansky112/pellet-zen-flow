@@ -68,10 +68,9 @@ export async function runTransportReminders(now: Date = new Date()) {
 
     if (okCount > 0) {
       sent += okCount;
-      await supabaseAdmin
-        .from("transports")
-        .update({ [stampField]: new Date().toISOString() })
-        .eq("id", t.id);
+      const stamp = new Date().toISOString();
+      const patch = offset === 7 ? { telegram_t7_sent_at: stamp } : { telegram_t4_sent_at: stamp };
+      await supabaseAdmin.from("transports").update(patch).eq("id", t.id);
     }
   }
 
