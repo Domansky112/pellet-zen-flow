@@ -18,12 +18,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 const nav = [
-  { title: "Dashboard", url: "/_authenticated/dashboard", icon: LayoutDashboard },
-  { title: "CRM Inbox", url: "/_authenticated/crm", icon: Inbox },
-  { title: "Magazyn", url: "/_authenticated/magazyn", icon: Warehouse },
-  { title: "Transport", url: "/_authenticated/transport", icon: Truck },
-  { title: "Kalendarz", url: "/_authenticated/kalendarz", icon: CalendarDays },
-  { title: "Bot magazynowy", url: "/_authenticated/bot", icon: Bot },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "CRM Inbox", url: "/crm", icon: Inbox },
+  { title: "Magazyn", url: "/magazyn", icon: Warehouse },
+  { title: "Transport", url: "/transport", icon: Truck },
+  { title: "Kalendarz", url: "/kalendarz", icon: CalendarDays },
+  { title: "Bot magazynowy", url: "/bot", icon: Bot },
 ] as const;
 
 export function AppSidebar() {
