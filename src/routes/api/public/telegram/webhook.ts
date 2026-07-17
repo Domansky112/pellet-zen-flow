@@ -106,14 +106,23 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           await supabaseAdmin.from("telegram_chats").update({ is_whitelisted: false }).eq("id", existing.id);
         }
 
+        const whitelisted = isStart || (existing?.is_whitelisted && !isStop);
+        const cmd = text.match(/^\/([a-z]+)/i)?.[1]?.toLowerCase();
+
         if (isStart) {
-          await replyToChat(chat.id, "✅ Pellet OS: czat aktywny. Dostaniesz alerty T-7 i T-4 przed transportem. Wpisz /stop aby wypisać.");
+          await replyToChat(chat.id, "✅ Pellet OS: czat aktywny.\n\nKomendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/id — pokaż chat_id\n/stop — wypisz się");
         } else if (isStop) {
           await replyToChat(chat.id, "🔕 Wypisano. Wpisz /start żeby wrócić.");
-        } else if (/^\/id\b/i.test(text)) {
-          await replyToChat(chat.id, `chat_id: ${chatIdStr}`);
-        } else if (/^\/(help|menu)\b/i.test(text)) {
-          await replyToChat(chat.id, "Komendy:\n/start — dołącz do alertów\n/stop — wypisz się\n/id — pokaż chat_id");
+        } else if (cmd === "id") {
+          await replyToChat(chat.id, `chat_id: <code>${chatIdStr}</code>`);
+        } else if (cmd === "help" || cmd === "menu") {
+          await replyToChat(chat.id, "Komendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/id — chat_id\n/start /stop — alerty");
+        } else if (cmd === "stan" || cmd === "magazyn") {
+          if (!whitelisted) await replyToChat(chat.id, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chat.id, await renderStockSummary(supabaseAdmin));
+        } else if (cmd === "transport" || cmd === "transporty") {
+          if (!whitelisted) await replyToChat(chat.id, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chat.id, await renderUpcomingTransports(supabaseAdmin));
         }
 
         return Response.json({ ok: true });
