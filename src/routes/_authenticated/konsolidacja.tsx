@@ -419,7 +419,7 @@ function ConfirmDialog({
             >
               <option value="pellet_paleta">Pellet — palety</option>
               <option value="pellet_bigbag">Pellet — Big Bag</option>
-              <option value="brykiet">Brykiet</option>
+              
               <option value="inne">Inne</option>
             </select>
           </div>
