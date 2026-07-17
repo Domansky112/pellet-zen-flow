@@ -1,0 +1,1 @@
+ALTER TABLE public.transports ADD COLUMN IF NOT EXISTS destination_address text;
