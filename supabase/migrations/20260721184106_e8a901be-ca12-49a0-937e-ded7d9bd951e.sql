@@ -1,0 +1,2 @@
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS has_unloading_equipment boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.leads.has_unloading_equipment IS 'Klient posiada własny sprzęt do rozładunku (wózek, ładowarka itp.)';

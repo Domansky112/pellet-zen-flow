@@ -294,6 +294,7 @@ export type Database = {
           delivered_at: string | null
           email: string | null
           first_name: string | null
+          has_unloading_equipment: boolean
           id: string
           invoice_address: string | null
           invoice_company: string | null
@@ -327,6 +328,7 @@ export type Database = {
           delivered_at?: string | null
           email?: string | null
           first_name?: string | null
+          has_unloading_equipment?: boolean
           id?: string
           invoice_address?: string | null
           invoice_company?: string | null
@@ -360,6 +362,7 @@ export type Database = {
           delivered_at?: string | null
           email?: string | null
           first_name?: string | null
+          has_unloading_equipment?: boolean
           id?: string
           invoice_address?: string | null
           invoice_company?: string | null
