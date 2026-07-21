@@ -313,6 +313,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
         invoice_nip: src.invoice_nip,
         invoice_address: src.invoice_address,
         source: src.source ?? "inne",
+        has_unloading_equipment: !!src.has_unloading_equipment,
         status: "nowy",
         reservation_status: "brak",
         pooling_status: "brak",
