@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Mail, Globe, Building2, Phone, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2, StickyNote, X as XIcon } from "lucide-react";
-import { listLeads, listReservedLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
+import { listLeads, listReservedLeads, listCancelledLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
 import { listLeadStatuses, setLeadStatusKey, type LeadStatus } from "@/lib/lead-statuses.functions";
 import { listLeadIdsWithNotes } from "@/lib/notes.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
@@ -33,6 +33,11 @@ const leadsQuery = queryOptions({
   queryFn: () => listLeads(),
 });
 
+const cancelledLeadsQuery = queryOptions({
+  queryKey: ["leads-cancelled"],
+  queryFn: () => listCancelledLeads(),
+});
+
 const statusesQuery = queryOptions({
   queryKey: ["lead-statuses"],
   queryFn: () => listLeadStatuses(),
@@ -44,7 +49,7 @@ const notesIndexQuery = queryOptions({
 });
 
 const searchSchema = z.object({
-  tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
+  tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy", "realized", "cancelled"]).optional(),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
   leadId: z.string().uuid().optional(),
   status_key: z.string().optional(),
@@ -52,6 +57,18 @@ const searchSchema = z.object({
   sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
   mine: z.enum(["yes"]).optional(),
 });
+
+// A lead is "closed" (realized or cancelled) when either the reservation is
+// delivered ("wydany") or the status is wygrany/przegrany. Closed leads are
+// excluded from the default "Wszystkie" working view.
+function isClosedLead(l: { status?: string | null; status_key?: string | null; reservation_status?: string | null }) {
+  const key = (l.status_key ?? l.status ?? "") as string;
+  return key === "wygrany" || key === "przegrany" || l.reservation_status === "wydany";
+}
+function isRealizedLead(l: { status?: string | null; status_key?: string | null; reservation_status?: string | null }) {
+  const key = (l.status_key ?? l.status ?? "") as string;
+  return key === "wygrany" || l.reservation_status === "wydany";
+}
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
