@@ -1006,7 +1006,7 @@ function TemplatesTab() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ); })}
             </TableBody>
           </Table>
         )}
