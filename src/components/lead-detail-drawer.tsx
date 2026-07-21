@@ -185,8 +185,42 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
   const saveM = useMutation({
-    mutationFn: () => updateLeadFn({ data: { id: lead!.id, ...form } }),
-    onSuccess: () => { invalidateLeads(); toast.success("Zapisano zmiany"); },
+    mutationFn: async () => {
+      const raw = (form.quantity ?? "").toString().trim().replace(",", ".");
+      const newQty = raw === "" ? null : Number(raw);
+      if (raw !== "" && (!Number.isFinite(newQty) || (newQty as number) < 0)) {
+        throw new Error("Podaj poprawny tonaż (liczba ≥ 0)");
+      }
+      const oldQty = lead?.quantity != null ? Number(lead.quantity) : null;
+      const qtyChanged = (newQty ?? null) !== (oldQty ?? null);
+
+      const { quantity: _q, ...rest } = form;
+      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty } });
+
+      // If lead had an active reservation and quantity changed, resize it:
+      // release the old net reservation, then reserve the new quantity.
+      if (
+        qtyChanged &&
+        lead?.reservation_status === "zarezerwowany" &&
+        newQty !== null &&
+        (newQty as number) > 0 &&
+        lead.product
+      ) {
+        try {
+          await releaseFn({ data: { lead_id: lead!.id } });
+          await reserveFn({ data: { lead_id: lead!.id } });
+        } catch (e) {
+          throw new Error(
+            `Zapisano tonaż, ale nie udało się przeliczyć rezerwacji: ${(e as Error).message}`,
+          );
+        }
+      }
+      return { qtyChanged };
+    },
+    onSuccess: ({ qtyChanged }) => {
+      invalidateLeads();
+      toast.success(qtyChanged ? "Zapisano — rezerwacja zaktualizowana" : "Zapisano zmiany");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
