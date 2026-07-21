@@ -722,7 +722,7 @@ export function LeadDetailDrawer({
               </section>
 
               {/* Rendered offer */}
-              {rendered && (
+              {rendered && templatesOpen && (
                 <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="text-sm font-medium">Podgląd oferty</div>
