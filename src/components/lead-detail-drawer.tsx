@@ -63,7 +63,15 @@ export function LeadDetailDrawer({
   onOpenChange: (o: boolean) => void;
 }) {
   const qc = useQueryClient();
+  const currentUser = useCurrentUser();
   const [rendered, setRendered] = useState<{ subject: string; body: string } | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
+
+  // VAT calculator inputs
+  const [pricePerTonNet, setPricePerTonNet] = useState<string>("");
+  const [transportNet, setTransportNet] = useState<string>("");
+  const [vatRate, setVatRate] = useState<string>("23");
+
 
   const notesQuery = useQuery({
     queryKey: ["lead-notes", lead?.id],
