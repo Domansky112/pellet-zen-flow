@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck } from "lucide-react";
+import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck, ExternalLink } from "lucide-react";
 import { listDeliveryHistory } from "@/lib/leads.functions";
 import { TransportDetailDialog } from "@/components/transport-detail-dialog";
 import { format } from "date-fns";
