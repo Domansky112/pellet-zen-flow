@@ -161,10 +161,15 @@ function HistoriaPage() {
                     </ul>
                   </div>
                 )}
-                {l.notes && (
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Uwagi</div>
-                    <div className="whitespace-pre-wrap text-muted-foreground">{l.notes}</div>
+                {l.transport_id && (
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setOpenTransportId(l.transport_id as string)}
+                    >
+                      <Truck className="mr-2 h-4 w-4" /> Zobacz transport
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -177,6 +182,13 @@ function HistoriaPage() {
           )}
         </div>
       </div>
+
+      <TransportDetailDialog
+        transportId={openTransportId}
+        open={!!openTransportId}
+        onOpenChange={(o) => !o && setOpenTransportId(null)}
+      />
     </>
+
   );
 }
