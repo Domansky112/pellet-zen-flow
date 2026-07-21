@@ -151,14 +151,15 @@ function TransportPage() {
                     </Badge>
                   ) : fuelQuery.data ? (
                     <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/20">
-                      {fuelQuery.data.source === "orlen_auto"
-                        ? "Auto z Orlenu"
+                      {fuelQuery.data.source === "orlen_retail_auto" ||
+                      fuelQuery.data.source === "orlen_auto"
+                        ? `Orlen Detal − 10 gr (z dnia ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")})`
                         : fuelQuery.data.source === "manual"
-                          ? "Cena bazowa (manual)"
-                          : "Domyślna stała"}{" "}
-                      · {new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}
+                          ? `Cena bazowa (manual) − 10 gr · ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}`
+                          : `Domyślna − 10 gr · ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}`}
                     </Badge>
                   ) : null}
+
                 </div>
                 <div className="flex gap-2">
                   <Input
