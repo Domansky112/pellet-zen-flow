@@ -52,9 +52,11 @@ function Dashboard() {
   const stockFn = useServerFn(listStockBalance);
   const transportsFn = useServerFn(listTransports);
 
-  const { data: leads } = useSuspenseQuery({ queryKey: ["leads"], queryFn: () => leadsFn() });
-  const { data: stock } = useSuspenseQuery({ queryKey: ["stock-balance"], queryFn: () => stockFn() });
-  const { data: transports } = useSuspenseQuery({ queryKey: ["transports"], queryFn: () => transportsFn() });
+  // Auto-refresh co 20 s (feed, magazyn, transporty) — bez potrzeby F5.
+  const AUTO = { refetchInterval: 20_000, refetchIntervalInBackground: true } as const;
+  const { data: leads } = useSuspenseQuery({ queryKey: ["leads"], queryFn: () => leadsFn(), ...AUTO });
+  const { data: stock } = useSuspenseQuery({ queryKey: ["stock-balance"], queryFn: () => stockFn(), ...AUTO });
+  const { data: transports } = useSuspenseQuery({ queryKey: ["transports"], queryFn: () => transportsFn(), ...AUTO });
 
   // KPIs
   const today = startOfDay(new Date());

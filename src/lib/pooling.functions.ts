@@ -303,6 +303,60 @@ export const createPool = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => CreatePoolInput.parse(d))
   .handler(async ({ data, context }) => {
     const total_tons = data.items.reduce((s, i) => s + i.tons, 0);
+    const leadIds = data.items.map((i) => i.lead_id);
+
+    // 1) Pobierz leady — potrzebujemy produktu, ilości i aktualnego statusu rezerwacji
+    const { data: leadRows, error: lErr } = await context.supabase
+      .from("leads")
+      .select("id, name, product, quantity, reservation_status")
+      .in("id", leadIds);
+    if (lErr) throw new Error(lErr.message);
+    const leadsMap = new Map<string, any>((leadRows ?? []).map((l) => [l.id, l]));
+
+    for (const id of leadIds) {
+      const l = leadsMap.get(id);
+      if (!l) throw new Error(`Lead ${id} nie istnieje`);
+      if (!l.product || !l.quantity || Number(l.quantity) <= 0) {
+        throw new Error(`Lead „${l.name ?? id}" nie ma produktu / ilości — uzupełnij, zanim dodasz do wspólnego transportu`);
+      }
+    }
+
+    // 2) Pre-check dostępności magazynu — sumuj tylko leady bez aktywnej rezerwacji
+    const needByProduct = new Map<string, { tons: number; leads: string[] }>();
+    for (const l of leadsMap.values()) {
+      if (l.reservation_status === "zarezerwowany") continue; // już zarezerwowany — nie liczymy podwójnie
+      const cur = needByProduct.get(l.product) ?? { tons: 0, leads: [] };
+      cur.tons += Number(l.quantity);
+      cur.leads.push(l.name ?? l.id);
+      needByProduct.set(l.product, cur);
+    }
+
+    if (needByProduct.size > 0) {
+      const products = Array.from(needByProduct.keys()) as ("pellet_paleta" | "pellet_bigbag" | "inne")[];
+      const { data: bal, error: bErr } = await context.supabase
+        .from("stock_balance")
+        .select("product, physical, reserved, available")
+        .in("product", products);
+      if (bErr) throw new Error(bErr.message);
+      const balMap = new Map((bal ?? []).map((b: any) => [b.product, Number(b.available ?? 0)]));
+
+      const shortages: string[] = [];
+      for (const [product, { tons, leads }] of needByProduct.entries()) {
+        const avail = balMap.get(product) ?? 0;
+        if (tons > avail) {
+          shortages.push(
+            `${product}: potrzeba ${tons.toFixed(2)} t, dostępne ${avail.toFixed(2)} t (leady: ${leads.join(", ")})`,
+          );
+        }
+      }
+      if (shortages.length > 0) {
+        throw new Error(
+          `Za mało wolnego towaru na magazynie — nie można utworzyć draftu:\n• ${shortages.join("\n• ")}\nZwolnij rezerwacje lub uzupełnij zasoby.`,
+        );
+      }
+    }
+
+    // 3) Utwórz pool
     const { data: pool, error } = await context.supabase
       .from("transport_pools")
       .insert({
@@ -321,6 +375,7 @@ export const createPool = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
+    // 4) Item lines
     const { error: itemErr } = await context.supabase.from("transport_pool_items").insert(
       data.items.map((i, idx) => ({
         pool_id: pool.id,
@@ -333,14 +388,23 @@ export const createPool = createServerFn({ method: "POST" })
     );
     if (itemErr) throw new Error(itemErr.message);
 
-    // Oznacz leady jako zgrupowane
+    // 5) Oznacz leady jako zgrupowane
     await context.supabase
       .from("leads")
       .update({ pooling_status: "zgrupowany" })
-      .in(
-        "id",
-        data.items.map((i) => i.lead_id),
-      );
+      .in("id", leadIds);
+
+    // 6) Auto-rezerwacja — idempotentna (RPC sam sprawdza reservation_status = 'zarezerwowany' → RETURN)
+    const reservationErrors: string[] = [];
+    for (const l of leadsMap.values()) {
+      if (l.reservation_status === "zarezerwowany") continue; // pomiń — już zarezerwowane wcześniej
+      const { error: rErr } = await context.supabase.rpc("reserve_stock_for_lead", { _lead_id: l.id });
+      if (rErr) reservationErrors.push(`${l.name ?? l.id}: ${rErr.message}`);
+    }
+    if (reservationErrors.length > 0) {
+      // Nie rollbackujemy poola — dajemy operatorowi info, co dokończyć ręcznie
+      throw new Error(`Pool utworzony, ale nie udało się zarezerwować:\n• ${reservationErrors.join("\n• ")}`);
+    }
 
     return pool;
   });
