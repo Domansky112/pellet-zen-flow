@@ -52,6 +52,7 @@ import {
   listCrmUsers, createCrmUser, setUserRoles, resetUserPassword, deleteCrmUser,
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
+import { listLeadStatuses, upsertLeadStatus, deleteLeadStatus } from "@/lib/lead-statuses.functions";
 
 const settingsSearchSchema = z.object({
   section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses"]).optional(),
