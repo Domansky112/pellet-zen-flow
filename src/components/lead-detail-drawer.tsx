@@ -299,6 +299,12 @@ export function LeadDetailDrawer({
                     </>
                   )}
                   <div className="ml-auto flex gap-2">
+                    <Button size="sm" variant="outline"
+                      onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
+                      title="Utwórz nowe zamówienie dla tego klienta">
+                      {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
+                      Duplikuj lead
+                    </Button>
                     <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => setConfirmDelete("soft")}>
                       <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
