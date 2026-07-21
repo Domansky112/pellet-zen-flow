@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,7 @@ const nav = [
   { title: "Historia dostaw", url: "/historia", icon: History },
   { title: "Bot magazynowy", url: "/bot", icon: Bot },
 ] as const;
+
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
