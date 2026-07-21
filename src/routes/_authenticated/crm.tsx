@@ -148,8 +148,11 @@ function CrmPage() {
   const setSearch = (patch: Record<string, unknown>) =>
     navigate({ search: (p: Record<string, unknown>) => ({ ...p, ...patch }) });
 
+  const currentUser = useCurrentUser();
+  const mineOnly = search.mine === "yes";
+
   const filtersActive =
-    !!search.status_key || !!search.has_notes || (sort !== "smart");
+    !!search.status_key || !!search.has_notes || (sort !== "smart") || mineOnly;
 
   function applyFilters(items: Lead[]): Lead[] {
     let out = items;
@@ -161,8 +164,12 @@ function CrmPage() {
     } else if (search.has_notes === "no") {
       out = out.filter((l) => !notesByLead.has(l.id));
     }
+    if (mineOnly && currentUser?.id) {
+      out = out.filter((l) => (l as Lead & { assigned_to?: string | null }).assigned_to === currentUser.id);
+    }
     return sortItems(out);
   }
+
 
   function sortItems(items: Lead[]): Lead[] {
     const copy = [...items];
