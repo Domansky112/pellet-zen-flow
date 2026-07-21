@@ -342,24 +342,40 @@ export function LeadDetailDrawer({
       city: lead.city ?? "",
     };
 
-    // Auto-append VAT summary at the end of the body so every template
-    // includes clear Netto / VAT / Brutto breakdown for towar + transport.
-    const vatSummary =
-      `\n\n— Podsumowanie kosztów (VAT ${vatCalc.rate}%) —\n` +
-      `Towar (${lead.quantity ?? 0} t × ${f(vatCalc.priceNet)} zł/t):\n` +
-      `  Netto: ${f(vatCalc.towarNet)} zł\n` +
-      `  VAT: ${f(vatCalc.towarVat)} zł\n` +
-      `  Brutto: ${f(vatCalc.towarBr)} zł\n` +
-      `Transport:\n` +
-      `  Netto: ${f(vatCalc.trNet)} zł\n` +
-      `  VAT: ${f(vatCalc.trVat)} zł\n` +
-      `  Brutto: ${f(vatCalc.trBr)} zł\n` +
-      `RAZEM: ${f(vatCalc.sumNet)} zł netto + ${f(vatCalc.sumVat)} zł VAT = ` +
-      `${f(vatCalc.sumBr)} zł brutto`;
+    // Auto-append VAT summary — but if there's no transport cost, keep the
+    // offer clean: no transport line in summary, and strip any transport
+    // mentions from the template body.
+    const vatSummary = vatCalc.hasTransport
+      ? `\n\n— Podsumowanie kosztów (VAT ${vatCalc.rate}%) —\n` +
+        `Towar (${vatCalc.qty} t × ${f(vatCalc.priceNet)} zł/t):\n` +
+        `  Netto: ${f(vatCalc.towarNet)} zł\n` +
+        `  VAT: ${f(vatCalc.towarVat)} zł\n` +
+        `  Brutto: ${f(vatCalc.towarBr)} zł\n` +
+        `Transport:\n` +
+        `  Netto: ${f(vatCalc.trNet)} zł\n` +
+        `  VAT: ${f(vatCalc.trVat)} zł\n` +
+        `  Brutto: ${f(vatCalc.trBr)} zł\n` +
+        `RAZEM: ${f(vatCalc.sumNet)} zł netto + ${f(vatCalc.sumVat)} zł VAT = ` +
+        `${f(vatCalc.sumBr)} zł brutto`
+      : `\n\n— Podsumowanie kosztów (VAT ${vatCalc.rate}%) —\n` +
+        `Towar (${vatCalc.qty} t × ${f(vatCalc.priceNet)} zł/t):\n` +
+        `  Netto: ${f(vatCalc.towarNet)} zł\n` +
+        `  VAT: ${f(vatCalc.towarVat)} zł\n` +
+        `  Brutto: ${f(vatCalc.towarBr)} zł`;
+
+    let bodyRendered = renderTemplateBody(t.body, vars);
+    if (!vatCalc.hasTransport) {
+      // Remove any line that mentions transport when it's free / no transport
+      bodyRendered = bodyRendered
+        .split("\n")
+        .filter((line) => !/\btransport/i.test(line))
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n");
+    }
 
     setRendered({
       subject: renderTemplateBody(t.subject ?? t.name, vars),
-      body: renderTemplateBody(t.body, vars) + vatSummary,
+      body: bodyRendered + vatSummary,
     });
     setTemplatesOpen(true);
   };
