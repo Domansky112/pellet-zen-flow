@@ -163,6 +163,7 @@ const UpdateLeadInput = z.object({
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).nullable().optional(),
   quantity: z.number().nonnegative().nullable().optional(),
   pooling_enabled: z.boolean().optional(),
+  has_unloading_equipment: z.boolean().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })
