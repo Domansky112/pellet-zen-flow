@@ -283,6 +283,39 @@ export type Database = {
           },
         ]
       }
+      lead_statuses: {
+        Row: {
+          color: string
+          created_at: string
+          is_active: boolean
+          is_system: boolean
+          key: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          is_active?: boolean
+          is_system?: boolean
+          key: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          is_active?: boolean
+          is_system?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -316,6 +349,7 @@ export type Database = {
           reservation_status: string
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
+          status_key: string | null
           updated_at: string
         }
         Insert: {
@@ -350,6 +384,7 @@ export type Database = {
           reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
+          status_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -384,9 +419,18 @@ export type Database = {
           reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
+          status_key?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_status_key_fkey"
+            columns: ["status_key"]
+            isOneToOne: false
+            referencedRelation: "lead_statuses"
+            referencedColumns: ["key"]
+          },
+        ]
       }
       offer_templates: {
         Row: {
@@ -946,6 +990,7 @@ export type Database = {
           reservation_status: string
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
+          status_key: string | null
           updated_at: string
         }[]
         SetofOptions: {

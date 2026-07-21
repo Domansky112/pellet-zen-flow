@@ -20,9 +20,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead } from "@/lib/leads.functions";
+import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -45,6 +47,7 @@ type Lead = {
   status?: string;
   pooling_enabled?: boolean | null;
   has_unloading_equipment?: boolean | null;
+  status_key?: string | null;
 };
 
 
@@ -79,6 +82,13 @@ export function LeadDetailDrawer({
   const wydanieFn = useServerFn(confirmWydanie);
   const updateLeadFn = useServerFn(updateLead);
   const releaseFn = useServerFn(releaseReservation);
+
+  const statusesQuery = useQuery({
+    queryKey: ["lead-statuses"],
+    queryFn: () => listLeadStatuses(),
+    enabled: open,
+  });
+  const setStatusFn = useServerFn(setLeadStatusKey);
 
   // Editable form state
   const [form, setForm] = useState({
@@ -278,8 +288,36 @@ export function LeadDetailDrawer({
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription>
-            {[lead.phone, lead.email, lead.city].filter(Boolean).join(" · ")}
+          <DialogDescription className="flex flex-wrap items-center gap-3">
+            <span>{[lead.phone, lead.email, lead.city].filter(Boolean).join(" · ")}</span>
+            <span className="flex items-center gap-2 ml-auto">
+              <span className="text-xs uppercase tracking-wide">Status:</span>
+              <Select
+                value={(lead.status_key ?? lead.status ?? "nowy") as string}
+                onValueChange={async (v) => {
+                  try {
+                    await setStatusFn({ data: { id: lead.id, status_key: v } });
+                    qc.invalidateQueries({ queryKey: ["leads"] });
+                    qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+                    toast.success("Status zaktualizowany");
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 w-[190px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === (lead.status_key ?? lead.status)).map((s) => (
+                    <SelectItem key={s.key} value={s.key}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                        {s.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </span>
           </DialogDescription>
         </DialogHeader>
 
