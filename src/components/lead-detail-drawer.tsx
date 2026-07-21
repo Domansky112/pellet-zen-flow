@@ -257,12 +257,68 @@ export function LeadDetailDrawer({
     toast.success("Skopiowano treść oferty");
   };
 
-  const mailtoHref = () => {
-    if (!rendered || !lead?.email) return "#";
-    return `mailto:${lead.email}?subject=${encodeURIComponent(rendered.subject)}&body=${encodeURIComponent(rendered.body)}`;
+  // ---- Validation for "Wyślij ofertę" -----------------------------------
+  const validation = useMemo(() => {
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((form.email || lead?.email || "").trim());
+    const productMissing = !lead?.product;
+    const quantityMissing = !(lead?.quantity && Number(lead.quantity) > 0);
+    // "wyliczona cena / koszt transportu": template must be applied and must
+    // contain at least one number/kwota (zł / PLN / cyfry). Unresolved
+    // {{cena_transportu}} tags or a template without any numeric price fail.
+    const body = rendered?.body ?? "";
+    const hasUnresolved = /{{\s*[a-z_]+\s*}}/i.test(body);
+    const hasPrice = /(\d[\d\s]*[,.]?\d*)\s*(zł|pln)/i.test(body) || /cena[^:\n]*:\s*\d/i.test(body);
+    const priceMissing = !rendered || hasUnresolved || !hasPrice;
+    const emailInvalid = !emailValid;
+    return {
+      emailInvalid,
+      productMissing,
+      quantityMissing,
+      priceMissing,
+      canSend: !emailInvalid && !productMissing && !quantityMissing && !priceMissing,
+    };
+  }, [form.email, lead?.email, lead?.product, lead?.quantity, rendered?.body]);
+
+  // ---- Send offer: mailto + note + status = oferta_wyslana --------------
+  const sendOfferM = useMutation({
+    mutationFn: async () => {
+      if (!lead || !rendered) throw new Error("Brak oferty");
+      const to = (form.email || lead.email || "").trim();
+      // 1) open user's mail client with pre-filled offer
+      const mailto = `mailto:${to}?subject=${encodeURIComponent(rendered.subject)}&body=${encodeURIComponent(rendered.body)}`;
+      window.open(mailto, "_self");
+      // 2) log in notes (history)
+      const stamp = new Date().toLocaleString("pl-PL");
+      const noteBody =
+        `📧 Oferta wysłana do ${to} · ${stamp}\n` +
+        `Temat: ${rendered.subject}\n\n${rendered.body}`;
+      await addFn({ data: { lead_id: lead.id, body: noteBody } });
+      // 3) set status to "oferta_wyslana" (fallback to "oferta")
+      try {
+        await setStatusFn({ data: { id: lead.id, status_key: "oferta_wyslana" } });
+      } catch {
+        await setStatusFn({ data: { id: lead.id, status_key: "oferta" } });
+      }
+      return { to };
+    },
+    onSuccess: ({ to }) => {
+      invalidateNotes();
+      invalidateLeads();
+      toast.success(`Oferta została pomyślnie wysłana na adres: ${to}`);
+    },
+    onError: (e: Error) => toast.error(e.message || "Nie udało się wysłać oferty"),
+  });
+
+  const sendOffer = () => {
+    if (!validation.canSend) {
+      toast.error("Wypełnij brakujące pola, aby móc wysłać ofertę");
+      return;
+    }
+    sendOfferM.mutate();
   };
 
   if (!lead) return null;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
