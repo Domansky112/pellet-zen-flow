@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +11,16 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation } from "@/lib/leads.functions";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -29,11 +32,17 @@ type Lead = {
   email?: string | null;
   phone?: string | null;
   city?: string | null;
+  postal_code?: string | null;
+  invoice_company?: string | null;
+  invoice_nip?: string | null;
+  invoice_address?: string | null;
   product?: string | null;
   quantity?: number | null;
   reservation_status?: string;
   status?: string;
+  pooling_enabled?: boolean | null;
 };
+
 
 export function LeadDetailDrawer({
   lead,
