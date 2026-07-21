@@ -33,6 +33,7 @@ import {
   createTransport,
   deleteTransport,
   listTransports,
+  rescheduleTransport,
 } from "@/lib/transport-crud.functions";
 import { listLeads } from "@/lib/leads.functions";
 import { WzDownloadButton } from "@/components/wz-download-button";
@@ -61,6 +62,7 @@ function CalendarPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listTransports);
   const delFn = useServerFn(deleteTransport);
+  const reschedFn = useServerFn(rescheduleTransport);
 
   const { data: transports = [], isLoading } = useQuery({
     queryKey: ["transports"],
@@ -71,6 +73,15 @@ function CalendarPage() {
     mutationFn: (id: string) => delFn({ data: { id } }),
     onSuccess: () => {
       toast.success("Transport usunięty");
+      qc.invalidateQueries({ queryKey: ["transports"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resched = useMutation({
+    mutationFn: (v: { id: string; scheduled_date: string }) => reschedFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Termin transportu zaktualizowany (rezerwacja bez zmian)");
       qc.invalidateQueries({ queryKey: ["transports"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -109,7 +120,12 @@ function CalendarPage() {
             ) : (
               <div className="space-y-2">
                 {upcoming.map((t) => (
-                  <TransportRow key={t.id} t={t} onDelete={(id) => del.mutate(id)} />
+                  <TransportRow
+                    key={t.id}
+                    t={t}
+                    onDelete={(id) => del.mutate(id)}
+                    onReschedule={(id, d) => resched.mutate({ id, scheduled_date: d })}
+                  />
                 ))}
               </div>
             )}
@@ -138,14 +154,17 @@ type TransportRow = Awaited<ReturnType<typeof listTransports>>[number];
 function TransportRow({
   t,
   onDelete,
+  onReschedule,
   muted,
 }: {
   t: TransportRow;
   onDelete: (id: string) => void;
+  onReschedule?: (id: string, scheduled_date: string) => void;
   muted?: boolean;
 }) {
   const daysLeft = differenceInCalendarDays(parseISO(t.scheduled_date), new Date());
   const item = t.transport_items?.[0];
+  const leadHref = item?.lead_id ? `/crm?leadId=${item.lead_id}` : null;
   return (
     <div
       className={`flex items-start justify-between gap-3 rounded-lg border border-border p-3 ${
@@ -154,9 +173,22 @@ function TransportRow({
     >
       <div className="flex-1 min-w-0 space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium">
-            {format(parseISO(t.scheduled_date), "EEE, d LLL yyyy", { locale: pl })}
-          </span>
+          {onReschedule && !muted ? (
+            <input
+              type="date"
+              value={t.scheduled_date}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v && v !== t.scheduled_date) onReschedule(t.id, v);
+              }}
+              className="bg-transparent font-medium border border-transparent hover:border-border rounded px-1 py-0.5 text-sm"
+              title="Zmień termin (rezerwacja pozostaje bez zmian)"
+            />
+          ) : (
+            <span className="font-medium">
+              {format(parseISO(t.scheduled_date), "EEE, d LLL yyyy", { locale: pl })}
+            </span>
+          )}
           {!muted && daysLeft >= 0 && (
             <Badge variant="outline">
               {daysLeft === 0 ? "dziś" : `T-${daysLeft}`}
@@ -182,7 +214,12 @@ function TransportRow({
         <div className="text-sm text-muted-foreground truncate">
           📍 {t.destination_address ?? "—"}
           {t.driver && ` · Kierowca: ${t.driver}`}
-          {item?.leads?.name && ` · Lead: ${item.leads.name}`}
+          {item?.leads?.name && leadHref && (
+            <>
+              {" · Lead: "}
+              <a href={leadHref} className="underline hover:text-foreground">{item.leads.name}</a>
+            </>
+          )}
         </div>
         {t.notes && <div className="text-xs text-muted-foreground">📝 {t.notes}</div>}
       </div>
@@ -201,6 +238,7 @@ function TransportRow({
     </div>
   );
 }
+
 
 function NewTransportDialog() {
   const qc = useQueryClient();

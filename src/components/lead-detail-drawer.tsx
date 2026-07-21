@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus } from "lucide-react";
+import { scheduleTransportForLead } from "@/lib/transport-crud.functions";
 import {
   Dialog,
   DialogContent,
@@ -261,6 +262,46 @@ export function LeadDetailDrawer({
       onOpenChange(false);
       toast.success("Utworzono duplikat leada — otwieram do edycji");
       navigate({ to: "/crm", search: { leadId: row.id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ---- Schedule transport ------------------------------------------------
+  const scheduleFn = useServerFn(scheduleTransportForLead);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedAddress, setSchedAddress] = useState("");
+  const [schedDriver, setSchedDriver] = useState("");
+  const [schedNotes, setSchedNotes] = useState("");
+  useEffect(() => {
+    if (scheduleOpen && lead) {
+      setSchedAddress(lead.invoice_address ?? [lead.postal_code, lead.city].filter(Boolean).join(" ") ?? "");
+      setSchedDriver("");
+      setSchedNotes("");
+      setSchedDate("");
+    }
+  }, [scheduleOpen, lead]);
+  const scheduleM = useMutation({
+    mutationFn: () =>
+      scheduleFn({
+        data: {
+          lead_id: lead!.id,
+          scheduled_date: schedDate,
+          destination_address: schedAddress || null,
+          driver: schedDriver || null,
+          notes: schedNotes || null,
+        },
+      }),
+    onSuccess: (res: { reused_reservation?: boolean }) => {
+      invalidateLeads();
+      qc.invalidateQueries({ queryKey: ["transports"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      setScheduleOpen(false);
+      toast.success(
+        res?.reused_reservation
+          ? "Transport dodany do kalendarza (użyto istniejącej rezerwacji)"
+          : "Transport dodany + auto-rezerwacja magazynu",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -572,6 +613,13 @@ export function LeadDetailDrawer({
                       </Button>
                     </>
                   )}
+                  <Button size="sm" variant="outline"
+                    onClick={() => setScheduleOpen(true)}
+                    disabled={!lead.product || !lead.quantity}
+                    title="Utwórz wpis w kalendarzu z auto-rezerwacją magazynu">
+                    <CalendarPlus className="h-4 w-4 mr-2" />
+                    Zaplanuj transport
+                  </Button>
                   <Button size="sm" variant="outline"
                     onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
                     title="Utwórz nowe zamówienie dla tego klienta">
@@ -971,6 +1019,51 @@ export function LeadDetailDrawer({
                 Tak, anuluj lead
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zaplanuj transport w kalendarzu</DialogTitle>
+            <DialogDescription>
+              System sprawdzi stan rezerwacji: wykorzysta istniejącą lub utworzy nową 100% pod ten lead.
+              Jeśli w magazynie brakuje tonażu — zaplanowanie zostanie zablokowane.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+              <div><span className="text-muted-foreground">Klient:</span> <strong>{lead?.invoice_company || [lead?.first_name, lead?.last_name].filter(Boolean).join(" ") || lead?.name}</strong></div>
+              <div><span className="text-muted-foreground">Zamówienie:</span> <strong>{Number(lead?.quantity ?? 0)} t · {lead?.product ?? "—"}</strong></div>
+              <div><span className="text-muted-foreground">Rezerwacja:</span> <strong>{lead?.reservation_status ?? "brak"}</strong></div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-date">Data odbioru / dostawy *</Label>
+              <Input id="sched-date" type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-addr">Adres dostawy</Label>
+              <Input id="sched-addr" value={schedAddress} onChange={(e) => setSchedAddress(e.target.value)} placeholder="ul. …, kod, miasto" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-driver">Kierowca (opcjonalnie)</Label>
+              <Input id="sched-driver" value={schedDriver} onChange={(e) => setSchedDriver(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-notes">Notatki</Label>
+              <Textarea id="sched-notes" rows={2} value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScheduleOpen(false)}>Anuluj</Button>
+            <Button
+              onClick={() => scheduleM.mutate()}
+              disabled={!schedDate || scheduleM.isPending}
+            >
+              {scheduleM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarPlus className="h-4 w-4 mr-2" />}
+              Zaplanuj i zarezerwuj
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
