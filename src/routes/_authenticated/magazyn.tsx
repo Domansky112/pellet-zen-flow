@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, Lock, Unlock, RefreshCw } from "lucide-react";
+import { Plus, Minus, Lock, Unlock, RefreshCw, Trash2, ExternalLink } from "lucide-react";
 import {
   listStockBalance,
   listStockEvents,
@@ -22,6 +22,7 @@ import {
   reserveForLead,
   releaseReservation,
   listOpenLeads,
+  deleteStockEvent,
 } from "@/lib/stock.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
