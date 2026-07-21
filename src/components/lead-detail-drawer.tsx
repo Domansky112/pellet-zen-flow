@@ -186,6 +186,19 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const navigate = useNavigate();
+  const duplicateFn = useServerFn(duplicateLead);
+  const duplicateM = useMutation({
+    mutationFn: () => duplicateFn({ data: { lead_id: lead!.id } }),
+    onSuccess: (row: any) => {
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Utworzono duplikat leada — otwieram do edycji");
+      navigate({ to: "/crm", search: { leadId: row.id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const vars = {
