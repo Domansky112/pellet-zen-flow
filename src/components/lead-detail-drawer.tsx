@@ -585,10 +585,9 @@ export function LeadDetailDrawer({
                       <div className="text-xs text-muted-foreground italic">Brak notatek.</div>
                     )}
                   </div>
-                </section>
-              </div>
-            </ScrollArea>
-          </div>
+              </section>
+            </div>
+          </ScrollArea>
         </div>
       </DialogContent>
 
