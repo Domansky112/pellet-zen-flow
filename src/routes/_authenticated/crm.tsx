@@ -26,6 +26,7 @@ const leadsQuery = queryOptions({
 const searchSchema = z.object({
   tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
+  leadId: z.string().uuid().optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/crm")({
