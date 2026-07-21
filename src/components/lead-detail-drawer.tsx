@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead } from "@/lib/leads.functions";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
