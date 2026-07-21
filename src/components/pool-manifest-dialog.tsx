@@ -33,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPoolManifest, confirmPool } from "@/lib/pooling.functions";
 import { WzDownloadButton } from "@/components/wz-download-button";
+import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Paleta pelletu (960 kg)",
