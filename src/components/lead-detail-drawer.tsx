@@ -321,188 +321,206 @@ export function LeadDetailDrawer({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] flex-1 min-h-0">
-          {/* LEFT: templates */}
-          <aside className="border-r bg-muted/20 flex flex-col min-h-0">
-            <div className="px-4 py-3 border-b flex items-center gap-2 text-sm font-medium">
-              <FileText className="h-4 w-4" /> Szablony ofert
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
-                {templatesQuery.data?.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => applyTemplate(t)}
-                    className="w-full text-left rounded-md border border-border/60 bg-background px-3 py-2 hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                  >
-                    <div className="text-sm font-medium">{t.name}</div>
-                    {t.product && <div className="text-xs text-muted-foreground mt-0.5">{t.product}</div>}
-                  </button>
-                ))}
-                {templatesQuery.data?.length === 0 && (
-                  <div className="text-xs text-muted-foreground p-3">Brak szablonów</div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-6 space-y-6">
+              {/* TOP: Templates panel (collapsible) */}
+              <TemplatesPanel
+                templates={templatesQuery.data ?? []}
+                onApply={applyTemplate}
+                activeName={rendered?.subject}
+              />
+
+              {/* Actions */}
+              <section className="flex flex-wrap gap-2">
+                {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
+                  <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
+                    {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
+                    Zarezerwuj magazyn
+                  </Button>
                 )}
-              </div>
-            </ScrollArea>
-          </aside>
-
-          {/* RIGHT: content */}
-          <div className="flex flex-col min-h-0">
-            <ScrollArea className="flex-1">
-              <div className="p-6 space-y-6">
-                {/* Actions */}
-                <section className="flex flex-wrap gap-2">
-                  {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
-                    <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
-                      {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
-                      Zarezerwuj magazyn
+                {lead.reservation_status === "zarezerwowany" && (
+                  <>
+                    <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                      {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
+                      Wydaj z magazynu
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
+                      {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
+                      Zwolnij rezerwację
+                    </Button>
+                  </>
+                )}
+                <div className="ml-auto flex gap-2">
+                  <Button size="sm" variant="outline"
+                    onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
+                    title="Utwórz nowe zamówienie dla tego klienta">
+                    {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
+                    Duplikuj lead
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmDelete("soft")}>
+                    <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
+                  </Button>
+                  {isAdmin && (
+                    <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
+                      <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
                     </Button>
                   )}
-                  {lead.reservation_status === "zarezerwowany" && (
-                    <>
-                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
-                        {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
-                        Wydaj z magazynu
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
-                        {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
-                        Zwolnij rezerwację
-                      </Button>
-                    </>
-                  )}
-                  <div className="ml-auto flex gap-2">
-                    <Button size="sm" variant="outline"
-                      onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
-                      title="Utwórz nowe zamówienie dla tego klienta">
-                      {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
-                      Duplikuj lead
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setConfirmDelete("soft")}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
-                    </Button>
-                    {isAdmin && (
-                      <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
-                        <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
-                      </Button>
-                    )}
-                  </div>
-                </section>
+                </div>
+              </section>
 
-                {/* Editable lead data */}
-                <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">Dane leada</div>
-                    <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
-                      {saveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Zapisz
-                    </Button>
-                  </div>
+              {/* Editable lead data */}
+              <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Dane leada</div>
+                  <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
+                    {saveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Zapisz
+                  </Button>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-fn">Imię</Label>
+                    <Input id="ld-fn" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-ln">Nazwisko</Label>
+                    <Input id="ld-ln" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-ph">Telefon</Label>
+                    <Input id="ld-ph" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-em" className={validation.emailInvalid ? "text-destructive" : ""}>
+                      E-mail {validation.emailInvalid && <span className="text-xs">— wymagany do wysyłki</span>}
+                    </Label>
+                    <Input
+                      id="ld-em"
+                      type="email"
+                      value={form.email}
+                      aria-invalid={validation.emailInvalid}
+                      className={validation.emailInvalid ? "border-destructive ring-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-city">Miasto</Label>
+                    <Input id="ld-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-pc">Kod pocztowy</Label>
+                    <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                  </div>
+                </div>
+
+                {(validation.productMissing || validation.quantityMissing) && (
+                  <div className={`text-xs rounded-md border px-3 py-2 ${validation.productMissing || validation.quantityMissing ? "border-destructive/40 bg-destructive/10 text-destructive" : ""}`}>
+                    Uzupełnij <b>produkt</b> i <b>tonaż</b> w karcie leada (edytuj przez „Duplikuj"/nowy lead) — brakuje danych do oferty.
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dane do faktury</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-fn">Imię</Label>
-                      <Input id="ld-fn" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="ld-co">Nazwa firmy</Label>
+                      <Input id="ld-co" value={form.invoice_company} onChange={(e) => setForm({ ...form, invoice_company: e.target.value })} />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="ld-ln">Nazwisko</Label>
-                      <Input id="ld-ln" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+                      <Label htmlFor="ld-nip">NIP</Label>
+                      <Input id="ld-nip" value={form.invoice_nip} onChange={(e) => setForm({ ...form, invoice_nip: e.target.value })} />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-ph">Telefon</Label>
-                      <Input id="ld-ph" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="ld-ia">Adres do faktury</Label>
+                      <Textarea id="ld-ia" rows={2} value={form.invoice_address} onChange={(e) => setForm({ ...form, invoice_address: e.target.value })} />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-em">E-mail</Label>
-                      <Input id="ld-em" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium">Wspólny transport</div>
+                      <div className="text-xs text-muted-foreground">Klient zgadza się na konsolidację przewozu</div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-city">Miasto</Label>
-                      <Input id="ld-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  </div>
+                  <Switch
+                    checked={form.pooling_enabled}
+                    onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium">Ma czym rozładować transport</div>
+                      <div className="text-xs text-muted-foreground">Klient posiada własny sprzęt (wózek / ładowarka)</div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-pc">Kod pocztowy</Label>
-                      <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                  </div>
+                  <Switch
+                    checked={form.has_unloading_equipment}
+                    onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
+                  />
+                </div>
+              </section>
+
+              {/* Rendered offer */}
+              {rendered && (
+                <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="text-sm font-medium">Podgląd oferty</div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={copyOffer}>
+                        <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={sendOffer}
+                        disabled={!validation.canSend || sendOfferM.isPending}
+                        title={!validation.canSend ? "Wypełnij brakujące pola, aby móc wysłać ofertę" : ""}
+                      >
+                        {sendOfferM.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          : <Send className="h-3.5 w-3.5 mr-1" />}
+                        Wyślij ofertę
+                      </Button>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dane do faktury</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1 sm:col-span-2">
-                        <Label htmlFor="ld-co">Nazwa firmy</Label>
-                        <Input id="ld-co" value={form.invoice_company} onChange={(e) => setForm({ ...form, invoice_company: e.target.value })} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ld-nip">NIP</Label>
-                        <Input id="ld-nip" value={form.invoice_nip} onChange={(e) => setForm({ ...form, invoice_nip: e.target.value })} />
-                      </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <Label htmlFor="ld-ia">Adres do faktury</Label>
-                        <Textarea id="ld-ia" rows={2} value={form.invoice_address} onChange={(e) => setForm({ ...form, invoice_address: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
+                  {!validation.canSend && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-sm font-medium">Wspólny transport</div>
-                        <div className="text-xs text-muted-foreground">Klient zgadza się na konsolidację przewozu</div>
+                        <div className="font-medium">Wypełnij brakujące pola, aby móc wysłać ofertę</div>
+                        <ul className="mt-1 text-xs list-disc list-inside space-y-0.5">
+                          {validation.emailInvalid && <li>Brak poprawnego adresu e-mail klienta</li>}
+                          {validation.productMissing && <li>Brak wybranego produktu</li>}
+                          {validation.quantityMissing && <li>Brak wpisanego tonażu/ilości</li>}
+                          {validation.priceMissing && <li>Brak wyliczonej ceny / kosztu transportu w treści oferty (uzupełnij pola <code>{"{{cena_transportu}}"}</code> / kwoty w treści)</li>}
+                        </ul>
                       </div>
                     </div>
-                    <Switch
-                      checked={form.pooling_enabled}
-                      onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
-                    />
-                  </div>
+                  )}
 
-                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <PackageCheck className="h-4 w-4 text-primary" />
-                      <div>
-                        <div className="text-sm font-medium">Ma czym rozładować transport</div>
-                        <div className="text-xs text-muted-foreground">Klient posiada własny sprzęt (wózek / ładowarka)</div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={form.has_unloading_equipment}
-                      onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
-                    />
-                  </div>
+                  <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
+                  <Textarea
+                    value={rendered.body}
+                    onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
+                    rows={10}
+                    className="font-mono text-sm"
+                  />
                 </section>
+              )}
 
-
-                {/* Rendered offer */}
-                {rendered && (
-                  <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium">Podgląd oferty</div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={copyOffer}>
-                          <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
-                        </Button>
-                        {lead.email && (
-                          <Button size="sm" asChild>
-                            <a href={mailtoHref()}><Mail className="h-3.5 w-3.5 mr-1" /> Wyślij mail</a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
-                    <Textarea
-                      value={rendered.body}
-                      onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
-                      rows={10}
-                      className="font-mono text-sm"
-                    />
-                  </section>
-                )}
 
                 <Separator />
 
