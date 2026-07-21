@@ -24,6 +24,7 @@ import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -49,6 +50,7 @@ const searchSchema = z.object({
   status_key: z.string().optional(),
   has_notes: z.enum(["yes", "no"]).optional(),
   sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
+  mine: z.enum(["yes"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -146,8 +148,11 @@ function CrmPage() {
   const setSearch = (patch: Record<string, unknown>) =>
     navigate({ search: (p: Record<string, unknown>) => ({ ...p, ...patch }) });
 
+  const currentUser = useCurrentUser();
+  const mineOnly = search.mine === "yes";
+
   const filtersActive =
-    !!search.status_key || !!search.has_notes || (sort !== "smart");
+    !!search.status_key || !!search.has_notes || (sort !== "smart") || mineOnly;
 
   function applyFilters(items: Lead[]): Lead[] {
     let out = items;
@@ -159,8 +164,12 @@ function CrmPage() {
     } else if (search.has_notes === "no") {
       out = out.filter((l) => !notesByLead.has(l.id));
     }
+    if (mineOnly && currentUser?.id) {
+      out = out.filter((l) => (l as Lead & { assigned_to?: string | null }).assigned_to === currentUser.id);
+    }
     return sortItems(out);
   }
+
 
   function sortItems(items: Lead[]): Lead[] {
     const copy = [...items];
@@ -238,6 +247,16 @@ function CrmPage() {
             </SelectContent>
           </Select>
           <div className="mx-2 h-6 w-px bg-border" />
+          <Button
+            size="sm"
+            variant={mineOnly ? "default" : "outline"}
+            onClick={() => setSearch({ mine: mineOnly ? undefined : "yes" })}
+            disabled={!currentUser}
+            title="Pokaż tylko leady przypisane do mnie"
+          >
+            Moje leady
+          </Button>
+          <div className="mx-2 h-6 w-px bg-border" />
           <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Sortuj:</span>
           <Select
             value={sort}
@@ -265,6 +284,7 @@ function CrmPage() {
                     status_key: undefined,
                     has_notes: undefined,
                     sort: undefined,
+                    mine: undefined,
                   }),
                 })
               }

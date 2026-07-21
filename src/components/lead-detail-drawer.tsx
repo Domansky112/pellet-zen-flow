@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,9 +23,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -48,6 +49,7 @@ type Lead = {
   pooling_enabled?: boolean | null;
   has_unloading_equipment?: boolean | null;
   status_key?: string | null;
+  assigned_to?: string | null;
 };
 
 
@@ -61,7 +63,15 @@ export function LeadDetailDrawer({
   onOpenChange: (o: boolean) => void;
 }) {
   const qc = useQueryClient();
+  const currentUser = useCurrentUser();
   const [rendered, setRendered] = useState<{ subject: string; body: string } | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
+
+  // VAT calculator inputs
+  const [pricePerTonNet, setPricePerTonNet] = useState<string>("");
+  const [transportNet, setTransportNet] = useState<string>("");
+  const [vatRate, setVatRate] = useState<string>("23");
+
 
   const notesQuery = useQuery({
     queryKey: ["lead-notes", lead?.id],
@@ -120,6 +130,11 @@ export function LeadDetailDrawer({
       pooling_enabled: !!lead.pooling_enabled,
       has_unloading_equipment: !!lead.has_unloading_equipment,
     });
+    setRendered(null);
+    setTemplatesOpen(true);
+    setPricePerTonNet("");
+    setTransportNet("");
+    setVatRate("23");
   }, [lead?.id, open]);
 
   const [newNote, setNewNote] = useState("");
@@ -212,6 +227,32 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ---- VAT calculator (derived) -----------------------------------------
+  const vatCalc = useMemo(() => {
+    const qty = Number(lead?.quantity ?? 0) || 0;
+    const priceNet = Number(pricePerTonNet.replace(",", ".")) || 0;
+    const trNet = Number(transportNet.replace(",", ".")) || 0;
+    const rate = Number(vatRate.replace(",", ".")) || 0;
+    const towarNet = qty * priceNet;
+    const towarVat = towarNet * (rate / 100);
+    const towarBr = towarNet + towarVat;
+    const trVat = trNet * (rate / 100);
+    const trBr = trNet + trVat;
+    const sumNet = towarNet + trNet;
+    const sumVat = towarVat + trVat;
+    const sumBr = towarBr + trBr;
+    const fmt = (n: number) =>
+      n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      priceNet, trNet, rate,
+      towarNet, towarVat, towarBr,
+      trVat, trBr,
+      sumNet, sumVat, sumBr,
+      fmt,
+      hasPricing: priceNet > 0 || trNet > 0,
+    };
+  }, [lead?.quantity, pricePerTonNet, transportNet, vatRate]);
+
   const applyTemplate = async (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const { supabase } = await import("@/integrations/supabase/client");
@@ -222,6 +263,7 @@ export function LeadDetailDrawer({
       userData?.user?.email ||
       "";
     const adres = [lead.postal_code, lead.city].filter(Boolean).join(" ") || (lead as any).invoice_address || "";
+    const f = vatCalc.fmt;
     const vars: Record<string, string | number | null | undefined> = {
       // PL variables (canonical)
       imie_klienta: lead.first_name || lead.name,
@@ -229,7 +271,20 @@ export function LeadDetailDrawer({
       pelna_nazwa: lead.name,
       tonaz: lead.quantity ?? "",
       rodzaj_pelletu: lead.product ?? "",
-      cena_transportu: (lead as any).transport_price ?? "",
+      // VAT-aware pricing
+      cena_jedn_netto: f(vatCalc.priceNet),
+      stawka_vat: vatCalc.rate,
+      towar_netto: f(vatCalc.towarNet),
+      towar_vat: f(vatCalc.towarVat),
+      towar_brutto: f(vatCalc.towarBr),
+      transport_netto: f(vatCalc.trNet),
+      transport_vat: f(vatCalc.trVat),
+      transport_brutto: f(vatCalc.trBr),
+      suma_netto: f(vatCalc.sumNet),
+      suma_vat: f(vatCalc.sumVat),
+      suma_brutto: f(vatCalc.sumBr),
+      // legacy: cena_transportu = transport brutto
+      cena_transportu: f(vatCalc.trBr),
       adres_dostawy: adres,
       miasto: lead.city ?? "",
       telefon: lead.phone ?? "",
@@ -245,11 +300,29 @@ export function LeadDetailDrawer({
       product: lead.product ?? "",
       city: lead.city ?? "",
     };
+
+    // Auto-append VAT summary at the end of the body so every template
+    // includes clear Netto / VAT / Brutto breakdown for towar + transport.
+    const vatSummary =
+      `\n\n— Podsumowanie kosztów (VAT ${vatCalc.rate}%) —\n` +
+      `Towar (${lead.quantity ?? 0} t × ${f(vatCalc.priceNet)} zł/t):\n` +
+      `  Netto: ${f(vatCalc.towarNet)} zł\n` +
+      `  VAT: ${f(vatCalc.towarVat)} zł\n` +
+      `  Brutto: ${f(vatCalc.towarBr)} zł\n` +
+      `Transport:\n` +
+      `  Netto: ${f(vatCalc.trNet)} zł\n` +
+      `  VAT: ${f(vatCalc.trVat)} zł\n` +
+      `  Brutto: ${f(vatCalc.trBr)} zł\n` +
+      `RAZEM: ${f(vatCalc.sumNet)} zł netto + ${f(vatCalc.sumVat)} zł VAT = ` +
+      `${f(vatCalc.sumBr)} zł brutto`;
+
     setRendered({
       subject: renderTemplateBody(t.subject ?? t.name, vars),
-      body: renderTemplateBody(t.body, vars),
+      body: renderTemplateBody(t.body, vars) + vatSummary,
     });
+    setTemplatesOpen(true);
   };
+
 
   const copyOffer = async () => {
     if (!rendered) return;
@@ -305,9 +378,23 @@ export function LeadDetailDrawer({
     onSuccess: ({ to }) => {
       invalidateNotes();
       invalidateLeads();
+      // Auto-collapse the templates/offer panel and return to a clean lead view
+      setRendered(null);
+      setTemplatesOpen(false);
       toast.success(`Oferta została pomyślnie wysłana na adres: ${to}`);
     },
     onError: (e: Error) => toast.error(e.message || "Nie udało się wysłać oferty"),
+  });
+
+  // ---- Assign to me -----------------------------------------------------
+  const assignFn = useServerFn(assignToMe);
+  const assignM = useMutation({
+    mutationFn: () => assignFn({ data: { id: lead!.id } }),
+    onSuccess: () => {
+      invalidateLeads();
+      toast.success("Lead przypisany do Ciebie");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const sendOffer = () => {
@@ -381,34 +468,62 @@ export function LeadDetailDrawer({
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-6 space-y-6">
-              {/* TOP: Templates panel (collapsible) */}
+              {/* TOP: Templates panel (collapsible, controlled) */}
               <TemplatesPanel
                 templates={templatesQuery.data ?? []}
                 onApply={applyTemplate}
                 activeName={rendered?.subject}
+                open={templatesOpen}
+                onOpenChange={setTemplatesOpen}
               />
 
-              {/* Actions */}
-              <section className="flex flex-wrap gap-2">
-                {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
-                  <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
-                    {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
-                    Zarezerwuj magazyn
-                  </Button>
+              {/* Ownership + Actions */}
+              <section className="flex flex-wrap items-center gap-2">
+                {lead.assigned_to ? (
+                  lead.assigned_to === currentUser?.id ? (
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                      <UserCheck className="h-3 w-3 mr-1" /> Przypisany do Ciebie
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
+                      <UserCheck className="h-3 w-3 mr-1" /> Przypisany do innego opiekuna
+                    </Badge>
+                  )
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Brak opiekuna
+                  </Badge>
                 )}
-                {lead.reservation_status === "zarezerwowany" && (
-                  <>
-                    <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
-                      {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
-                      Wydaj z magazynu
+                <Button
+                  size="sm"
+                  variant={lead.assigned_to === currentUser?.id ? "outline" : "default"}
+                  onClick={() => assignM.mutate()}
+                  disabled={assignM.isPending || !currentUser || lead.assigned_to === currentUser?.id}
+                  title={lead.assigned_to === currentUser?.id ? "Już masz przypisany ten lead" : "Zostań opiekunem tego leada"}
+                >
+                  {assignM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                  Przypisz do mnie
+                </Button>
+
+                <div className="ml-auto flex flex-wrap gap-2">
+                  {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
+                    <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
+                      {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
+                      Zarezerwuj magazyn
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
-                      {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
-                      Zwolnij rezerwację
-                    </Button>
-                  </>
-                )}
-                <div className="ml-auto flex gap-2">
+                  )}
+                  {lead.reservation_status === "zarezerwowany" && (
+                    <>
+                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                        {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
+                        Wydaj z magazynu
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
+                        {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
+                        Zwolnij rezerwację
+                      </Button>
+                    </>
+                  )}
                   <Button size="sm" variant="outline"
                     onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
                     title="Utwórz nowe zamówienie dla tego klienta">
@@ -426,6 +541,82 @@ export function LeadDetailDrawer({
                   )}
                 </div>
               </section>
+
+              {/* VAT calculator */}
+              <section className="rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  Kalkulator oferty (VAT)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-price">Cena netto (zł / t)</Label>
+                    <Input
+                      id="vat-price"
+                      inputMode="decimal"
+                      placeholder="np. 1250"
+                      value={pricePerTonNet}
+                      onChange={(e) => setPricePerTonNet(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-transport">Transport netto (zł)</Label>
+                    <Input
+                      id="vat-transport"
+                      inputMode="decimal"
+                      placeholder="np. 850"
+                      value={transportNet}
+                      onChange={(e) => setTransportNet(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-rate">Stawka VAT (%)</Label>
+                    <Select value={vatRate} onValueChange={setVatRate}>
+                      <SelectTrigger id="vat-rate"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="23">23%</SelectItem>
+                        <SelectItem value="8">8%</SelectItem>
+                        <SelectItem value="5">5%</SelectItem>
+                        <SelectItem value="0">0%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="rounded-md border border-border/60 bg-background/70 p-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Pozycja</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Netto</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">VAT</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Brutto</div>
+
+                    <div>Towar {lead.quantity ? `(${lead.quantity} t)` : ""}</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarVat)} zł</div>
+                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.towarBr)} zł</div>
+
+                    <div>Transport</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trVat)} zł</div>
+                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.trBr)} zł</div>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3 font-semibold">
+                    <div>RAZEM</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumVat)} zł</div>
+                    <div className="text-right tabular-nums text-primary">{vatCalc.fmt(vatCalc.sumBr)} zł</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Wartości trafiają do zmiennych szablonu: <code>{"{{cena_jedn_netto}}"}</code>,{" "}
+                  <code>{"{{stawka_vat}}"}</code>, <code>{"{{towar_netto}}"}</code>,{" "}
+                  <code>{"{{towar_vat}}"}</code>, <code>{"{{towar_brutto}}"}</code>,{" "}
+                  <code>{"{{transport_netto}}"}</code>, <code>{"{{transport_vat}}"}</code>,{" "}
+                  <code>{"{{transport_brutto}}"}</code>, <code>{"{{suma_netto}}"}</code>,{" "}
+                  <code>{"{{suma_vat}}"}</code>, <code>{"{{suma_brutto}}"}</code>. Podsumowanie z podziałem na Netto / VAT / Brutto jest też dopisywane automatycznie na końcu wiadomości.
+                </p>
+              </section>
+
 
               {/* Editable lead data */}
               <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
@@ -709,12 +900,17 @@ function TemplatesPanel({
   templates,
   onApply,
   activeName,
+  open,
+  onOpenChange,
 }: {
   templates: Array<{ id: string; name: string; subject: string | null; body: string; product?: string | null }>;
   onApply: (t: { id: string; name: string; subject: string | null; body: string }) => void;
   activeName?: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const setOpen = onOpenChange;
+
 
   return (
     <section className="rounded-lg border border-primary/30 bg-primary/5">
@@ -727,7 +923,7 @@ function TemplatesPanel({
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => setOpen(!open)}
           className="h-7 gap-1"
           title={open ? "Zwiń panel" : "Rozwiń panel"}
           aria-expanded={open}
