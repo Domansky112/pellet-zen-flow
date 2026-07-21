@@ -959,22 +959,23 @@ function TemplatesPanel({
   activeName,
   open,
   onOpenChange,
+  children,
 }: {
   templates: Array<{ id: string; name: string; subject: string | null; body: string; product?: string | null }>;
   onApply: (t: { id: string; name: string; subject: string | null; body: string }) => void;
   activeName?: string;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  children?: React.ReactNode;
 }) {
   const setOpen = onOpenChange;
-
 
   return (
     <section className="rounded-lg border border-primary/30 bg-primary/5">
       <header className="flex items-center justify-between px-4 py-2.5 border-b border-primary/20">
         <div className="flex items-center gap-2 text-sm font-medium">
           <FileText className="h-4 w-4 text-primary" />
-          Szablony ofert
+          Szablony ofert &amp; podgląd
           <Badge variant="outline" className="ml-1 text-[10px]">{templates.length}</Badge>
         </div>
         <Button
@@ -985,19 +986,11 @@ function TemplatesPanel({
           title={open ? "Zwiń panel" : "Rozwiń panel"}
           aria-expanded={open}
         >
-          {open ? (
-            <>
-              <ChevronUp className="h-3.5 w-3.5" /> Zwiń
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-3.5 w-3.5" /> Rozwiń
-            </>
-          )}
+          {open ? (<><ChevronUp className="h-3.5 w-3.5" /> Zwiń</>) : (<><ChevronDown className="h-3.5 w-3.5" /> Rozwiń</>)}
         </Button>
       </header>
       {open && (
-        <div className="p-3">
+        <div className="p-3 space-y-3">
           {templates.length === 0 ? (
             <div className="text-xs text-muted-foreground p-2">
               Brak szablonów. Dodaj je w Ustawieniach → Szablony wiadomości.
@@ -1021,6 +1014,9 @@ function TemplatesPanel({
                 </button>
               ))}
             </div>
+          )}
+          {children && (
+            <div className="border-t border-primary/20 pt-3">{children}</div>
           )}
         </div>
       )}
