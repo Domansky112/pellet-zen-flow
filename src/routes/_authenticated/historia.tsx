@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw } from "lucide-react";
+import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck } from "lucide-react";
 import { listDeliveryHistory } from "@/lib/leads.functions";
+import { TransportDetailDialog } from "@/components/transport-detail-dialog";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
+
 
 export const Route = createFileRoute("/_authenticated/historia")({
   head: () => ({
