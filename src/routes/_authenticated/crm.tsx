@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Mail, Globe, Building2, Phone, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2, StickyNote, X as XIcon } from "lucide-react";
-import { listLeads, listReservedLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
+import { listLeads, listReservedLeads, listCancelledLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
 import { listLeadStatuses, setLeadStatusKey, type LeadStatus } from "@/lib/lead-statuses.functions";
 import { listLeadIdsWithNotes } from "@/lib/notes.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
@@ -33,6 +33,11 @@ const leadsQuery = queryOptions({
   queryFn: () => listLeads(),
 });
 
+const cancelledLeadsQuery = queryOptions({
+  queryKey: ["leads-cancelled"],
+  queryFn: () => listCancelledLeads(),
+});
+
 const statusesQuery = queryOptions({
   queryKey: ["lead-statuses"],
   queryFn: () => listLeadStatuses(),
@@ -44,7 +49,7 @@ const notesIndexQuery = queryOptions({
 });
 
 const searchSchema = z.object({
-  tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
+  tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy", "realized", "cancelled"]).optional(),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
   leadId: z.string().uuid().optional(),
   status_key: z.string().optional(),
@@ -52,6 +57,18 @@ const searchSchema = z.object({
   sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
   mine: z.enum(["yes"]).optional(),
 });
+
+// A lead is "closed" (realized or cancelled) when either the reservation is
+// delivered ("wydany") or the status is wygrany/przegrany. Closed leads are
+// excluded from the default "Wszystkie" working view.
+function isClosedLead(l: { status?: string | null; status_key?: string | null; reservation_status?: string | null }) {
+  const key = (l.status_key ?? l.status ?? "") as string;
+  return key === "wygrany" || key === "przegrany" || l.reservation_status === "wydany";
+}
+function isRealizedLead(l: { status?: string | null; status_key?: string | null; reservation_status?: string | null }) {
+  const key = (l.status_key ?? l.status ?? "") as string;
+  return key === "wygrany" || l.reservation_status === "wydany";
+}
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
@@ -114,15 +131,26 @@ function CrmPage() {
       }),
   });
 
+  const cancelled = useQuery({
+    ...cancelledLeadsQuery,
+    enabled: tab === "cancelled",
+  });
+
+  // Active vs closed split for the working "Wszystkie" view.
+  const activeLeads = useMemo(() => (leads as Lead[]).filter((l) => !isClosedLead(l)), [leads]);
+  const realizedLeads = useMemo(() => (leads as Lead[]).filter((l) => isRealizedLead(l)), [leads]);
+
   useEffect(() => {
     if (!search.leadId) return;
-    const found = leads.find((l) => l.id === search.leadId)
-      ?? (reserved.data ?? []).find((l) => l.id === search.leadId);
+    const found =
+      (leads as Lead[]).find((l) => l.id === search.leadId)
+      ?? (reserved.data ?? []).find((l) => l.id === search.leadId)
+      ?? (cancelled.data ?? []).find((l) => l.id === search.leadId);
     if (found) {
       setOpenLead(found as Lead);
       navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
     }
-  }, [search.leadId, leads, reserved.data, navigate]);
+  }, [search.leadId, leads, reserved.data, cancelled.data, navigate]);
 
   useEffect(() => {
     const ch = supabase
@@ -132,6 +160,7 @@ function CrmPage() {
         { event: "*", schema: "public", table: "leads" },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
           queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
           if (payload.eventType === "INSERT") {
             const n = (payload.new as { name?: string })?.name ?? "Nowe zgłoszenie";
@@ -204,6 +233,7 @@ function CrmPage() {
               variant="outline"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["leads"] });
+                queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
                 queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
                 queryClient.invalidateQueries({ queryKey: ["lead-notes-index"] });
               }}
@@ -300,9 +330,9 @@ function CrmPage() {
             navigate({ search: (p: Record<string, unknown>) => ({ ...p, tab: v === "all" ? undefined : (v as typeof tab) }) })
           }
         >
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">
-              Wszystkie <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
+              Wszystkie <Badge variant="secondary" className="ml-2">{activeLeads.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="reserved">
               Z rezerwacją{" "}
@@ -314,9 +344,21 @@ function CrmPage() {
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="b2b">B2B</TabsTrigger>
             <TabsTrigger value="nowy">Nowe</TabsTrigger>
+            <TabsTrigger value="realized">
+              Zrealizowane{" "}
+              <Badge variant="outline" className="ml-2 border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                {realizedLeads.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="cancelled">
+              Anulowane{" "}
+              <Badge variant="outline" className="ml-2 border-destructive/40 text-destructive bg-destructive/10">
+                {cancelled.data?.length ?? 0}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="all" className="mt-4">
-            <LeadList items={applyFilters(leads as Lead[])} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+            <LeadList items={applyFilters(activeLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
           </TabsContent>
           <TabsContent value="reserved" className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
@@ -350,10 +392,28 @@ function CrmPage() {
             </div>
             <ReservedList items={reserved.data ?? []} onOpen={setOpenLead} />
           </TabsContent>
-          <TabsContent value="www" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "www"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="email" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "email"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="www" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "www"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="email" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "email"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="realized" className="mt-4">
+            <div className="mb-3 text-sm text-muted-foreground">
+              Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).
+            </div>
+            <LeadList items={applyFilters(realizedLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+          </TabsContent>
+          <TabsContent value="cancelled" className="mt-4">
+            <div className="mb-3 text-sm text-muted-foreground">
+              Leady anulowane — rezerwacje zostały zwolnione, dane pozostają w archiwum.
+            </div>
+            {cancelled.isLoading ? (
+              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+                Wczytywanie…
+              </div>
+            ) : (
+              <LeadList items={applyFilters((cancelled.data ?? []) as Lead[])} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 

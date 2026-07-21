@@ -16,6 +16,19 @@ export const listLeads = createServerFn({ method: "GET" })
     return data;
   });
 
+export const listCancelledLeads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("leads")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
 const SearchInput = z.object({ q: z.preprocess((v) => (typeof v === "string" ? v.trim().slice(0, 120) : v), z.string().min(2)) });
 
 export const searchLeads = createServerFn({ method: "GET" })
