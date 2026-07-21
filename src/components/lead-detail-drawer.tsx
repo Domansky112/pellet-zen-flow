@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -257,12 +257,69 @@ export function LeadDetailDrawer({
     toast.success("Skopiowano treść oferty");
   };
 
-  const mailtoHref = () => {
-    if (!rendered || !lead?.email) return "#";
-    return `mailto:${lead.email}?subject=${encodeURIComponent(rendered.subject)}&body=${encodeURIComponent(rendered.body)}`;
+  // ---- Validation for "Wyślij ofertę" -----------------------------------
+  const validation = useMemo(() => {
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((form.email || lead?.email || "").trim());
+    const productMissing = !lead?.product;
+    const quantityMissing = !(lead?.quantity && Number(lead.quantity) > 0);
+    // "wyliczona cena / koszt transportu": template must be applied and must
+    // contain at least one number/kwota (zł / PLN / cyfry). Unresolved
+    // {{cena_transportu}} tags or a template without any numeric price fail.
+    const body = rendered?.body ?? "";
+    const hasUnresolved = /{{\s*[a-z_]+\s*}}/i.test(body);
+    const hasPrice = /(\d[\d\s]*[,.]?\d*)\s*(zł|pln)/i.test(body) || /cena[^:\n]*:\s*\d/i.test(body);
+    const priceMissing = !rendered || hasUnresolved || !hasPrice;
+    const emailInvalid = !emailValid;
+    return {
+      emailInvalid,
+      productMissing,
+      quantityMissing,
+      priceMissing,
+      canSend: !emailInvalid && !productMissing && !quantityMissing && !priceMissing,
+    };
+  }, [form.email, lead?.email, lead?.product, lead?.quantity, rendered?.body]);
+
+  // ---- Send offer: mailto + note + status = oferta_wyslana --------------
+  const sendOfferM = useMutation({
+    mutationFn: async () => {
+      if (!lead || !rendered) throw new Error("Brak oferty");
+      const to = (form.email || lead.email || "").trim();
+      // 1) open user's mail client with pre-filled offer
+      const mailto = `mailto:${to}?subject=${encodeURIComponent(rendered.subject)}&body=${encodeURIComponent(rendered.body)}`;
+      window.open(mailto, "_self");
+      // 2) log in notes (history)
+      const stamp = new Date().toLocaleString("pl-PL");
+      const noteBody =
+        `📧 Oferta wysłana do ${to} · ${stamp}\n` +
+        `Temat: ${rendered.subject}\n\n${rendered.body}`;
+      await addFn({ data: { lead_id: lead.id, body: noteBody } });
+      // 3) set status to "oferta_wyslana" (fallback to "oferta")
+      // 3) set status to "Oferta wysłana" (seeded key: "oferta")
+      try {
+        await setStatusFn({ data: { id: lead.id, status_key: "oferta" } });
+      } catch {
+        // ignore — the mail was sent and note added regardless
+      }
+      return { to };
+    },
+    onSuccess: ({ to }) => {
+      invalidateNotes();
+      invalidateLeads();
+      toast.success(`Oferta została pomyślnie wysłana na adres: ${to}`);
+    },
+    onError: (e: Error) => toast.error(e.message || "Nie udało się wysłać oferty"),
+  });
+
+  const sendOffer = () => {
+    if (!validation.canSend) {
+      toast.error("Wypełnij brakujące pola, aby móc wysłać ofertę");
+      return;
+    }
+    sendOfferM.mutate();
   };
 
   if (!lead) return null;
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -321,188 +378,206 @@ export function LeadDetailDrawer({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] flex-1 min-h-0">
-          {/* LEFT: templates */}
-          <aside className="border-r bg-muted/20 flex flex-col min-h-0">
-            <div className="px-4 py-3 border-b flex items-center gap-2 text-sm font-medium">
-              <FileText className="h-4 w-4" /> Szablony ofert
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
-                {templatesQuery.data?.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => applyTemplate(t)}
-                    className="w-full text-left rounded-md border border-border/60 bg-background px-3 py-2 hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                  >
-                    <div className="text-sm font-medium">{t.name}</div>
-                    {t.product && <div className="text-xs text-muted-foreground mt-0.5">{t.product}</div>}
-                  </button>
-                ))}
-                {templatesQuery.data?.length === 0 && (
-                  <div className="text-xs text-muted-foreground p-3">Brak szablonów</div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-6 space-y-6">
+              {/* TOP: Templates panel (collapsible) */}
+              <TemplatesPanel
+                templates={templatesQuery.data ?? []}
+                onApply={applyTemplate}
+                activeName={rendered?.subject}
+              />
+
+              {/* Actions */}
+              <section className="flex flex-wrap gap-2">
+                {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
+                  <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
+                    {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
+                    Zarezerwuj magazyn
+                  </Button>
                 )}
-              </div>
-            </ScrollArea>
-          </aside>
-
-          {/* RIGHT: content */}
-          <div className="flex flex-col min-h-0">
-            <ScrollArea className="flex-1">
-              <div className="p-6 space-y-6">
-                {/* Actions */}
-                <section className="flex flex-wrap gap-2">
-                  {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
-                    <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
-                      {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
-                      Zarezerwuj magazyn
+                {lead.reservation_status === "zarezerwowany" && (
+                  <>
+                    <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                      {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
+                      Wydaj z magazynu
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
+                      {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
+                      Zwolnij rezerwację
+                    </Button>
+                  </>
+                )}
+                <div className="ml-auto flex gap-2">
+                  <Button size="sm" variant="outline"
+                    onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
+                    title="Utwórz nowe zamówienie dla tego klienta">
+                    {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
+                    Duplikuj lead
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmDelete("soft")}>
+                    <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
+                  </Button>
+                  {isAdmin && (
+                    <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
+                      <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
                     </Button>
                   )}
-                  {lead.reservation_status === "zarezerwowany" && (
-                    <>
-                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
-                        {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
-                        Wydaj z magazynu
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
-                        {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
-                        Zwolnij rezerwację
-                      </Button>
-                    </>
-                  )}
-                  <div className="ml-auto flex gap-2">
-                    <Button size="sm" variant="outline"
-                      onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
-                      title="Utwórz nowe zamówienie dla tego klienta">
-                      {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
-                      Duplikuj lead
-                    </Button>
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setConfirmDelete("soft")}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
-                    </Button>
-                    {isAdmin && (
-                      <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
-                        <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
-                      </Button>
-                    )}
-                  </div>
-                </section>
+                </div>
+              </section>
 
-                {/* Editable lead data */}
-                <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">Dane leada</div>
-                    <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
-                      {saveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Zapisz
-                    </Button>
-                  </div>
+              {/* Editable lead data */}
+              <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Dane leada</div>
+                  <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
+                    {saveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Zapisz
+                  </Button>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-fn">Imię</Label>
+                    <Input id="ld-fn" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-ln">Nazwisko</Label>
+                    <Input id="ld-ln" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-ph">Telefon</Label>
+                    <Input id="ld-ph" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-em" className={validation.emailInvalid ? "text-destructive" : ""}>
+                      E-mail {validation.emailInvalid && <span className="text-xs">— wymagany do wysyłki</span>}
+                    </Label>
+                    <Input
+                      id="ld-em"
+                      type="email"
+                      value={form.email}
+                      aria-invalid={validation.emailInvalid}
+                      className={validation.emailInvalid ? "border-destructive ring-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-city">Miasto</Label>
+                    <Input id="ld-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-pc">Kod pocztowy</Label>
+                    <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                  </div>
+                </div>
+
+                {(validation.productMissing || validation.quantityMissing) && (
+                  <div className={`text-xs rounded-md border px-3 py-2 ${validation.productMissing || validation.quantityMissing ? "border-destructive/40 bg-destructive/10 text-destructive" : ""}`}>
+                    Uzupełnij <b>produkt</b> i <b>tonaż</b> w karcie leada (edytuj przez „Duplikuj"/nowy lead) — brakuje danych do oferty.
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dane do faktury</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-fn">Imię</Label>
-                      <Input id="ld-fn" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="ld-co">Nazwa firmy</Label>
+                      <Input id="ld-co" value={form.invoice_company} onChange={(e) => setForm({ ...form, invoice_company: e.target.value })} />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="ld-ln">Nazwisko</Label>
-                      <Input id="ld-ln" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+                      <Label htmlFor="ld-nip">NIP</Label>
+                      <Input id="ld-nip" value={form.invoice_nip} onChange={(e) => setForm({ ...form, invoice_nip: e.target.value })} />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-ph">Telefon</Label>
-                      <Input id="ld-ph" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label htmlFor="ld-ia">Adres do faktury</Label>
+                      <Textarea id="ld-ia" rows={2} value={form.invoice_address} onChange={(e) => setForm({ ...form, invoice_address: e.target.value })} />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-em">E-mail</Label>
-                      <Input id="ld-em" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium">Wspólny transport</div>
+                      <div className="text-xs text-muted-foreground">Klient zgadza się na konsolidację przewozu</div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-city">Miasto</Label>
-                      <Input id="ld-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  </div>
+                  <Switch
+                    checked={form.pooling_enabled}
+                    onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-sm font-medium">Ma czym rozładować transport</div>
+                      <div className="text-xs text-muted-foreground">Klient posiada własny sprzęt (wózek / ładowarka)</div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="ld-pc">Kod pocztowy</Label>
-                      <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                  </div>
+                  <Switch
+                    checked={form.has_unloading_equipment}
+                    onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
+                  />
+                </div>
+              </section>
+
+              {/* Rendered offer */}
+              {rendered && (
+                <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="text-sm font-medium">Podgląd oferty</div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={copyOffer}>
+                        <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={sendOffer}
+                        disabled={!validation.canSend || sendOfferM.isPending}
+                        title={!validation.canSend ? "Wypełnij brakujące pola, aby móc wysłać ofertę" : ""}
+                      >
+                        {sendOfferM.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          : <Send className="h-3.5 w-3.5 mr-1" />}
+                        Wyślij ofertę
+                      </Button>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <div className="space-y-3">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dane do faktury</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1 sm:col-span-2">
-                        <Label htmlFor="ld-co">Nazwa firmy</Label>
-                        <Input id="ld-co" value={form.invoice_company} onChange={(e) => setForm({ ...form, invoice_company: e.target.value })} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="ld-nip">NIP</Label>
-                        <Input id="ld-nip" value={form.invoice_nip} onChange={(e) => setForm({ ...form, invoice_nip: e.target.value })} />
-                      </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <Label htmlFor="ld-ia">Adres do faktury</Label>
-                        <Textarea id="ld-ia" rows={2} value={form.invoice_address} onChange={(e) => setForm({ ...form, invoice_address: e.target.value })} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
+                  {!validation.canSend && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                       <div>
-                        <div className="text-sm font-medium">Wspólny transport</div>
-                        <div className="text-xs text-muted-foreground">Klient zgadza się na konsolidację przewozu</div>
+                        <div className="font-medium">Wypełnij brakujące pola, aby móc wysłać ofertę</div>
+                        <ul className="mt-1 text-xs list-disc list-inside space-y-0.5">
+                          {validation.emailInvalid && <li>Brak poprawnego adresu e-mail klienta</li>}
+                          {validation.productMissing && <li>Brak wybranego produktu</li>}
+                          {validation.quantityMissing && <li>Brak wpisanego tonażu/ilości</li>}
+                          {validation.priceMissing && <li>Brak wyliczonej ceny / kosztu transportu w treści oferty (uzupełnij pola <code>{"{{cena_transportu}}"}</code> / kwoty w treści)</li>}
+                        </ul>
                       </div>
                     </div>
-                    <Switch
-                      checked={form.pooling_enabled}
-                      onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
-                    />
-                  </div>
+                  )}
 
-                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <PackageCheck className="h-4 w-4 text-primary" />
-                      <div>
-                        <div className="text-sm font-medium">Ma czym rozładować transport</div>
-                        <div className="text-xs text-muted-foreground">Klient posiada własny sprzęt (wózek / ładowarka)</div>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={form.has_unloading_equipment}
-                      onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
-                    />
-                  </div>
+                  <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
+                  <Textarea
+                    value={rendered.body}
+                    onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
+                    rows={10}
+                    className="font-mono text-sm"
+                  />
                 </section>
+              )}
 
-
-                {/* Rendered offer */}
-                {rendered && (
-                  <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium">Podgląd oferty</div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={copyOffer}>
-                          <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
-                        </Button>
-                        {lead.email && (
-                          <Button size="sm" asChild>
-                            <a href={mailtoHref()}><Mail className="h-3.5 w-3.5 mr-1" /> Wyślij mail</a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
-                    <Textarea
-                      value={rendered.body}
-                      onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
-                      rows={10}
-                      className="font-mono text-sm"
-                    />
-                  </section>
-                )}
 
                 <Separator />
 
@@ -567,10 +642,9 @@ export function LeadDetailDrawer({
                       <div className="text-xs text-muted-foreground italic">Brak notatek.</div>
                     )}
                   </div>
-                </section>
-              </div>
-            </ScrollArea>
-          </div>
+              </section>
+            </div>
+          </ScrollArea>
         </div>
       </DialogContent>
 
@@ -625,5 +699,78 @@ export function LeadDetailDrawer({
         </DialogContent>
       </Dialog>
     </Dialog>
+  );
+}
+
+// ============================================================
+// Templates panel — collapsible list at the top of the drawer
+// ============================================================
+function TemplatesPanel({
+  templates,
+  onApply,
+  activeName,
+}: {
+  templates: Array<{ id: string; name: string; subject: string | null; body: string; product?: string | null }>;
+  onApply: (t: { id: string; name: string; subject: string | null; body: string }) => void;
+  activeName?: string;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <section className="rounded-lg border border-primary/30 bg-primary/5">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-primary/20">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <FileText className="h-4 w-4 text-primary" />
+          Szablony ofert
+          <Badge variant="outline" className="ml-1 text-[10px]">{templates.length}</Badge>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen((v) => !v)}
+          className="h-7 gap-1"
+          title={open ? "Zwiń panel" : "Rozwiń panel"}
+          aria-expanded={open}
+        >
+          {open ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" /> Zwiń
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" /> Rozwiń
+            </>
+          )}
+        </Button>
+      </header>
+      {open && (
+        <div className="p-3">
+          {templates.length === 0 ? (
+            <div className="text-xs text-muted-foreground p-2">
+              Brak szablonów. Dodaj je w Ustawieniach → Szablony wiadomości.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onApply(t)}
+                  className={`text-left rounded-md border px-3 py-2 transition-colors bg-background hover:border-primary/60 hover:bg-primary/5 ${
+                    activeName && (t.subject === activeName || t.name === activeName)
+                      ? "border-primary ring-1 ring-primary/40"
+                      : "border-border/60"
+                  }`}
+                >
+                  <div className="text-sm font-medium truncate">{t.name}</div>
+                  {t.product && (
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{t.product}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
