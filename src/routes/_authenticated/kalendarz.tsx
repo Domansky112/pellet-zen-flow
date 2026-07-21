@@ -35,6 +35,7 @@ import {
   listTransports,
 } from "@/lib/transport-crud.functions";
 import { listLeads } from "@/lib/leads.functions";
+import { WzDownloadButton } from "@/components/wz-download-button";
 
 export const Route = createFileRoute("/_authenticated/kalendarz")({
   head: () => ({
@@ -185,15 +186,18 @@ function TransportRow({
         </div>
         {t.notes && <div className="text-xs text-muted-foreground">📝 {t.notes}</div>}
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => {
-          if (confirm(`Usunąć transport ${t.scheduled_date} → ${t.city}?`)) onDelete(t.id);
-        }}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center gap-1 shrink-0">
+        <WzDownloadButton transportId={t.id} />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            if (confirm(`Usunąć transport ${t.scheduled_date} → ${t.city}?`)) onDelete(t.id);
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

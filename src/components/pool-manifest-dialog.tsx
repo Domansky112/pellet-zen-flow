@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPoolManifest, confirmPool } from "@/lib/pooling.functions";
+import { WzDownloadButton } from "@/components/wz-download-button";
 
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Paleta pelletu (960 kg)",
@@ -309,6 +310,7 @@ export function PoolManifestDialog({
           <Button variant="outline" onClick={handlePrint} disabled={!manifest.data}>
             <Printer className="h-4 w-4 mr-2" /> Drukuj list załadunkowy
           </Button>
+          {poolId && <WzDownloadButton poolId={poolId} size="default" />}
           <div className="flex-1" />
           <Button variant="ghost" onClick={onClose}>
             Zamknij
