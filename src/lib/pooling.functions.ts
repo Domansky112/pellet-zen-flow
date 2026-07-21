@@ -635,26 +635,24 @@ export const confirmPool = createServerFn({ method: "POST" })
     );
     if (iErr) throw new Error(iErr.message);
 
-    // 3. Rezerwacja magazynu — grupowana per produkt
+    // 3. Rezerwacja magazynu — per lead, idempotentnie (RPC pomija już zarezerwowane)
     if (data.reserve_stock) {
-      const byProduct = new Map<string, number>();
-      for (const it of items) {
-        const p = it.leads?.product ?? "inne";
-        byProduct.set(p, (byProduct.get(p) ?? 0) + Number(it.tons));
+      const leadIdsAll = items.map((i) => i.leads?.id).filter(Boolean) as string[];
+      const reservationErrors: string[] = [];
+      for (const lid of leadIdsAll) {
+        const { error: rpcErr } = await context.supabase.rpc("reserve_stock_for_lead", {
+          _lead_id: lid,
+        });
+        if (rpcErr) reservationErrors.push(`${lid.slice(0, 8)}: ${rpcErr.message}`);
       }
-      const rows = Array.from(byProduct.entries()).map(([product, tons]) => ({
-        product: product as "pellet_paleta" | "pellet_bigbag" | "inne",
-        txn_type: "rezerwacja" as const,
-        quantity: Math.round(tons * 1000) / 1000,
-        reference: `POOL:${pool.id.slice(0, 8)}`,
-        note: `Rezerwacja pod wspólny transport ${data.scheduled_date} (${items.length} klientów)`,
-        created_by: context.userId,
-      }));
-      const { error: sErr } = await context.supabase.from("stock_events").insert(rows);
-      if (sErr) throw new Error(sErr.message);
+      if (reservationErrors.length > 0) {
+        throw new Error(
+          `Nie udało się zarezerwować towaru dla wszystkich leadów: ${reservationErrors.join("; ")}`,
+        );
+      }
     }
 
-    // 4. Update leads + pool
+    // 4. Update leads + pool (RPC ustawia reservation_status; tu ustawiamy pooling/wygrany)
     const leadIds = items.map((i) => i.leads?.id).filter(Boolean) as string[];
     if (leadIds.length > 0) {
       await context.supabase
@@ -666,6 +664,7 @@ export const confirmPool = createServerFn({ method: "POST" })
       .from("transport_pools")
       .update({ status: "potwierdzony", transport_id: transport.id })
       .eq("id", pool.id);
+
 
     return { transport_id: transport.id };
   });
