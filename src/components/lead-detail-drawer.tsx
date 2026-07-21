@@ -266,6 +266,46 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ---- Schedule transport ------------------------------------------------
+  const scheduleFn = useServerFn(scheduleTransportForLead);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedAddress, setSchedAddress] = useState("");
+  const [schedDriver, setSchedDriver] = useState("");
+  const [schedNotes, setSchedNotes] = useState("");
+  useEffect(() => {
+    if (scheduleOpen && lead) {
+      setSchedAddress(lead.invoice_address ?? [lead.postal_code, lead.city].filter(Boolean).join(" ") ?? "");
+      setSchedDriver("");
+      setSchedNotes("");
+      setSchedDate("");
+    }
+  }, [scheduleOpen, lead]);
+  const scheduleM = useMutation({
+    mutationFn: () =>
+      scheduleFn({
+        data: {
+          lead_id: lead!.id,
+          scheduled_date: schedDate,
+          destination_address: schedAddress || null,
+          driver: schedDriver || null,
+          notes: schedNotes || null,
+        },
+      }),
+    onSuccess: (res: { reused_reservation?: boolean }) => {
+      invalidateLeads();
+      qc.invalidateQueries({ queryKey: ["transports"] });
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      setScheduleOpen(false);
+      toast.success(
+        res?.reused_reservation
+          ? "Transport dodany do kalendarza (użyto istniejącej rezerwacji)"
+          : "Transport dodany + auto-rezerwacja magazynu",
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ---- VAT calculator (derived) -----------------------------------------
   const vatCalc = useMemo(() => {
     const qtyRaw = (form.quantity ?? "").toString().replace(",", ".");
