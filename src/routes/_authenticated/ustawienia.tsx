@@ -91,30 +91,50 @@ function UstawieniaPage() {
     );
   }
 
+  const [section, setSection] = useState("fleet");
+  const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
+    { value: "fleet", label: "Flota", Icon: Truck },
+    { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
+    { value: "products", label: "Słownik produktów", Icon: Package2 },
+    { value: "warehouses", label: "Magazyny", Icon: Store },
+    { value: "carriers", label: "Przewoźnicy", Icon: Building2 },
+    { value: "config", label: "Konfiguracja", Icon: Settings2 },
+    { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
+  ];
+  const current = SECTION_OPTIONS.find((s) => s.value === section)!;
+
   return (
     <div className="p-6 md:p-8 space-y-6">
       <PageHeader
         title="Ustawienia / Administracja"
         description="Zarządzanie flotą, kierowcami, kontami CRM, słownikami magazynowymi i konfiguracją globalną."
       />
-      <Tabs defaultValue="fleet" className="w-full">
-        <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="fleet"><Truck className="h-4 w-4 mr-1" /> Flota</TabsTrigger>
-          <TabsTrigger value="users"><Users2 className="h-4 w-4 mr-1" /> Użytkownicy CRM</TabsTrigger>
-          <TabsTrigger value="products"><Package2 className="h-4 w-4 mr-1" /> Słownik produktów</TabsTrigger>
-          <TabsTrigger value="warehouses"><Store className="h-4 w-4 mr-1" /> Magazyny</TabsTrigger>
-          <TabsTrigger value="carriers"><Building2 className="h-4 w-4 mr-1" /> Przewoźnicy</TabsTrigger>
-          <TabsTrigger value="config"><Settings2 className="h-4 w-4 mr-1" /> Konfiguracja</TabsTrigger>
-          <TabsTrigger value="templates"><MessageSquare className="h-4 w-4 mr-1" /> Szablony wiadomości</TabsTrigger>
-        </TabsList>
-        <TabsContent value="fleet" className="pt-4"><FleetTab /></TabsContent>
-        <TabsContent value="users" className="pt-4"><UsersTab /></TabsContent>
-        <TabsContent value="products" className="pt-4"><ProductsTab /></TabsContent>
-        <TabsContent value="warehouses" className="pt-4"><WarehousesTab /></TabsContent>
-        <TabsContent value="carriers" className="pt-4"><CarriersTab /></TabsContent>
-        <TabsContent value="config" className="pt-4"><ConfigTab /></TabsContent>
-        <TabsContent value="templates" className="pt-4"><TemplatesTab /></TabsContent>
-      </Tabs>
+      <div className="max-w-sm">
+        <Label className="text-xs text-muted-foreground">Sekcja</Label>
+        <Select value={section} onValueChange={setSection}>
+          <SelectTrigger>
+            <span className="inline-flex items-center gap-2">
+              <current.Icon className="h-4 w-4" /> {current.label}
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            {SECTION_OPTIONS.map(({ value, label, Icon }) => (
+              <SelectItem key={value} value={value}>
+                <span className="inline-flex items-center gap-2"><Icon className="h-4 w-4" /> {label}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="pt-2">
+        {section === "fleet" && <FleetTab />}
+        {section === "users" && <UsersTab />}
+        {section === "products" && <ProductsTab />}
+        {section === "warehouses" && <WarehousesTab />}
+        {section === "carriers" && <CarriersTab />}
+        {section === "config" && <ConfigTab />}
+        {section === "templates" && <TemplatesTab />}
+      </div>
     </div>
   );
 }
