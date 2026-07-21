@@ -144,6 +144,16 @@ export function LeadDetailDrawer({
     onSuccess: () => { invalidateLeads(); onOpenChange(false); toast.success("Wydano z magazynu"); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const releaseM = useMutation({
+    mutationFn: () => releaseFn({ data: { lead_id: lead!.id } }),
+    onSuccess: () => { invalidateLeads(); toast.success("Rezerwacja zwolniona"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const saveM = useMutation({
+    mutationFn: () => updateLeadFn({ data: { id: lead!.id, ...form } }),
+    onSuccess: () => { invalidateLeads(); toast.success("Zapisano zmiany"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
