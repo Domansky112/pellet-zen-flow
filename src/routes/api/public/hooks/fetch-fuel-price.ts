@@ -99,7 +99,7 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
           .maybeSingle();
 
         const dateStr = effectiveDate ? effectiveDate.slice(0, 10) : null;
-        const noteText = `Orlen Detal (szac.): hurt ${rawValue} zł/1000l × 1,23 VAT + ${STATION_MARGIN_PLN_PER_L.toFixed(2)} zł marża stacji${dateStr ? ` · z dnia ${dateStr}` : ""}`;
+        const noteText = `Orlen Detal (szac.): hurt ${rawValue} zł/1000l × 1,10${dateStr ? ` · z dnia ${dateStr}` : ""}`;
 
         const same =
           last &&
