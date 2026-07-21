@@ -294,10 +294,11 @@ export function LeadDetailDrawer({
         `Temat: ${rendered.subject}\n\n${rendered.body}`;
       await addFn({ data: { lead_id: lead.id, body: noteBody } });
       // 3) set status to "oferta_wyslana" (fallback to "oferta")
+      // 3) set status to "Oferta wysłana" (seeded key: "oferta")
       try {
-        await setStatusFn({ data: { id: lead.id, status_key: "oferta_wyslana" } });
-      } catch {
         await setStatusFn({ data: { id: lead.id, status_key: "oferta" } });
+      } catch {
+        // ignore — the mail was sent and note added regardless
       }
       return { to };
     },
