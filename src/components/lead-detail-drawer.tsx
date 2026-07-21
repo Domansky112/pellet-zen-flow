@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
