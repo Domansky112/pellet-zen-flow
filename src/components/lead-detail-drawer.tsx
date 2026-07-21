@@ -73,6 +73,38 @@ export function LeadDetailDrawer({
   const delFn = useServerFn(deleteNote);
   const reserveFn = useServerFn(reserveLead);
   const wydanieFn = useServerFn(confirmWydanie);
+  const updateLeadFn = useServerFn(updateLead);
+  const releaseFn = useServerFn(releaseReservation);
+
+  // Editable form state
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
+    email: "",
+    city: "",
+    postal_code: "",
+    invoice_company: "",
+    invoice_nip: "",
+    invoice_address: "",
+    pooling_enabled: false,
+  });
+
+  useEffect(() => {
+    if (!lead) return;
+    setForm({
+      first_name: lead.first_name ?? "",
+      last_name: lead.last_name ?? "",
+      phone: lead.phone ?? "",
+      email: lead.email ?? "",
+      city: lead.city ?? "",
+      postal_code: lead.postal_code ?? "",
+      invoice_company: lead.invoice_company ?? "",
+      invoice_nip: lead.invoice_nip ?? "",
+      invoice_address: lead.invoice_address ?? "",
+      pooling_enabled: !!lead.pooling_enabled,
+    });
+  }, [lead?.id, open]);
 
   const [newNote, setNewNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
