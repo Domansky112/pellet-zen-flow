@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Scrape aktualnej hurtowej ceny ON (Ekodiesel) ze strony Orlen.
- * Endpoint publiczny — chroniony przez apikey Supabase (pg_cron).
- * Fallback: jeśli parsowanie się nie uda, logujemy warning i NIE wstawiamy nowego rekordu
- * — kalkulator dalej korzysta z ostatniej zapisanej ceny.
+ * Pobiera aktualną hurtową cenę ON Ekodiesel z JSON API Orlenu i zapisuje do bazy.
+ * Endpoint publiczny — chroniony apikey Supabase (wywoływany przez pg_cron).
+ * Fallback: jeśli API nie odpowie / zmieni strukturę → log warning, brak insertu
+ * (kalkulator dalej używa ostatniej zapisanej ceny).
  */
 export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
   server: {
@@ -13,69 +13,67 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
         const apiKey = request.headers.get("apikey") ?? "";
         const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
         if (!expected || apiKey !== expected) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
+          return json({ error: "Unauthorized" }, 401);
         }
 
-        const result: {
-          success: boolean;
-          price?: number;
-          source_url?: string;
-          reason?: string;
-        } = { success: false };
-
-        // Kolejność źródeł — najpierw hurtowe ceny paliw Orlen (stabilna struktura), potem fallback.
-        const sources = [
-          "https://www.orlen.pl/pl/dla-biznesu/hurtowe-ceny-paliw",
-          "https://www.orlen.pl/pl/dla-kierowcow/paliwa/ceny-paliw",
-        ];
-
+        const ORLEN_API = "https://tool.orlen.pl/api/wholesalefuelprices";
         let parsed: number | null = null;
-        let usedUrl: string | null = null;
+        let effectiveDate: string | null = null;
+        let rawValue: number | null = null;
 
-        for (const url of sources) {
-          try {
-            const res = await fetch(url, {
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (compatible; SlonecznyPelletOS/1.0; +https://pellet-zen-flow.lovable.app)",
-                Accept: "text/html,application/xhtml+xml",
-                "Accept-Language": "pl-PL,pl;q=0.9",
-              },
-            });
-            if (!res.ok) {
-              console.warn(`[fuel-scrape] ${url} zwrócił ${res.status}`);
-              continue;
-            }
-            const html = await res.text();
-            const price = extractDieselPrice(html);
-            if (price !== null) {
-              parsed = price;
-              usedUrl = url;
-              break;
+        try {
+          const res = await fetch(ORLEN_API, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+              Accept: "application/json, text/plain, */*",
+              "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
+              Referer: "https://www.orlen.pl/pl/dla-biznesu/hurtowe-ceny-paliw",
+              Origin: "https://www.orlen.pl",
+            },
+          });
+          if (!res.ok) {
+            console.warn(`[fuel-scrape] Orlen API HTTP ${res.status}`);
+          } else {
+            const contentType = res.headers.get("content-type") ?? "";
+            if (!contentType.includes("json")) {
+              console.warn(
+                `[fuel-scrape] Orlen API zwróciło non-JSON (${contentType}) — prawdopodobnie WAF/anty-bot.`,
+              );
             } else {
-              console.warn(`[fuel-scrape] Nie znaleziono ceny ON na ${url}`);
+              const data = (await res.json()) as Array<{
+                productName?: string;
+                value?: number;
+                effectiveDate?: string;
+              }>;
+              const eko = Array.isArray(data)
+                ? data.find(
+                    (r) => (r.productName ?? "").toLowerCase() === "onekodiesel",
+                  )
+                : null;
+              if (eko && typeof eko.value === "number" && eko.value > 3000) {
+                rawValue = eko.value;
+                parsed = round3(eko.value / 1000); // zł/1000l → zł/l
+                effectiveDate = eko.effectiveDate ?? null;
+              } else {
+                console.warn(
+                  "[fuel-scrape] Brak rekordu ONEkodiesel w odpowiedzi Orlenu.",
+                );
+              }
             }
-          } catch (err) {
-            console.warn(
-              `[fuel-scrape] Błąd fetch ${url}: ${(err as Error).message}`,
-            );
           }
+        } catch (err) {
+          console.warn(`[fuel-scrape] fetch error: ${(err as Error).message}`);
         }
 
         if (parsed === null) {
-          result.reason =
-            "Nie udało się pobrać/parsować ceny ON ze stron Orlen — pozostawiam ostatnią zapisaną wartość.";
-          console.warn("[fuel-scrape]", result.reason);
-          return new Response(JSON.stringify(result), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
+          return json({
+            success: false,
+            reason:
+              "Nie udało się pobrać ceny z Orlenu — pozostawiam ostatnią zapisaną wartość.",
           });
         }
 
-        // Zapis do bazy — service role
         const { createClient } = await import("@supabase/supabase-js");
         const admin = createClient(
           process.env.SUPABASE_URL!,
@@ -83,91 +81,55 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
           { auth: { persistSession: false, autoRefreshToken: false } },
         );
 
-        // Deduplikacja: jeśli ostatnia auto-cena jest identyczna z dzisiejszą, nie zaśmiecamy historii.
+        // Deduplikacja: nie duplikujemy jeśli ostatnia auto-cena ma tę samą wartość i tę samą datę obowiązywania.
         const { data: last } = await admin
           .from("fuel_prices")
-          .select("price_per_liter, fetched_at, source")
+          .select("price_per_liter, note")
           .eq("fuel_type", "ON")
           .eq("source", "orlen_auto")
           .order("fetched_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
+        const noteText = effectiveDate
+          ? `Orlen Ekodiesel (hurt): ${rawValue} zł/1000l, obowiązuje od ${effectiveDate.slice(0, 10)}`
+          : `Orlen Ekodiesel (hurt): ${rawValue} zł/1000l`;
+
         const same =
-          last && Math.abs(Number(last.price_per_liter) - parsed) < 0.001;
+          last &&
+          Math.abs(Number(last.price_per_liter) - parsed) < 0.001 &&
+          (last.note ?? "") === noteText;
 
         if (!same) {
           const { error } = await admin.from("fuel_prices").insert({
             fuel_type: "ON",
             price_per_liter: parsed,
             source: "orlen_auto",
-            note: `Auto-scrape: ${usedUrl}`,
+            note: noteText,
           });
           if (error) {
             console.error("[fuel-scrape] insert error:", error.message);
-            return new Response(
-              JSON.stringify({ success: false, reason: error.message }),
-              {
-                status: 500,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
+            return json({ success: false, reason: error.message }, 500);
           }
         }
 
-        result.success = true;
-        result.price = parsed;
-        result.source_url = usedUrl!;
-        return new Response(JSON.stringify(result), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
+        return json({
+          success: true,
+          price: parsed,
+          raw_value_per_1000l: rawValue,
+          effective_date: effectiveDate,
+          deduplicated: !!same,
         });
       },
     },
   },
 });
 
-/**
- * Próbuje wyłuskać cenę ON w zł/l z HTML Orlenu.
- * Hurtowe ceny podawane są w zł/1000l (np. "5236" oznacza 5,236 zł/l).
- * Ceny detaliczne w zł/l (np. "6,89 zł/l").
- */
-function extractDieselPrice(html: string): number | null {
-  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-
-  // 1) Hurtowe: szukamy "Ekodiesel" / "Olej napędowy" i pobliskiej liczby 4-cyfrowej
-  //    (zł/1000l → dzielimy przez 1000).
-  const wholesalePatterns = [
-    /Ekodiesel[^0-9]{0,80}(\d{4})\b/i,
-    /Olej\s+nap[eę]dowy[^0-9]{0,80}(\d{4})\b/i,
-  ];
-  for (const re of wholesalePatterns) {
-    const m = text.match(re);
-    if (m) {
-      const n = Number(m[1]);
-      if (n > 3000 && n < 10000) {
-        return round3(n / 1000);
-      }
-    }
-  }
-
-  // 2) Detaliczne: "ON ... 6,89 zł/l" lub "Diesel ... 6.89 zł"
-  const retailPatterns = [
-    /\bON\b[^0-9]{0,40}(\d{1,2}[.,]\d{2,3})\s*z[łl]\/?l/i,
-    /Diesel[^0-9]{0,40}(\d{1,2}[.,]\d{2,3})\s*z[łl]/i,
-    /Olej\s+nap[eę]dowy[^0-9]{0,40}(\d{1,2}[.,]\d{2,3})\s*z[łl]/i,
-  ];
-  for (const re of retailPatterns) {
-    const m = text.match(re);
-    if (m) {
-      const n = Number(m[1].replace(",", "."));
-      if (n > 3 && n < 15) {
-        return round3(n);
-      }
-    }
-  }
-
-  return null;
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function round3(n: number): number {
