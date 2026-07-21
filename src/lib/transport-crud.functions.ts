@@ -105,3 +105,19 @@ export const deleteTransport = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const getTransportById = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: t, error } = await context.supabase
+      .from("transports")
+      .select(
+        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, pool_id, transport_items(id, product, quantity, address, lead_id, leads(id, name, first_name, last_name, phone, city, postal_code))",
+      )
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    return t;
+  });
+
