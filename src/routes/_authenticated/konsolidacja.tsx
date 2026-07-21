@@ -56,7 +56,7 @@ function Konsolidacja() {
   const createFn = useServerFn(createPool);
   const poolsFn = useServerFn(listPools);
   const cancelFn = useServerFn(cancelPool);
-  const confirmFn = useServerFn(confirmPool);
+  
 
   const { data: waitlist } = useSuspenseQuery({ queryKey: ["waitlist"], queryFn: () => listFn() });
   const { data: pools } = useSuspenseQuery({ queryKey: ["pools"], queryFn: () => poolsFn() });
