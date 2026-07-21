@@ -69,12 +69,13 @@ function TransportPage() {
   const [roundTrip, setRoundTrip] = useState(true);
   const [result, setResult] = useState<CalcResult | null>(null);
 
-  // Synchronizuj domyślną cenę z bazy dopóki użytkownik jej nie nadpisał ręcznie.
+  // Synchronizuj sugerowaną cenę (Detal Orlen − 10 gr) dopóki użytkownik jej nie nadpisał ręcznie.
   useEffect(() => {
-    if (!fuelOverridden && fuelQuery.data?.price_per_liter) {
-      setFuelPrice(fuelQuery.data.price_per_liter);
+    if (!fuelOverridden && fuelQuery.data?.suggested_price) {
+      setFuelPrice(fuelQuery.data.suggested_price);
     }
   }, [fuelQuery.data, fuelOverridden]);
+
 
 
   const calc = useMutation({
