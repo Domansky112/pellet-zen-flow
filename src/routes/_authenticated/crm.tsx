@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -8,10 +8,18 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2 } from "lucide-react";
-import { listLeads, listReservedLeads, updateLeadStatus, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Mail, Globe, Building2, Phone, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2, StickyNote, X as XIcon } from "lucide-react";
+import { listLeads, listReservedLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
+import { listLeadStatuses, setLeadStatusKey, type LeadStatus } from "@/lib/lead-statuses.functions";
+import { listLeadIdsWithNotes } from "@/lib/notes.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
@@ -24,10 +32,23 @@ const leadsQuery = queryOptions({
   queryFn: () => listLeads(),
 });
 
+const statusesQuery = queryOptions({
+  queryKey: ["lead-statuses"],
+  queryFn: () => listLeadStatuses(),
+});
+
+const notesIndexQuery = queryOptions({
+  queryKey: ["lead-notes-index"],
+  queryFn: () => listLeadIdsWithNotes(),
+});
+
 const searchSchema = z.object({
   tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
   leadId: z.string().uuid().optional(),
+  status_key: z.string().optional(),
+  has_notes: z.enum(["yes", "no"]).optional(),
+  sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -42,27 +63,46 @@ export const Route = createFileRoute("/_authenticated/crm")({
   component: CrmPage,
 });
 
-type Lead = Awaited<ReturnType<typeof listLeads>>[number];
+type Lead = Awaited<ReturnType<typeof listLeads>>[number] & { status_key?: string | null };
 type ProductFilter = "all" | "pellet_paleta" | "pellet_bigbag" | "inne";
 
 const channelIcon = { www: Globe, email: Mail, b2b: Building2, telefon: Phone, inne: InboxIcon } as const;
 const channelLabel = { www: "WWW", email: "Email", b2b: "B2B", telefon: "Telefon", inne: "Inne" } as const;
-const statusLabel: Record<Lead["status"], string> = {
-  nowy: "Nowe",
-  w_kontakcie: "W kontakcie",
-  oferta: "Oferta",
-  wygrany: "Wygrany",
-  przegrany: "Przegrany",
-};
+
+function statusStyle(s?: LeadStatus): React.CSSProperties {
+  if (!s) return {};
+  return {
+    backgroundColor: `${s.color}22`,
+    color: s.color,
+    borderColor: `${s.color}55`,
+  };
+}
 
 function CrmPage() {
   const { data: leads } = useSuspenseQuery(leadsQuery);
+  const statuses = useQuery(statusesQuery);
+  const notesIndex = useQuery(notesIndexQuery);
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: Route.fullPath });
   const search = Route.useSearch();
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const tab = search.tab ?? "all";
   const productFilter: ProductFilter = search.product ?? "all";
+  const sort = search.sort ?? "smart";
+  const statusFilter = search.status_key ?? "all";
+  const hasNotesFilter = search.has_notes ?? "any";
+
+  const statusMap = useMemo(() => {
+    const m = new Map<string, LeadStatus>();
+    for (const s of statuses.data ?? []) m.set(s.key, s);
+    return m;
+  }, [statuses.data]);
+
+  const notesByLead = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of notesIndex.data ?? []) m.set(r.lead_id, r.last_at);
+    return m;
+  }, [notesIndex.data]);
 
   const reserved = useQuery({
     queryKey: ["reserved-leads", productFilter],
@@ -72,7 +112,6 @@ function CrmPage() {
       }),
   });
 
-  // Auto-open lead drawer from ?leadId= (deep-links from Magazyn / Historia)
   useEffect(() => {
     if (!search.leadId) return;
     const found = leads.find((l) => l.id === search.leadId)
@@ -82,8 +121,6 @@ function CrmPage() {
       navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
     }
   }, [search.leadId, leads, reserved.data, navigate]);
-
-
 
   useEffect(() => {
     const ch = supabase
@@ -106,6 +143,47 @@ function CrmPage() {
     };
   }, [queryClient]);
 
+  const setSearch = (patch: Record<string, unknown>) =>
+    navigate({ search: (p: Record<string, unknown>) => ({ ...p, ...patch }) });
+
+  const filtersActive =
+    !!search.status_key || !!search.has_notes || (sort !== "smart");
+
+  function applyFilters(items: Lead[]): Lead[] {
+    let out = items;
+    if (search.status_key) {
+      out = out.filter((l) => (l.status_key ?? l.status) === search.status_key);
+    }
+    if (search.has_notes === "yes") {
+      out = out.filter((l) => notesByLead.has(l.id));
+    } else if (search.has_notes === "no") {
+      out = out.filter((l) => !notesByLead.has(l.id));
+    }
+    return sortItems(out);
+  }
+
+  function sortItems(items: Lead[]): Lead[] {
+    const copy = [...items];
+    const byCreated = (a: Lead, b: Lead) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const lastActivity = (l: Lead) =>
+      new Date(notesByLead.get(l.id) ?? l.created_at).getTime();
+
+    if (sort === "newest") copy.sort(byCreated);
+    else if (sort === "oldest") copy.sort((a, b) => -byCreated(a, b));
+    else if (sort === "recent_note") copy.sort((a, b) => lastActivity(b) - lastActivity(a));
+    else {
+      // smart: w_kontakcie first (by last activity), then rest by last activity/created
+      copy.sort((a, b) => {
+        const ak = (a.status_key ?? a.status) === "w_kontakcie" ? 1 : 0;
+        const bk = (b.status_key ?? b.status) === "w_kontakcie" ? 1 : 0;
+        if (ak !== bk) return bk - ak;
+        return lastActivity(b) - lastActivity(a);
+      });
+    }
+    return copy;
+  }
+
   return (
     <>
       <PageHeader
@@ -113,12 +191,12 @@ function CrmPage() {
         description="Wszystkie zgłoszenia z formularza WWW, e-maila i B2B. Aktualizacja na żywo."
         actions={
           <>
-            {/* Globalna wyszukiwarka jest w topbarze (⌘K) */}
             <Button
               variant="outline"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["leads"] });
                 queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
+                queryClient.invalidateQueries({ queryKey: ["lead-notes-index"] });
               }}
             >
               <RefreshCw className="mr-2 h-4 w-4" /> Odśwież
@@ -129,6 +207,73 @@ function CrmPage() {
         }
       />
       <div className="p-6 space-y-4">
+        {/* Filtry i sortowanie */}
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card/40 px-3 py-2">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Filtry:</span>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setSearch({ status_key: v === "all" ? undefined : v })}
+          >
+            <SelectTrigger className="h-8 w-[180px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie statusy</SelectItem>
+              {(statuses.data ?? []).filter((s) => s.is_active).map((s) => (
+                <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={hasNotesFilter}
+            onValueChange={(v) => setSearch({ has_notes: v === "any" ? undefined : (v as "yes" | "no") })}
+          >
+            <SelectTrigger className="h-8 w-[190px]">
+              <SelectValue placeholder="Notatki" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Notatki: dowolnie</SelectItem>
+              <SelectItem value="yes">Z notatkami / aktywnością</SelectItem>
+              <SelectItem value="no">Bez notatek</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="mx-2 h-6 w-px bg-border" />
+          <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Sortuj:</span>
+          <Select
+            value={sort}
+            onValueChange={(v) => setSearch({ sort: v === "smart" ? undefined : (v as typeof sort) })}
+          >
+            <SelectTrigger className="h-8 w-[240px]">
+              <SelectValue placeholder="Sortowanie" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="smart">Inteligentnie („W kontakcie" na górze)</SelectItem>
+              <SelectItem value="newest">Data dodania: od najnowszych</SelectItem>
+              <SelectItem value="oldest">Data dodania: od najstarszych</SelectItem>
+              <SelectItem value="recent_note">Ostatnia notatka / kontakt</SelectItem>
+            </SelectContent>
+          </Select>
+          {filtersActive && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto"
+              onClick={() =>
+                navigate({
+                  search: (p: Record<string, unknown>) => ({
+                    ...p,
+                    status_key: undefined,
+                    has_notes: undefined,
+                    sort: undefined,
+                  }),
+                })
+              }
+            >
+              <XIcon className="h-4 w-4 mr-1" /> Wyczyść filtry
+            </Button>
+          )}
+        </div>
+
         <Tabs
           value={tab}
           onValueChange={(v) =>
@@ -150,7 +295,9 @@ function CrmPage() {
             <TabsTrigger value="b2b">B2B</TabsTrigger>
             <TabsTrigger value="nowy">Nowe</TabsTrigger>
           </TabsList>
-          <TabsContent value="all" className="mt-4"><LeadList items={leads} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="all" className="mt-4">
+            <LeadList items={applyFilters(leads as Lead[])} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+          </TabsContent>
           <TabsContent value="reserved" className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               {([
@@ -183,10 +330,10 @@ function CrmPage() {
             </div>
             <ReservedList items={reserved.data ?? []} onOpen={setOpenLead} />
           </TabsContent>
-          <TabsContent value="www" className="mt-4"><LeadList items={leads.filter((l) => l.source === "www")} onOpen={setOpenLead} /></TabsContent>
-          <TabsContent value="email" className="mt-4"><LeadList items={leads.filter((l) => l.source === "email")} onOpen={setOpenLead} /></TabsContent>
-          <TabsContent value="b2b" className="mt-4"><LeadList items={leads.filter((l) => l.source === "b2b")} onOpen={setOpenLead} /></TabsContent>
-          <TabsContent value="nowy" className="mt-4"><LeadList items={leads.filter((l) => l.status === "nowy")} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="www" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "www"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="email" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "email"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
         </Tabs>
       </div>
 
@@ -199,8 +346,20 @@ function CrmPage() {
   );
 }
 
-function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
-  const updateStatus = useServerFn(updateLeadStatus);
+function LeadList({
+  items,
+  onOpen,
+  statusMap,
+  statuses,
+  notesByLead,
+}: {
+  items: Lead[];
+  onOpen: (l: Lead) => void;
+  statusMap: Map<string, LeadStatus>;
+  statuses: LeadStatus[];
+  notesByLead: Map<string, string>;
+}) {
+  const setStatusFn = useServerFn(setLeadStatusKey);
   const assign = useServerFn(assignToMe);
   const cancelFn = useServerFn(cancelLead);
   const qc = useQueryClient();
@@ -208,8 +367,7 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
   if (items.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-        Brak zgłoszeń w tej zakładce. Prześlij testowe przez{" "}
-        <a href="/formularz" className="text-primary underline">/formularz</a>.
+        Brak zgłoszeń pasujących do filtrów.
       </div>
     );
   }
@@ -219,6 +377,9 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
       {items.map((l) => {
         const Icon = channelIcon[l.source] ?? InboxIcon;
         const highPriority = l.priority >= 2;
+        const currentKey = (l.status_key ?? l.status) as string;
+        const currentStatus = statusMap.get(currentKey);
+        const hasNotes = notesByLead.has(l.id);
         return (
           <Card
             key={l.id}
@@ -243,13 +404,9 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                         <PackageCheck className="h-3 w-3 mr-1" /> Rezerwacja
                       </Badge>
                     )}
-                    {(l as any).has_unloading_equipment ? (
-                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
-                        Rozładunek: własny
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
-                        Rozładunek: HDS/winda
+                    {hasNotes && (
+                      <Badge variant="outline" className="border-sky-500/40 text-sky-600 bg-sky-500/10">
+                        <StickyNote className="h-3 w-3 mr-1" /> Notatki
                       </Badge>
                     )}
                   </CardTitle>
@@ -266,10 +423,39 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                   </CardDescription>
                 </div>
               </div>
-              <div className="text-right shrink-0">
-                <Badge variant={l.status === "nowy" ? "default" : "secondary"}>
-                  {statusLabel[l.status]}
-                </Badge>
+              <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Select
+                  value={currentKey}
+                  onValueChange={async (v) => {
+                    try {
+                      await setStatusFn({ data: { id: l.id, status_key: v } });
+                      qc.invalidateQueries({ queryKey: ["leads"] });
+                      toast.success(`Status: ${statusMap.get(v)?.label ?? v}`);
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    className="h-8 min-w-[170px] border font-medium"
+                    style={statusStyle(currentStatus)}
+                  >
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.filter((s) => s.is_active || s.key === currentKey).map((s) => (
+                      <SelectItem key={s.key} value={s.key}>
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="inline-block h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          {s.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent className="pt-0" onClick={(e) => e.stopPropagation()}>
@@ -280,27 +466,6 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                 {l.email && <span className="text-muted-foreground">{l.email}</span>}
               </div>
               <div className="mt-4 flex gap-2 flex-wrap">
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    await updateStatus({ data: { id: l.id, status: "w_kontakcie" } });
-                    qc.invalidateQueries({ queryKey: ["leads"] });
-                    toast.success("Oznaczono jako w kontakcie");
-                  }}
-                  disabled={l.status !== "nowy"}
-                >
-                  Odbierz
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    await updateStatus({ data: { id: l.id, status: "oferta" } });
-                    qc.invalidateQueries({ queryKey: ["leads"] });
-                  }}
-                >
-                  Wyślij ofertę
-                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
