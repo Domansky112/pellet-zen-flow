@@ -138,12 +138,64 @@ function TransportPage() {
                 onChange={setDriverDays}
                 step={1}
               />
-              <Field
-                label="Cena paliwa (zł/l)"
-                value={fuelPrice}
-                onChange={setFuelPrice}
-                step={0.1}
-              />
+              <div className="col-span-2 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label htmlFor="fuel-price" className="flex items-center gap-2">
+                    <Fuel className="h-4 w-4 text-primary" />
+                    Cena paliwa (zł/l)
+                  </Label>
+                  {fuelOverridden ? (
+                    <Badge variant="secondary" className="gap-1">
+                      <PencilLine className="h-3 w-3" /> Nadpisana ręcznie
+                    </Badge>
+                  ) : fuelQuery.data ? (
+                    <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/20">
+                      {fuelQuery.data.source === "orlen_auto"
+                        ? "Auto z Orlenu"
+                        : fuelQuery.data.source === "manual"
+                          ? "Cena bazowa (manual)"
+                          : "Domyślna stała"}{" "}
+                      · {new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="fuel-price"
+                    type="number"
+                    step="0.01"
+                    value={fuelPrice}
+                    onChange={(e) => {
+                      setFuelPrice(Number(e.target.value));
+                      setFuelOverridden(true);
+                    }}
+                    className={
+                      fuelOverridden ? "border-amber-500/60 bg-amber-500/5" : ""
+                    }
+                  />
+                  {fuelOverridden && fuelQuery.data ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        setFuelPrice(fuelQuery.data!.price_per_liter);
+                        setFuelOverridden(false);
+                      }}
+                      title="Przywróć auto-cenę"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </div>
+                {fuelQuery.data?.source === "fallback" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Brak zapisanych cen z Orlenu — używam domyślnej. Cron pobierze
+                    świeżą stawkę.
+                  </p>
+                ) : null}
+              </div>
+
               <Field
                 label="Spalanie (l/100km)"
                 value={consumption}
