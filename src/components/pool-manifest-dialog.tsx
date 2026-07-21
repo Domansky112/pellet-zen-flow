@@ -65,6 +65,7 @@ export function PoolManifestDialog({
   const [time, setTime] = useState("08:00");
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [zone, setZone] = useState("");
 
   const manifest = useQuery({
