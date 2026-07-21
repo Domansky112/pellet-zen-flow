@@ -244,6 +244,15 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                         <PackageCheck className="h-3 w-3 mr-1" /> Rezerwacja
                       </Badge>
                     )}
+                    {(l as any).has_unloading_equipment ? (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                        Rozładunek: własny
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
+                        Rozładunek: HDS/winda
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                     <span>{channelLabel[l.source]}</span>

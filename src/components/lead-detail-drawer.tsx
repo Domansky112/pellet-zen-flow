@@ -246,6 +246,15 @@ export function LeadDetailDrawer({
             {lead.reservation_status === "wydany" && (
               <Badge variant="secondary">Wydany</Badge>
             )}
+            {lead.has_unloading_equipment ? (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                Rozładunek własny: TAK
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
+                Rozładunek własny: NIE
+              </Badge>
+            )}
           </DialogTitle>
           <DialogDescription>
             {[lead.phone, lead.email, lead.city].filter(Boolean).join(" · ")}
