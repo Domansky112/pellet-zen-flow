@@ -525,16 +525,7 @@ export function LeadDetailDrawer({
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-6 space-y-6">
-              {/* TOP: Templates panel (collapsible, controlled) */}
-              <TemplatesPanel
-                templates={templatesQuery.data ?? []}
-                onApply={applyTemplate}
-                activeName={rendered?.subject}
-                open={templatesOpen}
-                onOpenChange={setTemplatesOpen}
-              />
-
-              {/* Ownership + Actions */}
+              {/* Ownership + Actions (moved to top) */}
               <section className="flex flex-wrap items-center gap-2">
                 {lead.assigned_to ? (
                   lead.assigned_to === currentUser?.id ? (
@@ -599,83 +590,150 @@ export function LeadDetailDrawer({
                 </div>
               </section>
 
-              {/* VAT calculator */}
-              <section className="rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Calculator className="h-4 w-4 text-primary" />
-                  Kalkulator oferty (VAT)
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="vat-price">Cena netto (zł / t)</Label>
-                    <Input
-                      id="vat-price"
-                      inputMode="decimal"
-                      placeholder="np. 1250"
-                      value={pricePerTonNet}
-                      onChange={(e) => setPricePerTonNet(e.target.value)}
+              {/* BLOCK 1: Templates + rendered offer preview — collapsed together */}
+              <TemplatesPanel
+                templates={templatesQuery.data ?? []}
+                onApply={applyTemplate}
+                activeName={rendered?.subject}
+                open={templatesOpen}
+                onOpenChange={setTemplatesOpen}
+              >
+                {rendered && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="text-sm font-medium">Podgląd oferty</div>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button size="sm" variant="outline" onClick={copyOffer}>
+                          <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={sendOffer}
+                          disabled={!validation.canSend || sendOfferM.isPending}
+                          title={!validation.canSend ? "Wypełnij brakujące pola, aby móc wysłać ofertę" : ""}
+                        >
+                          {sendOfferM.isPending
+                            ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                            : <Send className="h-3.5 w-3.5 mr-1" />}
+                          Wyślij ofertę
+                        </Button>
+                      </div>
+                    </div>
+
+                    {!validation.canSend && (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium">Wypełnij brakujące pola, aby móc wysłać ofertę</div>
+                          <ul className="mt-1 text-xs list-disc list-inside space-y-0.5">
+                            {validation.emailInvalid && <li>Brak poprawnego adresu e-mail klienta</li>}
+                            {validation.productMissing && <li>Brak wybranego produktu</li>}
+                            {validation.quantityMissing && <li>Brak wpisanego tonażu/ilości</li>}
+                            {validation.priceMissing && <li>Brak wyliczonej ceny w treści oferty (uzupełnij kwoty lub kalkulator VAT)</li>}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
+                    <Textarea
+                      value={rendered.body}
+                      onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
+                      rows={10}
+                      className="font-mono text-sm"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="vat-transport">Transport netto (zł)</Label>
-                    <Input
-                      id="vat-transport"
-                      inputMode="decimal"
-                      placeholder="np. 850"
-                      value={transportNet}
-                      onChange={(e) => setTransportNet(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="vat-rate">Stawka VAT (%)</Label>
-                    <Select value={vatRate} onValueChange={setVatRate}>
-                      <SelectTrigger id="vat-rate"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="23">23%</SelectItem>
-                        <SelectItem value="8">8%</SelectItem>
-                        <SelectItem value="5">5%</SelectItem>
-                        <SelectItem value="0">0%</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="rounded-md border border-border/60 bg-background/70 p-3 text-sm">
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Pozycja</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Netto</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">VAT</div>
-                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Brutto</div>
+                )}
+              </TemplatesPanel>
 
-                    <div>Towar {lead.quantity ? `(${lead.quantity} t)` : ""}</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarNet)} zł</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarVat)} zł</div>
-                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.towarBr)} zł</div>
+              {/* BLOCK 2: VAT calculator — collapsible */}
+              <section className="rounded-lg border border-primary/25 bg-primary/5">
+                <header className="flex items-center justify-between px-4 py-2.5 border-b border-primary/20">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Calculator className="h-4 w-4 text-primary" />
+                    Kalkulator oferty (VAT)
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setCalcOpen(!calcOpen)}
+                    className="h-7 gap-1"
+                    aria-expanded={calcOpen}
+                    title={calcOpen ? "Zwiń kalkulator" : "Rozwiń kalkulator"}
+                  >
+                    {calcOpen ? (<><ChevronUp className="h-3.5 w-3.5" /> Zwiń</>) : (<><ChevronDown className="h-3.5 w-3.5" /> Rozwiń</>)}
+                  </Button>
+                </header>
+                {calcOpen && (
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="vat-price">Cena netto (zł / t)</Label>
+                        <Input id="vat-price" inputMode="decimal" placeholder="np. 1250"
+                          value={pricePerTonNet} onChange={(e) => setPricePerTonNet(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="vat-transport">Transport netto (zł)</Label>
+                        <Input id="vat-transport" inputMode="decimal" placeholder="np. 850 lub 0 dla odbioru własnego"
+                          value={transportNet} onChange={(e) => setTransportNet(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="vat-rate">Stawka VAT (%)</Label>
+                        <Select value={vatRate} onValueChange={setVatRate}>
+                          <SelectTrigger id="vat-rate"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="23">23%</SelectItem>
+                            <SelectItem value="8">8%</SelectItem>
+                            <SelectItem value="5">5%</SelectItem>
+                            <SelectItem value="0">0%</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-border/60 bg-background/70 p-3 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide">Pozycja</div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Netto</div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">VAT</div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Brutto</div>
 
-                    <div>Transport</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trNet)} zł</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trVat)} zł</div>
-                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.trBr)} zł</div>
+                        <div>Towar {vatCalc.qty ? `(${vatCalc.qty} t)` : ""}</div>
+                        <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarNet)} zł</div>
+                        <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarVat)} zł</div>
+                        <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.towarBr)} zł</div>
+
+                        {vatCalc.hasTransport ? (
+                          <>
+                            <div>Transport</div>
+                            <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trNet)} zł</div>
+                            <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trVat)} zł</div>
+                            <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.trBr)} zł</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-muted-foreground italic">Transport — brak (odbiór własny / w cenie)</div>
+                            <div className="text-right tabular-nums text-muted-foreground">—</div>
+                            <div className="text-right tabular-nums text-muted-foreground">—</div>
+                            <div className="text-right tabular-nums text-muted-foreground">—</div>
+                          </>
+                        )}
+                      </div>
+                      <Separator className="my-2" />
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3 font-semibold">
+                        <div>RAZEM</div>
+                        <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumNet)} zł</div>
+                        <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumVat)} zł</div>
+                        <div className="text-right tabular-nums text-primary">{vatCalc.fmt(vatCalc.sumBr)} zł</div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Gdy koszt transportu = 0, pozycja transportu jest ukrywana w wygenerowanej ofercie.
+                    </p>
                   </div>
-                  <Separator className="my-2" />
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3 font-semibold">
-                    <div>RAZEM</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumNet)} zł</div>
-                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumVat)} zł</div>
-                    <div className="text-right tabular-nums text-primary">{vatCalc.fmt(vatCalc.sumBr)} zł</div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Wartości trafiają do zmiennych szablonu: <code>{"{{cena_jedn_netto}}"}</code>,{" "}
-                  <code>{"{{stawka_vat}}"}</code>, <code>{"{{towar_netto}}"}</code>,{" "}
-                  <code>{"{{towar_vat}}"}</code>, <code>{"{{towar_brutto}}"}</code>,{" "}
-                  <code>{"{{transport_netto}}"}</code>, <code>{"{{transport_vat}}"}</code>,{" "}
-                  <code>{"{{transport_brutto}}"}</code>, <code>{"{{suma_netto}}"}</code>,{" "}
-                  <code>{"{{suma_vat}}"}</code>, <code>{"{{suma_brutto}}"}</code>. Podsumowanie z podziałem na Netto / VAT / Brutto jest też dopisywane automatycznie na końcu wiadomości.
-                </p>
+                )}
               </section>
 
-
-              {/* Editable lead data */}
+              {/* BLOCK 3: Editable lead data */}
               <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">Dane leada</div>
@@ -719,11 +777,30 @@ export function LeadDetailDrawer({
                     <Label htmlFor="ld-pc">Kod pocztowy</Label>
                     <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
                   </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="ld-qty" className={validation.quantityMissing ? "text-destructive" : ""}>
+                      Tonaż (t) {lead.product ? <span className="text-xs text-muted-foreground">— produkt: {lead.product}</span> : null}
+                      {lead.reservation_status === "zarezerwowany" && (
+                        <span className="ml-2 text-xs text-amber-600">
+                          · zmiana tonażu przeliczy rezerwację magazynu
+                        </span>
+                      )}
+                    </Label>
+                    <Input
+                      id="ld-qty"
+                      inputMode="decimal"
+                      placeholder="np. 5"
+                      value={form.quantity}
+                      aria-invalid={validation.quantityMissing}
+                      className={validation.quantityMissing ? "border-destructive ring-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                    />
+                  </div>
                 </div>
 
-                {(validation.productMissing || validation.quantityMissing) && (
-                  <div className={`text-xs rounded-md border px-3 py-2 ${validation.productMissing || validation.quantityMissing ? "border-destructive/40 bg-destructive/10 text-destructive" : ""}`}>
-                    Uzupełnij <b>produkt</b> i <b>tonaż</b> w karcie leada (edytuj przez „Duplikuj"/nowy lead) — brakuje danych do oferty.
+                {validation.productMissing && (
+                  <div className="text-xs rounded-md border px-3 py-2 border-destructive/40 bg-destructive/10 text-destructive">
+                    Brak wybranego produktu — uzupełnij go, tworząc nowy lead lub duplikując istniejący.
                   </div>
                 )}
 
@@ -778,118 +855,69 @@ export function LeadDetailDrawer({
                 </div>
               </section>
 
-              {/* Rendered offer */}
-              {rendered && templatesOpen && (
-                <section className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="text-sm font-medium">Podgląd oferty</div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={copyOffer}>
-                        <Copy className="h-3.5 w-3.5 mr-1" /> Kopiuj
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={sendOffer}
-                        disabled={!validation.canSend || sendOfferM.isPending}
-                        title={!validation.canSend ? "Wypełnij brakujące pola, aby móc wysłać ofertę" : ""}
-                      >
-                        {sendOfferM.isPending
-                          ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                          : <Send className="h-3.5 w-3.5 mr-1" />}
-                        Wyślij ofertę
-                      </Button>
-                    </div>
-                  </div>
+              <Separator />
 
-                  {!validation.canSend && (
-                    <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <div>
-                        <div className="font-medium">Wypełnij brakujące pola, aby móc wysłać ofertę</div>
-                        <ul className="mt-1 text-xs list-disc list-inside space-y-0.5">
-                          {validation.emailInvalid && <li>Brak poprawnego adresu e-mail klienta</li>}
-                          {validation.productMissing && <li>Brak wybranego produktu</li>}
-                          {validation.quantityMissing && <li>Brak wpisanego tonażu/ilości</li>}
-                          {validation.priceMissing && <li>Brak wyliczonej ceny / kosztu transportu w treści oferty (uzupełnij pola <code>{"{{cena_transportu}}"}</code> / kwoty w treści)</li>}
-                        </ul>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="text-xs text-muted-foreground">Temat: <b>{rendered.subject}</b></div>
+              {/* Notes */}
+              <section className="space-y-3">
+                <div className="text-sm font-medium">Notatki</div>
+                <div className="flex gap-2 items-start">
                   <Textarea
-                    value={rendered.body}
-                    onChange={(e) => setRendered({ ...rendered, body: e.target.value })}
-                    rows={10}
-                    className="font-mono text-sm"
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Dodaj notatkę…"
+                    rows={2}
+                    className="flex-1"
                   />
-                </section>
-              )}
+                  <Button
+                    onClick={() => addM.mutate()}
+                    disabled={!newNote.trim() || addM.isPending}
+                  >
+                    Dodaj
+                  </Button>
+                </div>
 
-
-                <Separator />
-
-                {/* Notes */}
-                <section className="space-y-3">
-                  <div className="text-sm font-medium">Notatki</div>
-                  <div className="flex gap-2 items-start">
-                    <Textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder="Dodaj notatkę…"
-                      rows={2}
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={() => addM.mutate()}
-                      disabled={!newNote.trim() || addM.isPending}
-                    >
-                      Dodaj
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {notesQuery.data?.map((n) => (
-                      <div key={n.id} className="rounded-md border border-border/60 bg-background p-3">
-                        {editingId === n.id ? (
-                          <div className="space-y-2">
-                            <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={3} />
-                            <div className="flex gap-2 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                                <X className="h-3.5 w-3.5 mr-1" /> Anuluj
+                <div className="space-y-2">
+                  {notesQuery.data?.map((n) => (
+                    <div key={n.id} className="rounded-md border border-border/60 bg-background p-3">
+                      {editingId === n.id ? (
+                        <div className="space-y-2">
+                          <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={3} />
+                          <div className="flex gap-2 justify-end">
+                            <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                              <X className="h-3.5 w-3.5 mr-1" /> Anuluj
+                            </Button>
+                            <Button size="sm" onClick={() => updM.mutate(n.id)} disabled={!editBody.trim() || updM.isPending}>
+                              <Save className="h-3.5 w-3.5 mr-1" /> Zapisz
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="whitespace-pre-wrap text-sm">{n.body}</div>
+                          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                            <span>
+                              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: pl })}
+                              {n.edited && <span className="ml-2 italic">· edytowano</span>}
+                            </span>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7"
+                                onClick={() => { setEditingId(n.id); setEditBody(n.body); }}>
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button size="sm" onClick={() => updM.mutate(n.id)} disabled={!editBody.trim() || updM.isPending}>
-                                <Save className="h-3.5 w-3.5 mr-1" /> Zapisz
+                              <Button size="icon" variant="ghost" className="h-7 w-7"
+                                onClick={() => { if (confirm("Usunąć notatkę?")) delM.mutate(n.id); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            <div className="whitespace-pre-wrap text-sm">{n.body}</div>
-                            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                              <span>
-                                {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: pl })}
-                                {n.edited && <span className="ml-2 italic">· edytowano</span>}
-                              </span>
-                              <div className="flex gap-1">
-                                <Button size="icon" variant="ghost" className="h-7 w-7"
-                                  onClick={() => { setEditingId(n.id); setEditBody(n.body); }}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7"
-                                  onClick={() => { if (confirm("Usunąć notatkę?")) delM.mutate(n.id); }}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                    {notesQuery.data?.length === 0 && (
-                      <div className="text-xs text-muted-foreground italic">Brak notatek.</div>
-                    )}
-                  </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {notesQuery.data?.length === 0 && (
+                    <div className="text-xs text-muted-foreground italic">Brak notatek.</div>
+                  )}
+                </div>
               </section>
             </div>
           </ScrollArea>
