@@ -850,6 +850,54 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_external_carriers_min: {
+        Args: never
+        Returns: {
+          company_name: string
+          id: string
+          status: string
+        }[]
+      }
+      list_fleet_drivers_min: {
+        Args: never
+        Returns: {
+          id: string
+          status: string
+        }[]
+      }
+      list_fleet_trailers_min: {
+        Args: never
+        Returns: {
+          capacity_tons: number
+          id: string
+          status: string
+          trailer_type: string
+        }[]
+      }
+      list_fleet_vehicles_min: {
+        Args: never
+        Returns: {
+          capacity_tons: number
+          id: string
+          status: string
+        }[]
+      }
+      list_fuel_prices_min: {
+        Args: never
+        Returns: {
+          fetched_at: string
+          fuel_type: string
+        }[]
+      }
+      list_warehouses_min: {
+        Args: never
+        Returns: {
+          city: string
+          id: string
+          is_default: boolean
+          name: string
+        }[]
+      }
       release_reservation_as_wydanie: {
         Args: { _lead_id: string }
         Returns: undefined
