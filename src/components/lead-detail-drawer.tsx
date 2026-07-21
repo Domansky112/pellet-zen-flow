@@ -227,6 +227,32 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ---- VAT calculator (derived) -----------------------------------------
+  const vatCalc = useMemo(() => {
+    const qty = Number(lead?.quantity ?? 0) || 0;
+    const priceNet = Number(pricePerTonNet.replace(",", ".")) || 0;
+    const trNet = Number(transportNet.replace(",", ".")) || 0;
+    const rate = Number(vatRate.replace(",", ".")) || 0;
+    const towarNet = qty * priceNet;
+    const towarVat = towarNet * (rate / 100);
+    const towarBr = towarNet + towarVat;
+    const trVat = trNet * (rate / 100);
+    const trBr = trNet + trVat;
+    const sumNet = towarNet + trNet;
+    const sumVat = towarVat + trVat;
+    const sumBr = towarBr + trBr;
+    const fmt = (n: number) =>
+      n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      priceNet, trNet, rate,
+      towarNet, towarVat, towarBr,
+      trVat, trBr,
+      sumNet, sumVat, sumBr,
+      fmt,
+      hasPricing: priceNet > 0 || trNet > 0,
+    };
+  }, [lead?.quantity, pricePerTonNet, transportNet, vatRate]);
+
   const applyTemplate = async (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const { supabase } = await import("@/integrations/supabase/client");
@@ -237,6 +263,7 @@ export function LeadDetailDrawer({
       userData?.user?.email ||
       "";
     const adres = [lead.postal_code, lead.city].filter(Boolean).join(" ") || (lead as any).invoice_address || "";
+    const f = vatCalc.fmt;
     const vars: Record<string, string | number | null | undefined> = {
       // PL variables (canonical)
       imie_klienta: lead.first_name || lead.name,
@@ -244,7 +271,20 @@ export function LeadDetailDrawer({
       pelna_nazwa: lead.name,
       tonaz: lead.quantity ?? "",
       rodzaj_pelletu: lead.product ?? "",
-      cena_transportu: (lead as any).transport_price ?? "",
+      // VAT-aware pricing
+      cena_jedn_netto: f(vatCalc.priceNet),
+      stawka_vat: vatCalc.rate,
+      towar_netto: f(vatCalc.towarNet),
+      towar_vat: f(vatCalc.towarVat),
+      towar_brutto: f(vatCalc.towarBr),
+      transport_netto: f(vatCalc.trNet),
+      transport_vat: f(vatCalc.trVat),
+      transport_brutto: f(vatCalc.trBr),
+      suma_netto: f(vatCalc.sumNet),
+      suma_vat: f(vatCalc.sumVat),
+      suma_brutto: f(vatCalc.sumBr),
+      // legacy: cena_transportu = transport brutto
+      cena_transportu: f(vatCalc.trBr),
       adres_dostawy: adres,
       miasto: lead.city ?? "",
       telefon: lead.phone ?? "",
@@ -260,11 +300,29 @@ export function LeadDetailDrawer({
       product: lead.product ?? "",
       city: lead.city ?? "",
     };
+
+    // Auto-append VAT summary at the end of the body so every template
+    // includes clear Netto / VAT / Brutto breakdown for towar + transport.
+    const vatSummary =
+      `\n\n— Podsumowanie kosztów (VAT ${vatCalc.rate}%) —\n` +
+      `Towar (${lead.quantity ?? 0} t × ${f(vatCalc.priceNet)} zł/t):\n` +
+      `  Netto: ${f(vatCalc.towarNet)} zł\n` +
+      `  VAT: ${f(vatCalc.towarVat)} zł\n` +
+      `  Brutto: ${f(vatCalc.towarBr)} zł\n` +
+      `Transport:\n` +
+      `  Netto: ${f(vatCalc.trNet)} zł\n` +
+      `  VAT: ${f(vatCalc.trVat)} zł\n` +
+      `  Brutto: ${f(vatCalc.trBr)} zł\n` +
+      `RAZEM: ${f(vatCalc.sumNet)} zł netto + ${f(vatCalc.sumVat)} zł VAT = ` +
+      `${f(vatCalc.sumBr)} zł brutto`;
+
     setRendered({
       subject: renderTemplateBody(t.subject ?? t.name, vars),
-      body: renderTemplateBody(t.body, vars),
+      body: renderTemplateBody(t.body, vars) + vatSummary,
     });
+    setTemplatesOpen(true);
   };
+
 
   const copyOffer = async () => {
     if (!rendered) return;
