@@ -71,6 +71,18 @@ function CrmPage() {
       }),
   });
 
+  // Auto-open lead drawer from ?leadId= (deep-links from Magazyn / Historia)
+  useEffect(() => {
+    if (!search.leadId) return;
+    const found = leads.find((l) => l.id === search.leadId)
+      ?? (reserved.data ?? []).find((l) => l.id === search.leadId);
+    if (found) {
+      setOpenLead(found as Lead);
+      navigate({ search: (p) => ({ ...p, leadId: undefined }), replace: true });
+    }
+  }, [search.leadId, leads, reserved.data, navigate]);
+
+
 
   useEffect(() => {
     const ch = supabase
