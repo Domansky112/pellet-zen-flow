@@ -49,6 +49,7 @@ const searchSchema = z.object({
   status_key: z.string().optional(),
   has_notes: z.enum(["yes", "no"]).optional(),
   sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
+  mine: z.enum(["yes"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/crm")({
