@@ -579,7 +579,7 @@ export const confirmPool = createServerFn({ method: "POST" })
         byProduct.set(p, (byProduct.get(p) ?? 0) + Number(it.tons));
       }
       const rows = Array.from(byProduct.entries()).map(([product, tons]) => ({
-        product,
+        product: product as "pellet_paleta" | "pellet_bigbag" | "inne",
         txn_type: "rezerwacja" as const,
         quantity: Math.round(tons * 1000) / 1000,
         reference: `POOL:${pool.id.slice(0, 8)}`,
