@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, Lock, Unlock, RefreshCw } from "lucide-react";
+import { Plus, Minus, Lock, Unlock, RefreshCw, Trash2, ExternalLink } from "lucide-react";
 import {
   listStockBalance,
   listStockEvents,
@@ -22,6 +22,7 @@ import {
   reserveForLead,
   releaseReservation,
   listOpenLeads,
+  deleteStockEvent,
 } from "@/lib/stock.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -68,6 +69,10 @@ function WarehousePage() {
   const { data: balance } = useSuspenseQuery(balanceQuery);
   const { data: events } = useSuspenseQuery(eventsQuery);
   const { data: openLeads } = useSuspenseQuery(openLeadsQuery);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const deleteFn = useServerFn(deleteStockEvent);
 
   useEffect(() => {
     const channel = supabase
@@ -86,6 +91,25 @@ function WarehousePage() {
     for (const r of balance) m.set(r.product as string, { physical: Number(r.physical), reserved: Number(r.reserved) });
     return m;
   }, [balance]);
+
+  const deleteEvent = events.find((e: any) => e.id === deleteId);
+  async function confirmDelete() {
+    if (!deleteId) return;
+    setDeleteBusy(true);
+    try {
+      await deleteFn({ data: { id: deleteId, reason: deleteReason || null } });
+      toast.success("Wpis usunięty — stan magazynu przeliczony");
+      setDeleteId(null);
+      setDeleteReason("");
+      qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Nie udało się usunąć wpisu");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
 
   return (
     <>
@@ -111,7 +135,7 @@ function WarehousePage() {
         <Card>
           <CardHeader>
             <CardTitle>Historia zdarzeń</CardTitle>
-            <CardDescription>Ostatnie 100 operacji — na żywo (realtime).</CardDescription>
+            <CardDescription>Ostatnie 100 operacji — na żywo (realtime). Usunięcie wpisu automatycznie cofa jego skutek na stanie magazynowym.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -123,11 +147,12 @@ function WarehousePage() {
                   <TableHead className="text-right">Ilość</TableHead>
                   <TableHead>Referencja / lead</TableHead>
                   <TableHead>Notatka</TableHead>
+                  <TableHead className="text-right w-24">Akcje</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {events.length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Brak zdarzeń — dodaj pierwsze powyżej.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Brak zdarzeń — dodaj pierwsze powyżej.</TableCell></TableRow>
                 )}
                 {events.map((e: any) => {
                   const positive = e.txn_type === "przyjecie" || e.txn_type === "zwolnienie_rez" || (e.txn_type === "korekta" && Number(e.quantity) > 0);
@@ -142,9 +167,32 @@ function WarehousePage() {
                         {positive ? "+" : "−"}{Number(e.quantity)}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {e.leads?.name ? <span className="font-medium">{e.leads.name}</span> : e.reference ?? "—"}
+                        {e.lead_id ? (
+                          <Link
+                            to="/crm"
+                            search={{ leadId: e.lead_id }}
+                            className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                            title="Przejdź do leada w CRM"
+                          >
+                            {e.leads?.name ?? e.reference ?? "Lead"}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        ) : (
+                          e.reference ?? "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">{e.note ?? ""}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Usuń wpis (cofnie skutek na stanie)"
+                          onClick={() => { setDeleteId(e.id); setDeleteReason(""); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -153,6 +201,44 @@ function WarehousePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!deleteId} onOpenChange={(o) => { if (!o) { setDeleteId(null); setDeleteReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" /> Usunąć wpis magazynowy?
+            </DialogTitle>
+            <DialogDescription>
+              {deleteEvent ? (
+                <>
+                  Cofniesz zdarzenie:{" "}
+                  <b>{txnLabel[deleteEvent.txn_type] ?? deleteEvent.txn_type}</b>{" "}
+                  · {Number(deleteEvent.quantity)} t{" "}
+                  {PRODUCTS.find((p) => p.key === deleteEvent.product)?.label ?? deleteEvent.product}
+                  {deleteEvent.leads?.name && <> (lead: {deleteEvent.leads.name})</>}.<br />
+                  Stan magazynu zostanie automatycznie przeliczony, a status rezerwacji leada zaktualizowany. Operacja zapisana w logach.
+                </>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="del-reason">Powód (opcjonalnie)</Label>
+            <Textarea
+              id="del-reason"
+              rows={3}
+              value={deleteReason}
+              onChange={(ev) => setDeleteReason(ev.target.value)}
+              placeholder="np. błędnie zaklikane wydanie, duplikat…"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setDeleteId(null); setDeleteReason(""); }}>Anuluj</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteBusy}>
+              {deleteBusy ? "Usuwam…" : "Tak, usuń wpis"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

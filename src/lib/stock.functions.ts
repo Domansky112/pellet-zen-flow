@@ -167,3 +167,75 @@ export const listOpenLeads = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
+export const deleteStockEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      id: z.string().uuid(),
+      reason: z.string().trim().max(500).optional().or(z.literal("")),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    // Role check: admin / warehouse
+    const [{ data: isAdmin }, { data: isWarehouse }] = await Promise.all([
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+      context.supabase.rpc("has_role", { _user_id: context.userId, _role: "warehouse" }),
+    ]);
+    if (!isAdmin && !isWarehouse) {
+      throw new Error("Brak uprawnień — wymagana rola admin lub magazynier.");
+    }
+
+    // Load event before delete for audit + downstream lead sync
+    const { data: ev, error: le } = await context.supabase
+      .from("stock_events")
+      .select("id, product, txn_type, quantity, lead_id, reference, note, created_at")
+      .eq("id", data.id)
+      .single();
+    if (le || !ev) throw new Error(le?.message ?? "Zdarzenie nie istnieje");
+
+    const { error: de } = await context.supabase
+      .from("stock_events")
+      .delete()
+      .eq("id", data.id);
+    if (de) throw new Error(de.message);
+
+    // Audit log
+    await context.supabase.from("audit_log").insert({
+      actor_id: context.userId,
+      action: "stock_event.delete",
+      entity_type: "stock_event",
+      entity_id: ev.id,
+      details: {
+        product: ev.product,
+        txn_type: ev.txn_type,
+        quantity: Number(ev.quantity),
+        lead_id: ev.lead_id,
+        reference: ev.reference,
+        note: ev.note,
+        original_created_at: ev.created_at,
+        reason: data.reason || null,
+      },
+    } as any);
+
+    // Recompute reservation_status for the linked lead
+    if (ev.lead_id) {
+      const { data: evs } = await context.supabase
+        .from("stock_events")
+        .select("txn_type, quantity")
+        .eq("lead_id", ev.lead_id);
+      const net = (evs ?? []).reduce((s, e: any) => {
+        if (e.txn_type === "rezerwacja") return s + Number(e.quantity);
+        if (e.txn_type === "zwolnienie_rez") return s - Number(e.quantity);
+        return s;
+      }, 0);
+      const hasWydanie = (evs ?? []).some((e: any) => e.txn_type === "wydanie");
+      const newStatus = hasWydanie ? "wydany" : net > 0 ? "zarezerwowany" : "zwolniony";
+      await context.supabase
+        .from("leads")
+        .update({ reservation_status: newStatus })
+        .eq("id", ev.lead_id);
+    }
+
+    return { ok: true };
+  });

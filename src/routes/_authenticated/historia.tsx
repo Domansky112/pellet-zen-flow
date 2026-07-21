@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/page-header";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck } from "lucide-react";
+import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck, ExternalLink } from "lucide-react";
 import { listDeliveryHistory } from "@/lib/leads.functions";
 import { TransportDetailDialog } from "@/components/transport-detail-dialog";
 import { format } from "date-fns";
@@ -161,8 +161,13 @@ function HistoriaPage() {
                     </ul>
                   </div>
                 )}
-                {l.transport_id && (
-                  <div className="pt-1">
+                <div className="pt-1 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/crm" search={{ leadId: l.id }}>
+                      <ExternalLink className="mr-2 h-4 w-4" /> Przejdź do leada
+                    </Link>
+                  </Button>
+                  {l.transport_id && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -170,8 +175,8 @@ function HistoriaPage() {
                     >
                       <Truck className="mr-2 h-4 w-4" /> Zobacz transport
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

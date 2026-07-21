@@ -26,6 +26,7 @@ const leadsQuery = queryOptions({
 const searchSchema = z.object({
   tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
+  leadId: z.string().uuid().optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -69,6 +70,18 @@ function CrmPage() {
         data: productFilter === "all" ? {} : { product: productFilter },
       }),
   });
+
+  // Auto-open lead drawer from ?leadId= (deep-links from Magazyn / Historia)
+  useEffect(() => {
+    if (!search.leadId) return;
+    const found = leads.find((l) => l.id === search.leadId)
+      ?? (reserved.data ?? []).find((l) => l.id === search.leadId);
+    if (found) {
+      setOpenLead(found as Lead);
+      navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
+    }
+  }, [search.leadId, leads, reserved.data, navigate]);
+
 
 
   useEffect(() => {

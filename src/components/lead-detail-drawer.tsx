@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -185,6 +186,19 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const navigate = useNavigate();
+  const duplicateFn = useServerFn(duplicateLead);
+  const duplicateM = useMutation({
+    mutationFn: () => duplicateFn({ data: { lead_id: lead!.id } }),
+    onSuccess: (row: any) => {
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Utworzono duplikat leada — otwieram do edycji");
+      navigate({ to: "/crm", search: { leadId: row.id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const vars = {
@@ -285,6 +299,12 @@ export function LeadDetailDrawer({
                     </>
                   )}
                   <div className="ml-auto flex gap-2">
+                    <Button size="sm" variant="outline"
+                      onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
+                      title="Utwórz nowe zamówienie dla tego klienta">
+                      {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
+                      Duplikuj lead
+                    </Button>
                     <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => setConfirmDelete("soft")}>
                       <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
