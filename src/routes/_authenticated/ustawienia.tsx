@@ -53,7 +53,12 @@ import {
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 
+const settingsSearchSchema = z.object({
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/ustawienia")({
+  validateSearch: settingsSearchSchema,
   head: () => ({
     meta: [
       { title: "Ustawienia — Słoneczny Pellet OS" },
