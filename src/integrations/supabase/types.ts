@@ -912,6 +912,49 @@ export type Database = {
         Returns: undefined
       }
       reserve_stock_for_lead: { Args: { _lead_id: string }; Returns: undefined }
+      search_leads_global: {
+        Args: { _q: string }
+        Returns: {
+          assigned_to: string | null
+          city: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
+          delivered_at: string | null
+          email: string | null
+          first_name: string | null
+          has_unloading_equipment: boolean
+          id: string
+          invoice_address: string | null
+          invoice_company: string | null
+          invoice_nip: string | null
+          last_name: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          pooling_enabled: boolean
+          pooling_km_from_base: number | null
+          pooling_lat: number | null
+          pooling_lng: number | null
+          pooling_status: string
+          pooling_wait_until: string | null
+          postal_code: string | null
+          priority: number
+          product: Database["public"]["Enums"]["product_type"] | null
+          quantity: number | null
+          reservation_status: string
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["lead_status"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "sales" | "warehouse" | "transport" | "logistyk"
