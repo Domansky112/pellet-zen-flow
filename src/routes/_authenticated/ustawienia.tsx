@@ -992,7 +992,7 @@ function TemplatesTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((t: TemplateRow) => (
+              {data.map((raw) => { const t = raw as TemplateRow; return (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium">{t.name}</TableCell>
                   <TableCell><Badge variant="outline">{t.channel}</Badge></TableCell>
