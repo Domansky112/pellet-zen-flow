@@ -233,7 +233,7 @@ export const cancelLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("cancel_lead", {
       _lead_id: data.lead_id,
-      _reason: data.reason || null,
+      _reason: data.reason ? data.reason : undefined,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
