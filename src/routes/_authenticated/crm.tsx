@@ -113,10 +113,7 @@ function CrmPage() {
         description="Wszystkie zgłoszenia z formularza WWW, e-maila i B2B. Aktualizacja na żywo."
         actions={
           <>
-            <div className="relative hidden md:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Szukaj…" className="pl-8 w-64" />
-            </div>
+            {/* Globalna wyszukiwarka jest w topbarze (⌘K) */}
             <Button
               variant="outline"
               onClick={() => {
