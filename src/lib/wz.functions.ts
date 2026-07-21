@@ -139,7 +139,7 @@ async function prepareFromTransport(
   const { data: t, error } = await supabase
     .from("transports")
     .select(
-      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address))",
+      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", transportId)
     .maybeSingle();
@@ -149,7 +149,7 @@ async function prepareFromTransport(
   const rawItems = (t.transport_items ?? []) as any[];
   const items = rawItems.map((i) => buildItem(i.product, Number(i.quantity)));
   const recipients: WzRecipient[] = rawItems
-    .map((i) =>
+    .map((i): WzRecipient =>
       i.leads
         ? leadToRecipient(i.leads)
         : {
@@ -159,6 +159,7 @@ async function prepareFromTransport(
             address: t.destination_address ?? "—",
             phone: null,
             email: null,
+            hasUnloadingEquipment: false,
           },
     )
     // deduplikuj po nazwie+adres
@@ -191,6 +192,7 @@ async function prepareFromTransport(
         address: t.destination_address ?? "—",
         phone: null,
         email: null,
+        hasUnloadingEquipment: false,
       },
     ],
     items,
@@ -213,7 +215,7 @@ async function prepareFromPool(
   const { data: p, error } = await supabase
     .from("transport_pools")
     .select(
-      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address))",
+      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", poolId)
     .maybeSingle();
