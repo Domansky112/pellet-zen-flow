@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,11 @@ const leadsQuery = queryOptions({
   queryFn: () => listLeads(),
 });
 
+const searchSchema = z.object({
+  tab: z.enum(["all", "reserved", "www", "email", "b2b", "nowy"]).optional(),
+  product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
     meta: [
@@ -29,11 +35,13 @@ export const Route = createFileRoute("/_authenticated/crm")({
       { name: "description", content: "Centralny inbox zgłoszeń z WWW, e-mail i B2B." },
     ],
   }),
+  validateSearch: (s) => searchSchema.parse(s),
   loader: ({ context }) => context.queryClient.ensureQueryData(leadsQuery),
   component: CrmPage,
 });
 
 type Lead = Awaited<ReturnType<typeof listLeads>>[number];
+type ProductFilter = "all" | "pellet_paleta" | "pellet_bigbag" | "inne";
 
 const channelIcon = { www: Globe, email: Mail, b2b: Building2, telefon: Phone, inne: InboxIcon } as const;
 const channelLabel = { www: "WWW", email: "Email", b2b: "B2B", telefon: "Telefon", inne: "Inne" } as const;
@@ -48,12 +56,20 @@ const statusLabel: Record<Lead["status"], string> = {
 function CrmPage() {
   const { data: leads } = useSuspenseQuery(leadsQuery);
   const queryClient = useQueryClient();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const search = Route.useSearch();
   const [openLead, setOpenLead] = useState<Lead | null>(null);
+  const tab = search.tab ?? "all";
+  const productFilter: ProductFilter = search.product ?? "all";
 
   const reserved = useQuery({
-    queryKey: ["reserved-leads"],
-    queryFn: () => listReservedLeads(),
+    queryKey: ["reserved-leads", productFilter],
+    queryFn: () =>
+      listReservedLeads({
+        data: productFilter === "all" ? {} : { product: productFilter },
+      }),
   });
+
 
   useEffect(() => {
     const ch = supabase
