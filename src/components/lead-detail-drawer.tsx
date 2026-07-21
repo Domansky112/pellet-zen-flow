@@ -284,6 +284,17 @@ export function LeadDetailDrawer({
                       </Button>
                     </>
                   )}
+                  <div className="ml-auto flex gap-2">
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmDelete("soft")}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
+                    </Button>
+                    {isAdmin && (
+                      <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
+                        <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
+                      </Button>
+                    )}
+                  </div>
                 </section>
 
                 {/* Editable lead data */}
