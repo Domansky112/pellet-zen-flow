@@ -900,12 +900,17 @@ function TemplatesPanel({
   templates,
   onApply,
   activeName,
+  open,
+  onOpenChange,
 }: {
   templates: Array<{ id: string; name: string; subject: string | null; body: string; product?: string | null }>;
   onApply: (t: { id: string; name: string; subject: string | null; body: string }) => void;
   activeName?: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const setOpen = onOpenChange;
+
 
   return (
     <section className="rounded-lg border border-primary/30 bg-primary/5">
