@@ -81,8 +81,13 @@ export const listRecentFuelPrices = createServerFn({ method: "GET" })
       .order("fetched_at", { ascending: false })
       .limit(20);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((r: any) => ({
-      ...r,
-      price_per_liter: Number(r.price_per_liter),
-    })) as FuelPrice[];
+    return (data ?? []).map((r: any) => {
+      const retail = Number(r.price_per_liter);
+      return {
+        ...r,
+        price_per_liter: retail,
+        suggested_price: round3(retail - SUGGESTED_DISCOUNT_PLN),
+      };
+    }) as FuelPrice[];
   });
+
