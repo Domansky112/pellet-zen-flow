@@ -800,6 +800,7 @@ export type Database = {
     Views: {
       stock_balance: {
         Row: {
+          available: number | null
           physical: number | null
           product: Database["public"]["Enums"]["product_type"] | null
           reserved: number | null
