@@ -40,6 +40,7 @@ const SETTINGS_SECTIONS = [
   { value: "carriers", label: "Przewoźnicy", icon: Building2 },
   { value: "config", label: "Konfiguracja", icon: Settings2 },
   { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
+  { value: "statuses", label: "Statusy leadów", icon: Settings2 },
 ] as const;
 
 export function AppSidebar() {
