@@ -17,18 +17,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MapPin, Users, Truck, Sparkles, Loader2, X, Eye } from "lucide-react";
+import { MapPin, Users, Truck, Sparkles, Loader2, Trash2, Eye } from "lucide-react";
 import {
   listWaitlist,
   findPoolSuggestions,
   geocodePendingLeads,
   createPool,
   listPools,
-  cancelPool,
 } from "@/lib/pooling.functions";
 import { format } from "date-fns";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { PoolManifestDialog } from "@/components/pool-manifest-dialog";
+import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 import { pl } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
@@ -55,7 +55,6 @@ function Konsolidacja() {
   const geocodeFn = useServerFn(geocodePendingLeads);
   const createFn = useServerFn(createPool);
   const poolsFn = useServerFn(listPools);
-  const cancelFn = useServerFn(cancelPool);
   
 
   const { data: waitlist } = useSuspenseQuery({ queryKey: ["waitlist"], queryFn: () => listFn() });
@@ -63,6 +62,7 @@ function Konsolidacja() {
 
   const [params, setParams] = useState({ maxDetourKm: 75, capacityTons: 24, minFillTons: 20 });
   const [confirmPoolId, setConfirmPoolId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
 
   const suggestions = useQuery({
     queryKey: ["pool-suggestions", params],
@@ -107,14 +107,7 @@ function Konsolidacja() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const doCancel = useMutation({
-    mutationFn: (id: string) => cancelFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Anulowano");
-      qc.invalidateQueries({ queryKey: ["pools"] });
-      qc.invalidateQueries({ queryKey: ["waitlist"] });
-    },
-  });
+
 
   const needsGeocoding = waitlist.filter((l: any) => l.pooling_lat == null).length;
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
@@ -329,14 +322,31 @@ function Konsolidacja() {
                         <Button size="sm" onClick={() => setConfirmPoolId(p.id)}>
                           <Eye className="h-4 w-4 mr-1" /> Potwierdź transport
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => doCancel.mutate(p.id)}>
-                          <X className="h-4 w-4" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Usuń transport"
+                          onClick={() => setCancelTarget({ id: p.id, name: p.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => setConfirmPoolId(p.id)}>
-                        <Eye className="h-4 w-4 mr-1" /> Podgląd
-                      </Button>
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmPoolId(p.id)}>
+                          <Eye className="h-4 w-4 mr-1" /> Podgląd
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Usuń transport"
+                          onClick={() => setCancelTarget({ id: p.id, name: p.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -364,6 +374,11 @@ function Konsolidacja() {
           qc.invalidateQueries({ queryKey: ["waitlist"] });
           qc.invalidateQueries({ queryKey: ["transports"] });
         }}
+      />
+      <CancelPoolDialog
+        poolId={cancelTarget?.id ?? null}
+        poolName={cancelTarget?.name}
+        onClose={() => setCancelTarget(null)}
       />
     </>
   );

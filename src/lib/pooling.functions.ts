@@ -424,30 +424,94 @@ export const listPools = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
-// ---------- cancel pool ----------
+// ---------- cancel / delete pool ----------
+// Odpina leady, usuwa pozycje pool_items, kasuje powiązany transport (jeśli był),
+// wpisuje audit_log. Rezerwacje magazynowe leadów pozostają — chyba że
+// `releaseReservations = true`, wtedy wywołujemy `cancel_lead` per lead.
 export const cancelPool = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      releaseReservations: z.boolean().optional().default(false),
+      reason: z.string().max(500).optional().nullable(),
+    }).parse(d),
+  )
   .handler(async ({ data, context }) => {
+    // Role guard: tylko admin / logistyk / transport mogą usuwać wspólne transporty
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const allowed = new Set(["admin", "logistyk", "transport"]);
+    const ok = (roles ?? []).some((r: any) => allowed.has(r.role));
+    if (!ok) throw new Error("Brak uprawnień do usuwania wspólnych transportów");
+
+    // Pobierz pool + items
+    const { data: pool, error: poolErr } = await context.supabase
+      .from("transport_pools")
+      .select("id, name, route_to, status, transport_id, total_tons, capacity_tons")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (poolErr) throw new Error(poolErr.message);
+    if (!pool) throw new Error("Pool nie znaleziony");
+
     const { data: items } = await context.supabase
       .from("transport_pool_items")
-      .select("lead_id")
+      .select("lead_id, tons")
       .eq("pool_id", data.id);
-    const leadIds = (items ?? []).map((i) => i.lead_id);
+    const leadIds = (items ?? []).map((i: any) => i.lead_id).filter(Boolean);
 
-    const { error } = await context.supabase
-      .from("transport_pools")
-      .update({ status: "anulowany" })
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
-
-    if (leadIds.length > 0) {
+    // Opcjonalnie: całkowicie anuluj leady (zwalnia rezerwacje magazynowe)
+    if (data.releaseReservations && leadIds.length > 0) {
+      for (const lid of leadIds) {
+        await context.supabase.rpc("cancel_lead", {
+          _lead_id: lid,
+          _reason: data.reason ?? `Anulowanie wspólnego transportu: ${pool.name}`,
+        });
+      }
+    } else if (leadIds.length > 0) {
+      // Standardowo — odpięcie do puli poczekalni, rezerwacja zostaje
       await context.supabase
         .from("leads")
         .update({ pooling_status: "poczekalnia" })
         .in("id", leadIds);
     }
-    return { ok: true };
+
+    // Usuń pozycje pool_items
+    await context.supabase.from("transport_pool_items").delete().eq("pool_id", data.id);
+
+    // Odepnij / usuń powiązany transport w kalendarzu
+    if (pool.transport_id) {
+      await context.supabase.from("transports").delete().eq("id", pool.transport_id);
+    }
+
+    // Oznacz pool jako anulowany (zachowujemy wpis dla audytu)
+    const { error } = await context.supabase
+      .from("transport_pools")
+      .update({ status: "anulowany", transport_id: null })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+
+    // Audit log
+    await context.supabase.from("audit_log").insert({
+      actor_id: context.userId,
+      action: "pool_cancelled",
+      entity_type: "transport_pool",
+      entity_id: pool.id,
+      details: {
+        name: pool.name,
+        route_to: pool.route_to,
+        status_before: pool.status,
+        total_tons: pool.total_tons,
+        transport_id: pool.transport_id,
+        lead_ids: leadIds,
+        released_reservations: !!data.releaseReservations,
+        reason: data.reason ?? null,
+      },
+    });
+
+    return { ok: true, released: !!data.releaseReservations, leads: leadIds.length };
   });
 
 // ---------- get pool manifest (aggregated loading list) ----------

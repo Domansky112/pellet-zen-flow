@@ -15,6 +15,7 @@ import {
   User,
   Phone,
   Calendar as CalIcon,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPoolManifest, confirmPool } from "@/lib/pooling.functions";
 import { WzDownloadButton } from "@/components/wz-download-button";
+import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Paleta pelletu (960 kg)",
@@ -63,6 +65,7 @@ export function PoolManifestDialog({
   const [time, setTime] = useState("08:00");
   const [driver, setDriver] = useState("");
   const [vehicle, setVehicle] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [zone, setZone] = useState("");
 
   const manifest = useQuery({
@@ -311,6 +314,13 @@ export function PoolManifestDialog({
             <Printer className="h-4 w-4 mr-2" /> Drukuj list załadunkowy
           </Button>
           {poolId && <WzDownloadButton poolId={poolId} size="default" />}
+          <Button
+            variant="outline"
+            onClick={() => setCancelOpen(true)}
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Usuń transport
+          </Button>
           <div className="flex-1" />
           <Button variant="ghost" onClick={onClose}>
             Zamknij
@@ -323,6 +333,15 @@ export function PoolManifestDialog({
           )}
         </DialogFooter>
       </DialogContent>
+      <CancelPoolDialog
+        poolId={cancelOpen ? poolId : null}
+        poolName={manifest.data?.pool?.name}
+        onClose={() => setCancelOpen(false)}
+        onDone={() => {
+          onDone?.();
+          onClose();
+        }}
+      />
     </Dialog>
   );
 }
