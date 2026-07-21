@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw } from "lucide-react";
-import { listLeads, updateLeadStatus, assignToMe } from "@/lib/leads.functions";
+import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen } from "lucide-react";
+import { listLeads, listReservedLeads, updateLeadStatus, assignToMe, confirmWydanie } from "@/lib/leads.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
+import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -47,6 +48,12 @@ const statusLabel: Record<Lead["status"], string> = {
 function CrmPage() {
   const { data: leads } = useSuspenseQuery(leadsQuery);
   const queryClient = useQueryClient();
+  const [openLead, setOpenLead] = useState<Lead | null>(null);
+
+  const reserved = useQuery({
+    queryKey: ["reserved-leads"],
+    queryFn: () => listReservedLeads(),
+  });
 
   useEffect(() => {
     const ch = supabase
@@ -56,6 +63,7 @@ function CrmPage() {
         { event: "*", schema: "public", table: "leads" },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
           if (payload.eventType === "INSERT") {
             const n = (payload.new as { name?: string })?.name ?? "Nowe zgłoszenie";
             toast.success(`Nowy lead: ${n}`);
@@ -81,7 +89,10 @@ function CrmPage() {
             </div>
             <Button
               variant="outline"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["leads"] })}
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ["leads"] });
+                queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
+              }}
             >
               <RefreshCw className="mr-2 h-4 w-4" /> Odśwież
             </Button>
@@ -95,23 +106,36 @@ function CrmPage() {
             <TabsTrigger value="all">
               Wszystkie <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="reserved">
+              Z rezerwacją{" "}
+              <Badge className="ml-2 bg-primary/15 text-primary border-primary/30" variant="outline">
+                {reserved.data?.length ?? 0}
+              </Badge>
+            </TabsTrigger>
             <TabsTrigger value="www">WWW</TabsTrigger>
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="b2b">B2B</TabsTrigger>
             <TabsTrigger value="nowy">Nowe</TabsTrigger>
           </TabsList>
-          <TabsContent value="all" className="mt-4"><LeadList items={leads} /></TabsContent>
-          <TabsContent value="www" className="mt-4"><LeadList items={leads.filter((l) => l.source === "www")} /></TabsContent>
-          <TabsContent value="email" className="mt-4"><LeadList items={leads.filter((l) => l.source === "email")} /></TabsContent>
-          <TabsContent value="b2b" className="mt-4"><LeadList items={leads.filter((l) => l.source === "b2b")} /></TabsContent>
-          <TabsContent value="nowy" className="mt-4"><LeadList items={leads.filter((l) => l.status === "nowy")} /></TabsContent>
+          <TabsContent value="all" className="mt-4"><LeadList items={leads} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="reserved" className="mt-4"><ReservedList items={reserved.data ?? []} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="www" className="mt-4"><LeadList items={leads.filter((l) => l.source === "www")} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="email" className="mt-4"><LeadList items={leads.filter((l) => l.source === "email")} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="b2b" className="mt-4"><LeadList items={leads.filter((l) => l.source === "b2b")} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="nowy" className="mt-4"><LeadList items={leads.filter((l) => l.status === "nowy")} onOpen={setOpenLead} /></TabsContent>
         </Tabs>
       </div>
+
+      <LeadDetailDrawer
+        lead={openLead}
+        open={!!openLead}
+        onOpenChange={(o) => !o && setOpenLead(null)}
+      />
     </>
   );
 }
 
-function LeadList({ items }: { items: Lead[] }) {
+function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
   const updateStatus = useServerFn(updateLeadStatus);
   const assign = useServerFn(assignToMe);
   const qc = useQueryClient();
@@ -131,7 +155,11 @@ function LeadList({ items }: { items: Lead[] }) {
         const Icon = channelIcon[l.source] ?? InboxIcon;
         const highPriority = l.priority >= 2;
         return (
-          <Card key={l.id} className="hover:border-primary/40 transition-colors">
+          <Card
+            key={l.id}
+            className="hover:border-primary/40 transition-colors cursor-pointer"
+            onClick={() => onOpen(l)}
+          >
             <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
               <div className="flex items-start gap-3 min-w-0">
                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${highPriority ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
@@ -143,6 +171,11 @@ function LeadList({ items }: { items: Lead[] }) {
                     {highPriority && (
                       <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
                         Priorytet
+                      </Badge>
+                    )}
+                    {(l as any).reservation_status === "zarezerwowany" && (
+                      <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
+                        <PackageCheck className="h-3 w-3 mr-1" /> Rezerwacja
                       </Badge>
                     )}
                   </CardTitle>
@@ -165,7 +198,7 @@ function LeadList({ items }: { items: Lead[] }) {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="pt-0" onClick={(e) => e.stopPropagation()}>
               {l.notes && <p className="text-sm text-muted-foreground line-clamp-2">{l.notes}</p>}
               <div className="mt-3 flex flex-wrap gap-4 text-xs">
                 {l.quantity && <span><b className="text-foreground">{l.quantity} t</b></span>}
@@ -205,11 +238,73 @@ function LeadList({ items }: { items: Lead[] }) {
                 >
                   Przypisz do mnie
                 </Button>
+                <Button size="sm" variant="secondary" onClick={() => onOpen(l)}>
+                  Otwórz
+                </Button>
               </div>
             </CardContent>
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
+  const qc = useQueryClient();
+  const wydFn = useServerFn(confirmWydanie);
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        Brak leadów z aktywną rezerwacją magazynu.
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3">
+      {items.map((l) => (
+        <Card key={l.id} className="border-primary/30 cursor-pointer hover:border-primary/60" onClick={() => onOpen(l)}>
+          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+            <div className="min-w-0">
+              <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                <PackageCheck className="h-4 w-4 text-primary" />
+                <span className="truncate">{l.name}</span>
+                <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
+                  {l.quantity} t · {l.product}
+                </Badge>
+              </CardTitle>
+              <CardDescription className="mt-1 text-xs">
+                {[l.phone, l.email, l.city].filter(Boolean).join(" · ")} ·{" "}
+                {formatDistanceToNow(new Date(l.created_at), { addSuffix: true, locale: pl })}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="sm"
+              onClick={async () => {
+                if (!confirm(`Wydać ${l.quantity} t z magazynu dla ${l.name}? To zdejmie towar ze stanu i oznaczy lead jako wygrany.`)) return;
+                try {
+                  await wydFn({ data: { lead_id: l.id } });
+                  toast.success(`Wydano ${l.quantity} t`);
+                  qc.invalidateQueries({ queryKey: ["leads"] });
+                  qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+                  qc.invalidateQueries({ queryKey: ["stock-balance"] });
+                  qc.invalidateQueries({ queryKey: ["stock-events"] });
+                } catch (e) {
+                  toast.error((e as Error).message);
+                }
+              }}
+            >
+              <PackageOpen className="h-4 w-4 mr-2" /> Wydaj z magazynu
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onOpen(l)}>
+              Otwórz szczegóły
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
