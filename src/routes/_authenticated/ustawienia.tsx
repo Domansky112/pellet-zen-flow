@@ -98,11 +98,7 @@ function UstawieniaPage() {
   }
 
   const search = useSearch({ from: "/_authenticated/ustawienia" });
-  const [section, setSection] = useState(search.section ?? "fleet");
-  // sync with URL when user clicks sidebar sub-items
-  if (search.section && search.section !== section) {
-    setSection(search.section);
-  }
+  const section = search.section ?? "fleet";
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
@@ -112,7 +108,7 @@ function UstawieniaPage() {
     { value: "config", label: "Konfiguracja", Icon: Settings2 },
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
   ];
-  const current = SECTION_OPTIONS.find((s) => s.value === section)!;
+  const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
   return (
     <div className="p-6 md:p-8 space-y-6">
