@@ -247,6 +247,16 @@ function CrmPage() {
             </SelectContent>
           </Select>
           <div className="mx-2 h-6 w-px bg-border" />
+          <Button
+            size="sm"
+            variant={mineOnly ? "default" : "outline"}
+            onClick={() => setSearch({ mine: mineOnly ? undefined : "yes" })}
+            disabled={!currentUser}
+            title="Pokaż tylko leady przypisane do mnie"
+          >
+            Moje leady
+          </Button>
+          <div className="mx-2 h-6 w-px bg-border" />
           <span className="text-xs uppercase tracking-wide text-muted-foreground mr-1">Sortuj:</span>
           <Select
             value={sort}
