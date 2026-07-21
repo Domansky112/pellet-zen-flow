@@ -923,7 +923,7 @@ function TemplatesPanel({
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => setOpen(!open)}
           className="h-7 gap-1"
           title={open ? "Zwiń panel" : "Rozwiń panel"}
           aria-expanded={open}
