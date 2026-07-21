@@ -32,6 +32,7 @@ export type WzRecipient = {
   address: string;
   phone: string | null;
   email: string | null;
+  hasUnloadingEquipment: boolean;
 };
 
 export type WzItem = {
@@ -103,6 +104,7 @@ function leadToRecipient(lead: any): WzRecipient {
     address: address || "—",
     phone: lead?.phone ?? null,
     email: lead?.email ?? null,
+    hasUnloadingEquipment: !!lead?.has_unloading_equipment,
   };
 }
 
