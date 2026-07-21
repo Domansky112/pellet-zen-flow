@@ -386,13 +386,119 @@ export const cancelPool = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---------- get pool manifest (aggregated loading list) ----------
+export const getPoolManifest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: pool, error } = await context.supabase
+      .from("transport_pools")
+      .select(
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes))",
+      )
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    if (!pool) throw new Error("Pool nie znaleziony");
+
+    const rawItems = ((pool as any).transport_pool_items ?? []) as Array<{
+      id: string;
+      tons: number;
+      share_cost: number | null;
+      stop_order: number | null;
+      detour_km: number | null;
+      leads: {
+        id: string;
+        name: string;
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        email: string | null;
+        city: string | null;
+        postal_code: string | null;
+        product: "pellet_paleta" | "pellet_bigbag" | "inne";
+        quantity: number | null;
+        notes: string | null;
+      } | null;
+    }>;
+
+    const items = rawItems
+      .slice()
+      .sort((a, b) => (a.stop_order ?? 0) - (b.stop_order ?? 0))
+      .map((i) => {
+        const l = i.leads;
+        const product = l?.product ?? "inne";
+        const pieceKg = product === "pellet_paleta" ? 960 : product === "pellet_bigbag" ? 1000 : null;
+        const tons = Number(i.tons);
+        const pieces = pieceKg ? Math.round((tons * 1000) / pieceKg) : null;
+        return {
+          item_id: i.id,
+          lead_id: l?.id ?? null,
+          lead_name: l?.name ?? "—",
+          lead_full_name:
+            [l?.first_name, l?.last_name].filter(Boolean).join(" ").trim() || l?.name || "—",
+          phone: l?.phone ?? null,
+          email: l?.email ?? null,
+          city: l?.city ?? null,
+          postal_code: l?.postal_code ?? null,
+          product,
+          tons,
+          pieces,
+          piece_kg: pieceKg,
+          share_cost: i.share_cost !== null ? Number(i.share_cost) : null,
+          detour_km: i.detour_km,
+          lead_notes: l?.notes ?? null,
+        };
+      });
+
+    // Agregacja per produkt
+    const byProduct = new Map<
+      string,
+      { product: string; total_tons: number; total_pieces: number | null; piece_kg: number | null }
+    >();
+    for (const it of items) {
+      const cur = byProduct.get(it.product) ?? {
+        product: it.product,
+        total_tons: 0,
+        total_pieces: it.pieces === null ? null : 0,
+        piece_kg: it.piece_kg,
+      };
+      cur.total_tons = Math.round((cur.total_tons + it.tons) * 1000) / 1000;
+      if (cur.total_pieces !== null && it.pieces !== null) cur.total_pieces += it.pieces;
+      else if (it.pieces === null) cur.total_pieces = null;
+      byProduct.set(it.product, cur);
+    }
+
+    return {
+      pool: {
+        id: pool.id,
+        name: pool.name,
+        route_to: pool.route_to,
+        status: pool.status,
+        total_tons: Number(pool.total_tons),
+        capacity_tons: Number(pool.capacity_tons),
+        estimated_km: pool.estimated_km,
+        estimated_cost: pool.estimated_cost,
+        transport_id: pool.transport_id,
+        notes: pool.notes,
+      },
+      items,
+      aggregate: Array.from(byProduct.values()),
+    };
+  });
+
 // ---------- confirm pool → transport ----------
 const ConfirmInput = z.object({
   id: z.string().uuid(),
   scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  scheduled_time: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional()
+    .nullable(),
   driver: z.string().max(120).optional().nullable(),
   vehicle: z.string().max(120).optional().nullable(),
-  product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).default("pellet_paleta"),
+  destination_zone: z.string().max(200).optional().nullable(),
   reserve_stock: z.boolean().default(true),
 });
 
@@ -403,15 +509,34 @@ export const confirmPool = createServerFn({ method: "POST" })
     const { data: pool, error: pErr } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, transport_pool_items(id, tons, share_cost, stop_order, leads(id, name, city, postal_code))",
+        "id, name, route_to, total_tons, transport_pool_items(id, tons, share_cost, stop_order, leads(id, name, city, postal_code, product, quantity))",
       )
       .eq("id", data.id)
       .single();
     if (pErr) throw new Error(pErr.message);
     if (!pool) throw new Error("Pool nie znaleziony");
 
-    const items = (pool as any).transport_pool_items ?? [];
+    const items = ((pool as any).transport_pool_items ?? []) as Array<{
+      id: string;
+      tons: number;
+      leads: {
+        id: string;
+        name: string;
+        city: string | null;
+        postal_code: string | null;
+        product: "pellet_paleta" | "pellet_bigbag" | "inne";
+      } | null;
+    }>;
+    if (items.length === 0) throw new Error("Pool nie ma pozycji");
+
     const firstCity = items[0]?.leads?.city ?? pool.route_to;
+    const timeNote = data.scheduled_time ? `Załadunek ${data.scheduled_time}` : null;
+    const combinedNotes = [
+      `Wspólny transport (${items.length} klientów)`,
+      timeNote,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
     // 1. Transport
     const { data: transport, error: tErr } = await context.supabase
@@ -419,45 +544,54 @@ export const confirmPool = createServerFn({ method: "POST" })
       .insert({
         scheduled_date: data.scheduled_date,
         city: firstCity,
-        destination_address: items.map((i: any) => `${i.leads?.city ?? ""} (${i.tons} t)`).join(" · "),
+        zone: data.destination_zone ?? null,
+        destination_address: items
+          .map((i) => `${i.leads?.city ?? ""} (${i.tons} t)`)
+          .join(" · "),
         driver: data.driver ?? null,
         vehicle: data.vehicle ?? null,
         capacity_kg: Number(pool.total_tons) * 1000,
         status: "planowany",
         pool_id: pool.id,
-        notes: `Wspólny transport (${items.length} klientów)`,
+        notes: combinedNotes,
       })
       .select()
       .single();
     if (tErr) throw new Error(tErr.message);
 
-    // 2. transport_items — jeden per lead
+    // 2. transport_items — jeden per lead, produkt z leada
     const { error: iErr } = await context.supabase.from("transport_items").insert(
-      items.map((i: any) => ({
+      items.map((i) => ({
         transport_id: transport.id,
         lead_id: i.leads?.id ?? null,
-        product: data.product,
+        product: i.leads?.product ?? "inne",
         quantity: Number(i.tons),
         address: [i.leads?.postal_code, i.leads?.city].filter(Boolean).join(" "),
       })),
     );
     if (iErr) throw new Error(iErr.message);
 
-    // 3. Rezerwacja magazynu (jedna sumaryczna)
+    // 3. Rezerwacja magazynu — grupowana per produkt
     if (data.reserve_stock) {
-      const { error: sErr } = await context.supabase.from("stock_events").insert({
-        product: data.product,
-        txn_type: "rezerwacja",
-        quantity: Number(pool.total_tons),
+      const byProduct = new Map<string, number>();
+      for (const it of items) {
+        const p = it.leads?.product ?? "inne";
+        byProduct.set(p, (byProduct.get(p) ?? 0) + Number(it.tons));
+      }
+      const rows = Array.from(byProduct.entries()).map(([product, tons]) => ({
+        product,
+        txn_type: "rezerwacja" as const,
+        quantity: Math.round(tons * 1000) / 1000,
         reference: `POOL:${pool.id.slice(0, 8)}`,
         note: `Rezerwacja pod wspólny transport ${data.scheduled_date} (${items.length} klientów)`,
         created_by: context.userId,
-      });
+      }));
+      const { error: sErr } = await context.supabase.from("stock_events").insert(rows);
       if (sErr) throw new Error(sErr.message);
     }
 
     // 4. Update leads + pool
-    const leadIds = items.map((i: any) => i.leads?.id).filter(Boolean);
+    const leadIds = items.map((i) => i.leads?.id).filter(Boolean) as string[];
     if (leadIds.length > 0) {
       await context.supabase
         .from("leads")
