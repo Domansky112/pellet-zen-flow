@@ -161,8 +161,13 @@ function HistoriaPage() {
                     </ul>
                   </div>
                 )}
-                {l.transport_id && (
-                  <div className="pt-1">
+                <div className="pt-1 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/crm" search={{ leadId: l.id }}>
+                      <ExternalLink className="mr-2 h-4 w-4" /> Przejdź do leada
+                    </Link>
+                  </Button>
+                  {l.transport_id && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -170,8 +175,8 @@ function HistoriaPage() {
                     >
                       <Truck className="mr-2 h-4 w-4" /> Zobacz transport
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
