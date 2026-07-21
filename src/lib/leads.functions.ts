@@ -294,7 +294,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: src, error: se } = await context.supabase
       .from("leads")
-      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source")
+      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment")
       .eq("id", data.lead_id)
       .single();
     if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
