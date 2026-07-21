@@ -125,6 +125,7 @@ function UstawieniaPage() {
         {section === "carriers" && <CarriersTab />}
         {section === "config" && <ConfigTab />}
         {section === "templates" && <TemplatesTab />}
+        {section === "statuses" && <StatusesTab />}
       </div>
     </div>
   );
