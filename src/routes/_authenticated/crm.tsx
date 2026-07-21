@@ -120,7 +120,7 @@ function CrmPage() {
         <Tabs
           value={tab}
           onValueChange={(v) =>
-            navigate({ search: (p) => ({ ...p, tab: v === "all" ? undefined : (v as typeof tab) }) })
+            navigate({ search: (p: Record<string, unknown>) => ({ ...p, tab: v === "all" ? undefined : (v as typeof tab) }) })
           }
         >
           <TabsList>
@@ -153,7 +153,7 @@ function CrmPage() {
                   variant={productFilter === f.key ? "default" : "outline"}
                   onClick={() =>
                     navigate({
-                      search: (p) => ({ ...p, product: f.key === "all" ? undefined : f.key }),
+                      search: (p: Record<string, unknown>) => ({ ...p, product: f.key === "all" ? undefined : f.key }),
                     })
                   }
                 >
