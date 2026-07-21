@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { parseISO, parse } from "date-fns";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const listLeads = createServerFn({ method: "GET" })
@@ -409,5 +410,235 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
       };
     });
 
+  });
+
+const importOptionsSchema = z.object({
+  defaultSource: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("inne"),
+  defaultProduct: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).nullable().default(null),
+  quantityInKg: z.boolean().default(false),
+  poolingEnabled: z.boolean().default(false),
+  deliveryToPooling: z.boolean().default(false),
+  skipDuplicates: z.boolean().default(true),
+});
+
+const importLeadsInput = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).max(1000),
+  options: importOptionsSchema,
+});
+
+function str(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+function normalizeText(v: string): string {
+  return v
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ")
+    .replace(/ą/g, "a")
+    .replace(/ć/g, "c")
+    .replace(/ę/g, "e")
+    .replace(/ł/g, "l")
+    .replace(/ń/g, "n")
+    .replace(/ó/g, "o")
+    .replace(/ś/g, "s")
+    .replace(/ź/g, "z")
+    .replace(/ż/g, "z")
+    .trim();
+}
+
+function normalizeSource(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  const n = normalizeText(s);
+  const map: Record<string, string> = {
+    www: "www",
+    strona: "www",
+    formularz: "www",
+    email: "email",
+    mail: "email",
+    "e-mail": "email",
+    telefon: "telefon",
+    tel: "telefon",
+    b2b: "b2b",
+    inne: "inne",
+  };
+  if (map[n]) return map[n];
+  if (["www", "email", "telefon", "b2b", "inne"].includes(n)) return n;
+  return null;
+}
+
+function normalizeProduct(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  const n = normalizeText(s);
+  const map: Record<string, string> = {
+    "pellet paleta": "pellet_paleta",
+    paleta: "pellet_paleta",
+    palety: "pellet_paleta",
+    pellet: "pellet_paleta",
+    "pellet bigbag": "pellet_bigbag",
+    bigbag: "pellet_bigbag",
+    "big-bag": "pellet_bigbag",
+    inne: "inne",
+  };
+  return map[n] ?? null;
+}
+
+function parseBool(v: unknown, fallback: boolean): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v > 0;
+  const s = str(v).toLowerCase();
+  if (["tak", "yes", "true", "1", "x", "t"].includes(s)) return true;
+  if (["nie", "no", "false", "0", "-", ""].includes(s)) return false;
+  return fallback;
+}
+
+function parseQty(v: unknown, inKg: boolean): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  let n: number;
+  if (typeof v === "number") n = v;
+  else {
+    const cleaned = str(v).replace(/\s/g, "").replace(",", ".");
+    n = Number(cleaned);
+  }
+  if (!Number.isFinite(n) || n < 0) return null;
+  return inKg ? n / 1000 : n;
+}
+
+function parseDateValue(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = str(v);
+  const formats = ["yyyy-MM-dd", "dd.MM.yyyy", "dd/MM/yyyy", "dd-MM-yyyy"];
+  for (const f of formats) {
+    const d = parse(s, f, new Date());
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  }
+  const iso = parseISO(s);
+  if (!Number.isNaN(iso.getTime())) return iso.toISOString().slice(0, 10);
+  return null;
+}
+
+function validEmail(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return null;
+  return s;
+}
+
+export const importLeads = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => importLeadsInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { rows, options } = data;
+
+    const seen = new Set<string>();
+    const errors: { rowIndex: number; message: string }[] = [];
+    let created = 0;
+    let skipped = 0;
+
+    if (options.skipDuplicates) {
+      const emails = rows.map((r, i) => ({ v: str(r.email), i })).filter((x) => x.v);
+      const phones = rows.map((r, i) => ({ v: str(r.phone), i })).filter((x) => x.v);
+      const dupEmails = new Set<string>();
+      const dupPhones = new Set<string>();
+      for (const e of emails) {
+        if (dupEmails.has(e.v)) errors.push({ rowIndex: e.i, message: "Powielony e-mail w arkuszu" });
+        dupEmails.add(e.v);
+      }
+      for (const p of phones) {
+        if (dupPhones.has(p.v)) errors.push({ rowIndex: p.i, message: "Powielony telefon w arkuszu" });
+        dupPhones.add(p.v);
+      }
+
+      const emailList = emails.map((x) => x.v);
+      const phoneList = phones.map((x) => x.v);
+      if (emailList.length > 0) {
+        const { data: existing } = await context.supabase
+          .from("leads")
+          .select("email,phone")
+          .is("deleted_at", null)
+          .in("email", emailList);
+        for (const r of existing ?? []) {
+          if (r.email) seen.add(`e:${r.email}`);
+          if (r.phone) seen.add(`p:${r.phone}`);
+        }
+      }
+      if (phoneList.length > 0) {
+        const { data: existing } = await context.supabase
+          .from("leads")
+          .select("email,phone")
+          .is("deleted_at", null)
+          .in("phone", phoneList);
+        for (const r of existing ?? []) {
+          if (r.email) seen.add(`e:${r.email}`);
+          if (r.phone) seen.add(`p:${r.phone}`);
+        }
+      }
+    }
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const firstName = str(r.first_name);
+      const lastName = str(r.last_name);
+      const company = str(r.company);
+      const name = str(r.name) || (firstName || lastName ? [firstName, lastName].filter(Boolean).join(" ") : company) || "Bez nazwy";
+      const email = validEmail(r.email);
+      const phone = str(r.phone);
+
+      if (options.skipDuplicates) {
+        if (email && seen.has(`e:${email}`)) {
+          skipped++;
+          continue;
+        }
+        if (phone && seen.has(`p:${phone}`)) {
+          skipped++;
+          continue;
+        }
+      }
+
+      const quantity = parseQty(r.quantity, options.quantityInKg);
+      const product = normalizeProduct(r.product) ?? options.defaultProduct ?? null;
+      const source = normalizeSource(r.source) ?? options.defaultSource;
+      const poolingEnabled = parseBool(r.pooling_enabled, options.poolingEnabled);
+      const hasUnloading = parseBool(r.has_unloading_equipment, false);
+      let poolingWaitUntil: string | null = null;
+      if (options.deliveryToPooling) {
+        poolingWaitUntil = parseDateValue(r.delivery_date);
+      }
+
+      const payload = {
+        first_name: firstName || null,
+        last_name: lastName || null,
+        name,
+        email: email || null,
+        phone: phone || null,
+        city: str(r.city) || null,
+        postal_code: str(r.postal_code) || null,
+        source,
+        product,
+        quantity,
+        notes: str(r.notes) || null,
+        priority: 0,
+        pooling_enabled: poolingEnabled,
+        pooling_wait_until: poolingWaitUntil,
+        pooling_status: poolingEnabled ? "poczekalnia" : "brak",
+        has_unloading_equipment: hasUnloading,
+        status: "nowy" as const,
+        reservation_status: "brak" as const,
+      };
+
+      const { error } = await context.supabase.from("leads").insert(payload as any);
+      if (error) {
+        errors.push({ rowIndex: i, message: error.message });
+      } else {
+        created++;
+        if (email) seen.add(`e:${email}`);
+        if (phone) seen.add(`p:${phone}`);
+      }
+    }
+
+    return { created, skipped, errors: errors.slice(0, 50) };
   });
 

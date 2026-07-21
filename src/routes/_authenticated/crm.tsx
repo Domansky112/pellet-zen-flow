@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2 } from "lucide-react";
 import { listLeads, listReservedLeads, updateLeadStatus, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
+import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -125,6 +126,7 @@ function CrmPage() {
             >
               <RefreshCw className="mr-2 h-4 w-4" /> Odśwież
             </Button>
+            <ImportLeadsDialog />
             <NewLeadDialog />
           </>
         }
