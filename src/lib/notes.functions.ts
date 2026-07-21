@@ -20,11 +20,16 @@ export const listNotes = createServerFn({ method: "GET" })
 export const listLeadIdsWithNotes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("lead_notes").select("lead_id");
+    const { data, error } = await context.supabase
+      .from("lead_notes")
+      .select("lead_id, created_at")
+      .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const set = new Set<string>();
-    for (const r of data ?? []) if ((r as any).lead_id) set.add((r as any).lead_id as string);
-    return Array.from(set);
+    const map = new Map<string, string>();
+    for (const r of (data ?? []) as any[]) {
+      if (r.lead_id && !map.has(r.lead_id)) map.set(r.lead_id, r.created_at);
+    }
+    return Array.from(map.entries()).map(([lead_id, last_at]) => ({ lead_id, last_at }));
   });
 
 export const addNote = createServerFn({ method: "POST" })
