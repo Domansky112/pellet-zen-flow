@@ -66,6 +66,7 @@ export function LeadDetailDrawer({
   const currentUser = useCurrentUser();
   const [rendered, setRendered] = useState<{ subject: string; body: string } | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(true);
+  const [calcOpen, setCalcOpen] = useState(true);
 
   // VAT calculator inputs
   const [pricePerTonNet, setPricePerTonNet] = useState<string>("");
