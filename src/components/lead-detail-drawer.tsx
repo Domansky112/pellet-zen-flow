@@ -23,9 +23,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
