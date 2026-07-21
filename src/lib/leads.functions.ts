@@ -342,6 +342,7 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
 
     return rows.map((l) => {
       const tItems = itemsByLead.get(l.id) ?? [];
+      const transport_id = tItems[0]?.transport_id ?? null;
       const partners: { name: string; quantity: number | null }[] = [];
       for (const t of tItems) {
         const co = coByTransport.get(t.transport_id) ?? [];
@@ -353,9 +354,11 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
       }
       return {
         ...l,
+        transport_id,
         shared_transport: partners.length > 0 || !!l.pooling_enabled,
         transport_partners: partners,
       };
     });
+
   });
 

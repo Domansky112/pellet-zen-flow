@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw } from "lucide-react";
+import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck } from "lucide-react";
 import { listDeliveryHistory } from "@/lib/leads.functions";
+import { TransportDetailDialog } from "@/components/transport-detail-dialog";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
+
 
 export const Route = createFileRoute("/_authenticated/historia")({
   head: () => ({
@@ -27,6 +29,8 @@ function HistoriaPage() {
   const [to, setTo] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [poolingOnly, setPoolingOnly] = useState(false);
+  const [openTransportId, setOpenTransportId] = useState<string | null>(null);
+
 
   const filters = useMemo(
     () => ({ from: from || null, to: to || null, search: search || null, pooling_only: poolingOnly }),
@@ -157,10 +161,15 @@ function HistoriaPage() {
                     </ul>
                   </div>
                 )}
-                {l.notes && (
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Uwagi</div>
-                    <div className="whitespace-pre-wrap text-muted-foreground">{l.notes}</div>
+                {l.transport_id && (
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setOpenTransportId(l.transport_id as string)}
+                    >
+                      <Truck className="mr-2 h-4 w-4" /> Zobacz transport
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -173,6 +182,13 @@ function HistoriaPage() {
           )}
         </div>
       </div>
+
+      <TransportDetailDialog
+        transportId={openTransportId}
+        open={!!openTransportId}
+        onOpenChange={(o) => !o && setOpenTransportId(null)}
+      />
     </>
+
   );
 }
