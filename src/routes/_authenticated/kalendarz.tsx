@@ -62,6 +62,7 @@ function CalendarPage() {
   const qc = useQueryClient();
   const listFn = useServerFn(listTransports);
   const delFn = useServerFn(deleteTransport);
+  const reschedFn = useServerFn(rescheduleTransport);
 
   const { data: transports = [], isLoading } = useQuery({
     queryKey: ["transports"],
@@ -72,6 +73,15 @@ function CalendarPage() {
     mutationFn: (id: string) => delFn({ data: { id } }),
     onSuccess: () => {
       toast.success("Transport usunięty");
+      qc.invalidateQueries({ queryKey: ["transports"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const resched = useMutation({
+    mutationFn: (v: { id: string; scheduled_date: string }) => reschedFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Termin transportu zaktualizowany (rezerwacja bez zmian)");
       qc.invalidateQueries({ queryKey: ["transports"] });
     },
     onError: (e: Error) => toast.error(e.message),
