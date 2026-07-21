@@ -16,6 +16,17 @@ export const listLeads = createServerFn({ method: "GET" })
     return data;
   });
 
+const SearchInput = z.object({ q: z.string().trim().min(2).max(120) });
+
+export const searchLeads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => SearchInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase.rpc("search_leads_global", { _q: data.q });
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as any[];
+  });
+
 export const listReservedLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
