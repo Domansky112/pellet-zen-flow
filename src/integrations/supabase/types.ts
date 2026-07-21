@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      fuel_prices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fetched_at: string
+          fuel_type: string
+          id: string
+          note: string | null
+          price_per_liter: number
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fetched_at?: string
+          fuel_type?: string
+          id?: string
+          note?: string | null
+          price_per_liter: number
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fetched_at?: string
+          fuel_type?: string
+          id?: string
+          note?: string | null
+          price_per_liter?: number
+          source?: string
+        }
+        Relationships: []
+      }
       lead_notes: {
         Row: {
           author_id: string | null
