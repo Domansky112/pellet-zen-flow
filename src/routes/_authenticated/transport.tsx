@@ -181,14 +181,15 @@ function TransportPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        setFuelPrice(fuelQuery.data!.price_per_liter);
+                        setFuelPrice(fuelQuery.data!.suggested_price);
                         setFuelOverridden(false);
                       }}
-                      title="Przywróć auto-cenę"
+                      title="Przywróć sugerowaną cenę (Detal Orlen − 10 gr)"
                     >
                       <RotateCcw className="h-4 w-4" />
                     </Button>
                   ) : null}
+
                 </div>
                 {fuelQuery.data?.source === "fallback" ? (
                   <p className="text-xs text-muted-foreground">
