@@ -285,6 +285,17 @@ export function PoolManifestDialog({
                               = {it.tons} t
                             </span>
                           </div>
+                          <div className="mt-1.5">
+                            {it.has_unloading_equipment ? (
+                              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-[10px]">
+                                Rozładunek: własny sprzęt klienta
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10 text-[10px]">
+                                Rozładunek: wymagany HDS / winda
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         {it.lead_id && (
                           <Button
