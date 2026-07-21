@@ -131,15 +131,26 @@ function CrmPage() {
       }),
   });
 
+  const cancelled = useQuery({
+    ...cancelledLeadsQuery,
+    enabled: tab === "cancelled",
+  });
+
+  // Active vs closed split for the working "Wszystkie" view.
+  const activeLeads = useMemo(() => (leads as Lead[]).filter((l) => !isClosedLead(l)), [leads]);
+  const realizedLeads = useMemo(() => (leads as Lead[]).filter((l) => isRealizedLead(l)), [leads]);
+
   useEffect(() => {
     if (!search.leadId) return;
-    const found = leads.find((l) => l.id === search.leadId)
-      ?? (reserved.data ?? []).find((l) => l.id === search.leadId);
+    const found =
+      (leads as Lead[]).find((l) => l.id === search.leadId)
+      ?? (reserved.data ?? []).find((l) => l.id === search.leadId)
+      ?? (cancelled.data ?? []).find((l) => l.id === search.leadId);
     if (found) {
       setOpenLead(found as Lead);
       navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
     }
-  }, [search.leadId, leads, reserved.data, navigate]);
+  }, [search.leadId, leads, reserved.data, cancelled.data, navigate]);
 
   useEffect(() => {
     const ch = supabase
