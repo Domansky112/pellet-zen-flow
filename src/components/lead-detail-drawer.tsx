@@ -47,6 +47,7 @@ type Lead = {
   status?: string;
   pooling_enabled?: boolean | null;
   has_unloading_equipment?: boolean | null;
+  status_key?: string | null;
 };
 
 
