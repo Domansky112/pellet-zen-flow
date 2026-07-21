@@ -17,6 +17,16 @@ export const listNotes = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+export const listLeadIdsWithNotes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.from("lead_notes").select("lead_id");
+    if (error) throw new Error(error.message);
+    const set = new Set<string>();
+    for (const r of data ?? []) if ((r as any).lead_id) set.add((r as any).lead_id as string);
+    return Array.from(set);
+  });
+
 export const addNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
