@@ -101,6 +101,7 @@ export const createLead = createServerFn({ method: "POST" })
       pooling_enabled: data.pooling_enabled,
       pooling_wait_until: data.pooling_wait_until || null,
       pooling_status: data.pooling_enabled ? "poczekalnia" : "brak",
+      has_unloading_equipment: data.has_unloading_equipment,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
