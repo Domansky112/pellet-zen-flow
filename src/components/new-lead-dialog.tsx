@@ -58,6 +58,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
       defaults?.pooling_enabled
         ? new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().slice(0, 10)
         : "",
+    has_unloading_equipment: false,
   });
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
