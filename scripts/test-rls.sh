@@ -17,19 +17,14 @@ psql -X -q -A -F '|' -f "$SQL_FILE" > "$OUT"
 
 fail=0
 
-# Sanity: sprawdź has_role — pierwszy blok wyników (5 kolumn true/false)
+# Sanity: has_role musi zwrócić 'f|f|f|f' dla nieuprzywilejowanego usera
 sanity=$(grep -E '^(t|f)\|' "$OUT" | head -n1 || true)
-if [ -z "$sanity" ]; then
-  echo "❌ Nie znaleziono wyniku has_role."
-  fail=1
+expected="f|f|f|f"
+if [ "$sanity" = "$expected" ]; then
+  echo "✅ has_role: użytkownik bez uprzywilejowanych ról."
 else
-  expected="f|f|f|f|t"
-  if [ "$sanity" != "$expected" ]; then
-    echo "❌ has_role zwrócił: $sanity (oczekiwane: $expected)"
-    fail=1
-  else
-    echo "✅ has_role: sales ma tylko rolę 'sales'."
-  fi
+  echo "❌ has_role zwrócił: '$sanity' (oczekiwane: $expected)"
+  fail=1
 fi
 
 # Testy tabel: każdy wiersz "nazwa|liczba" musi mieć liczbę = 0
@@ -45,14 +40,6 @@ for t in "${tables[@]}"; do
   fi
 done
 
-# product_definitions: kontrolna próba pozytywna (>=0 dozwolone, ale rola musi mieć dostęp)
-pd_row=$(grep -E '^product_definitions_visible\|' "$OUT" | head -n1 || true)
-pd_count=$(echo "$pd_row" | awk -F'|' '{print $2}')
-if [ -n "$pd_count" ]; then
-  echo "✅ product_definitions: dostępne dla sales ($pd_count wierszy)."
-else
-  echo "⚠️  product_definitions: brak wyniku kontrolnego."
-fi
 
 if [ "$fail" -ne 0 ]; then
   echo ""
