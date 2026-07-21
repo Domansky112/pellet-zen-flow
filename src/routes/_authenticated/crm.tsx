@@ -138,6 +138,7 @@ function CrmPage() {
 function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
   const updateStatus = useServerFn(updateLeadStatus);
   const assign = useServerFn(assignToMe);
+  const cancelFn = useServerFn(cancelLead);
   const qc = useQueryClient();
 
   if (items.length === 0) {
