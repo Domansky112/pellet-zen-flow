@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,6 +11,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,8 +32,21 @@ const nav = [
 ] as const;
 
 
+const SETTINGS_SECTIONS = [
+  { value: "fleet", label: "Flota", icon: Truck },
+  { value: "users", label: "Użytkownicy CRM", icon: Users2 },
+  { value: "products", label: "Słownik produktów", icon: Package2 },
+  { value: "warehouses", label: "Magazyny", icon: Store },
+  { value: "carriers", label: "Przewoźnicy", icon: Building2 },
+  { value: "config", label: "Konfiguracja", icon: Settings2 },
+  { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
+] as const;
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const currentSection = useRouterState({
+    select: (r) => (r.location.search as { section?: string })?.section ?? "fleet",
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState<string>("");
@@ -102,8 +118,23 @@ export function AppSidebar() {
                     <Link to="/ustawienia">
                       <Settings />
                       <span>Ustawienia</span>
+                      <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
                     </Link>
                   </SidebarMenuButton>
+                  {pathname === "/ustawienia" && (
+                    <SidebarMenuSub>
+                      {SETTINGS_SECTIONS.map((s) => (
+                        <SidebarMenuSubItem key={s.value}>
+                          <SidebarMenuSubButton asChild isActive={currentSection === s.value}>
+                            <Link to="/ustawienia" search={{ section: s.value }}>
+                              <s.icon className="h-3.5 w-3.5" />
+                              <span>{s.label}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>

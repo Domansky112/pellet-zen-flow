@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { z } from "zod";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,7 +53,12 @@ import {
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 
+const settingsSearchSchema = z.object({
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/ustawienia")({
+  validateSearch: settingsSearchSchema,
   head: () => ({
     meta: [
       { title: "Ustawienia — Słoneczny Pellet OS" },
@@ -91,7 +97,8 @@ function UstawieniaPage() {
     );
   }
 
-  const [section, setSection] = useState("fleet");
+  const search = useSearch({ from: "/_authenticated/ustawienia" });
+  const section = search.section ?? "fleet";
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
@@ -101,31 +108,14 @@ function UstawieniaPage() {
     { value: "config", label: "Konfiguracja", Icon: Settings2 },
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
   ];
-  const current = SECTION_OPTIONS.find((s) => s.value === section)!;
+  const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
   return (
     <div className="p-6 md:p-8 space-y-6">
       <PageHeader
-        title="Ustawienia / Administracja"
+        title={`Ustawienia / ${current.label}`}
         description="Zarządzanie flotą, kierowcami, kontami CRM, słownikami magazynowymi i konfiguracją globalną."
       />
-      <div className="max-w-sm">
-        <Label className="text-xs text-muted-foreground">Sekcja</Label>
-        <Select value={section} onValueChange={setSection}>
-          <SelectTrigger>
-            <span className="inline-flex items-center gap-2">
-              <current.Icon className="h-4 w-4" /> {current.label}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {SECTION_OPTIONS.map(({ value, label, Icon }) => (
-              <SelectItem key={value} value={value}>
-                <span className="inline-flex items-center gap-2"><Icon className="h-4 w-4" /> {label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
       <div className="pt-2">
         {section === "fleet" && <FleetTab />}
         {section === "users" && <UsersTab />}
