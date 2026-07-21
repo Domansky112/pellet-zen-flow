@@ -55,7 +55,6 @@ function Konsolidacja() {
   const geocodeFn = useServerFn(geocodePendingLeads);
   const createFn = useServerFn(createPool);
   const poolsFn = useServerFn(listPools);
-  const cancelFn = useServerFn(cancelPool);
   
 
   const { data: waitlist } = useSuspenseQuery({ queryKey: ["waitlist"], queryFn: () => listFn() });
@@ -63,6 +62,7 @@ function Konsolidacja() {
 
   const [params, setParams] = useState({ maxDetourKm: 75, capacityTons: 24, minFillTons: 20 });
   const [confirmPoolId, setConfirmPoolId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
 
   const suggestions = useQuery({
     queryKey: ["pool-suggestions", params],
