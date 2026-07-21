@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isAuthorizedCron } from "@/lib/cron-auth.server";
 
 /**
  * Pobiera aktualną HURTOWĄ cenę ON Ekodiesel z JSON API Orlenu i przelicza ją na
