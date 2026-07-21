@@ -313,6 +313,13 @@ export function PoolManifestDialog({
             <Printer className="h-4 w-4 mr-2" /> Drukuj list załadunkowy
           </Button>
           {poolId && <WzDownloadButton poolId={poolId} size="default" />}
+          <Button
+            variant="outline"
+            onClick={() => setCancelOpen(true)}
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" /> Usuń transport
+          </Button>
           <div className="flex-1" />
           <Button variant="ghost" onClick={onClose}>
             Zamknij
@@ -325,6 +332,15 @@ export function PoolManifestDialog({
           )}
         </DialogFooter>
       </DialogContent>
+      <CancelPoolDialog
+        poolId={cancelOpen ? poolId : null}
+        poolName={manifest.data?.pool?.name}
+        onClose={() => setCancelOpen(false)}
+        onDone={() => {
+          onDone?.();
+          onClose();
+        }}
+      />
     </Dialog>
   );
 }
