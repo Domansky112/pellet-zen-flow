@@ -169,6 +169,23 @@ export const updateLead = createServerFn({ method: "POST" })
       if (v === undefined) continue;
       patch[k] = v === "" ? null : v;
     }
+    // Synchronizuj pooling_status z pooling_enabled, żeby lead trafił do poczekalni
+    if (rest.pooling_enabled !== undefined) {
+      if (rest.pooling_enabled) {
+        // Włączamy — jeśli jeszcze nie zgrupowany/wysłany, wrzucamy do poczekalni
+        const { data: cur } = await context.supabase
+          .from("leads")
+          .select("pooling_status")
+          .eq("id", id)
+          .single();
+        const cs = (cur as any)?.pooling_status;
+        if (cs !== "zgrupowany" && cs !== "wyslany") {
+          patch.pooling_status = "poczekalnia";
+        }
+      } else {
+        patch.pooling_status = "brak";
+      }
+    }
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await context.supabase
       .from("leads")
