@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -179,7 +179,14 @@ function StockPanel({
         </CardHeader>
         <CardContent className="space-y-6">
           <StatRow label="Stan fizyczny" value={physical} total={Math.max(physical, 1)} tone="bg-primary" />
-          <StatRow label="Zarezerwowane" value={reserved} total={Math.max(physical, 1)} tone="bg-warning" />
+          <Link
+            to="/crm"
+            search={{ tab: "reserved", product: product.key }}
+            className="block rounded-md -mx-2 px-2 py-1 hover:bg-muted/60 transition-colors"
+            title="Zobacz zarezerwowane leady w CRM"
+          >
+            <StatRow label="Zarezerwowane →" value={reserved} total={Math.max(physical, 1)} tone="bg-warning" />
+          </Link>
           <StatRow label="Dostępne do sprzedaży" value={available} total={Math.max(physical, 1)} tone="bg-success" />
         </CardContent>
       </Card>
