@@ -315,9 +315,17 @@ export function generateWzFile(data: WzDocumentData): WzFile {
       (r) =>
         `<div class="place-row"><strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
           r.address,
-        )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}</div>`,
+        )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}<br/><span class="muted">Sprzęt do rozładunku u klienta: <b>${r.hasUnloadingEquipment ? "TAK" : "NIE — wymagany HDS / winda"}</b></span></div>`,
     )
     .join("");
+
+  const anyMissingUnload = data.recipients.some((r) => !r.hasUnloadingEquipment);
+  const allSelfUnload = data.recipients.length > 0 && data.recipients.every((r) => r.hasUnloadingEquipment);
+  const unloadNote = allSelfUnload
+    ? "Sprzęt do rozładunku u klienta: TAK (wszystkie punkty)"
+    : anyMissingUnload
+      ? "UWAGA: co najmniej jeden punkt bez własnego sprzętu — wymagany rozładunek HDS / winda"
+      : "";
 
   const firstRecipient = data.recipients[0];
   const recipientBlock = firstRecipient
@@ -416,8 +424,9 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   </table>
 
   <div class="notes">
-    <h3>Uwagi dodatkowe / Zastrzeżenia</h3>
-    ${data.carrier.notes ? escapeHtml(data.carrier.notes) : "&nbsp;"}
+    <h3>Uwagi do transportu / rozładunku</h3>
+    ${unloadNote ? `<div><strong>${escapeHtml(unloadNote)}</strong></div>` : ""}
+    ${data.carrier.notes ? `<div>${escapeHtml(data.carrier.notes)}</div>` : (!unloadNote ? "&nbsp;" : "")}
   </div>
 
   <div class="signatures">
