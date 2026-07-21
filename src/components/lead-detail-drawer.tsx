@@ -202,9 +202,31 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
+  const applyTemplate = async (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
-    const vars = {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data: userData } = await supabase.auth.getUser();
+    const handlowiec =
+      (userData?.user?.user_metadata as any)?.full_name ||
+      (userData?.user?.user_metadata as any)?.name ||
+      userData?.user?.email ||
+      "";
+    const adres = [lead.postal_code, lead.city].filter(Boolean).join(" ") || (lead as any).invoice_address || "";
+    const vars: Record<string, string | number | null | undefined> = {
+      // PL variables (canonical)
+      imie_klienta: lead.first_name || lead.name,
+      nazwisko: lead.last_name ?? "",
+      pelna_nazwa: lead.name,
+      tonaz: lead.quantity ?? "",
+      rodzaj_pelletu: lead.product ?? "",
+      cena_transportu: (lead as any).transport_price ?? "",
+      adres_dostawy: adres,
+      miasto: lead.city ?? "",
+      telefon: lead.phone ?? "",
+      email: lead.email ?? "",
+      imie_handlowca: handlowiec,
+      data: new Date().toLocaleDateString("pl-PL"),
+      // legacy EN aliases
       name: lead.first_name || lead.name,
       first_name: lead.first_name ?? "",
       last_name: lead.last_name ?? "",

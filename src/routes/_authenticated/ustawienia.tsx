@@ -36,8 +36,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound,
+  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   isCurrentUserAdmin,
   listVehicles, upsertVehicle, deleteVehicle,
@@ -49,6 +50,7 @@ import {
   listSettings, upsertSetting,
   listCrmUsers, createCrmUser, setUserRoles, resetUserPassword, deleteCrmUser,
 } from "@/lib/admin.functions";
+import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
   head: () => ({
@@ -103,6 +105,7 @@ function UstawieniaPage() {
           <TabsTrigger value="warehouses"><Store className="h-4 w-4 mr-1" /> Magazyny</TabsTrigger>
           <TabsTrigger value="carriers"><Building2 className="h-4 w-4 mr-1" /> Przewoźnicy</TabsTrigger>
           <TabsTrigger value="config"><Settings2 className="h-4 w-4 mr-1" /> Konfiguracja</TabsTrigger>
+          <TabsTrigger value="templates"><MessageSquare className="h-4 w-4 mr-1" /> Szablony wiadomości</TabsTrigger>
         </TabsList>
         <TabsContent value="fleet" className="pt-4"><FleetTab /></TabsContent>
         <TabsContent value="users" className="pt-4"><UsersTab /></TabsContent>
@@ -110,6 +113,7 @@ function UstawieniaPage() {
         <TabsContent value="warehouses" className="pt-4"><WarehousesTab /></TabsContent>
         <TabsContent value="carriers" className="pt-4"><CarriersTab /></TabsContent>
         <TabsContent value="config" className="pt-4"><ConfigTab /></TabsContent>
+        <TabsContent value="templates" className="pt-4"><TemplatesTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -914,4 +918,249 @@ function StatusBadge({ status }: { status: string }) {
     urlop: "outline", nieaktywny: "secondary",
   };
   return <Badge variant={variant[status] ?? "outline"}>{status}</Badge>;
+}
+
+// ============================================================
+// TEMPLATES TAB
+// ============================================================
+type TemplateRow = {
+  id: string;
+  name: string;
+  product: string | null;
+  subject: string | null;
+  body: string;
+  channel: "email" | "sms";
+  is_active: boolean;
+};
+
+function TemplatesTab() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listAllTemplates);
+  const upsertFn = useServerFn(upsertTemplate);
+  const delFn = useServerFn(deleteTemplate);
+  const { data = [], isLoading } = useQuery({ queryKey: ["admin-templates"], queryFn: () => listFn() });
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<TemplateRow | null>(null);
+
+  const saveM = useMutation({
+    mutationFn: (payload: any) => upsertFn({ data: payload }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-templates"] });
+      qc.invalidateQueries({ queryKey: ["templates"] });
+      toast.success("Zapisano szablon");
+      setOpen(false);
+      setEditing(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteM = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-templates"] });
+      qc.invalidateQueries({ queryKey: ["templates"] });
+      toast.success("Usunięto");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> Szablony wiadomości / ofert</CardTitle>
+          <CardDescription>Zdefiniuj szablony e-mail/SMS z dynamicznymi zmiennymi. Aktywne szablony pojawią się w panelu leada.</CardDescription>
+        </div>
+        <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
+          <Plus className="h-4 w-4 mr-1" /> Nowy szablon
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Ładowanie…</div>
+        ) : data.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">Brak szablonów. Utwórz pierwszy, aby handlowcy mogli z niego korzystać.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nazwa</TableHead>
+                <TableHead>Kanał</TableHead>
+                <TableHead>Produkt</TableHead>
+                <TableHead>Temat</TableHead>
+                <TableHead>Aktywny</TableHead>
+                <TableHead className="w-[120px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((raw) => { const t = raw as TemplateRow; return (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">{t.name}</TableCell>
+                  <TableCell><Badge variant="outline">{t.channel}</Badge></TableCell>
+                  <TableCell>{t.product ?? "—"}</TableCell>
+                  <TableCell className="max-w-[280px] truncate">{t.subject ?? "—"}</TableCell>
+                  <TableCell>{t.is_active ? <Badge>aktywny</Badge> : <Badge variant="secondary">wyłączony</Badge>}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1 justify-end">
+                      <Button size="icon" variant="ghost" onClick={() => { setEditing(t); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Usunąć szablon „${t.name}"?`)) deleteM.mutate(t.id); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ); })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <TemplateDialog
+        open={open}
+        onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}
+        editing={editing}
+        onSave={(p) => saveM.mutate(p)}
+        saving={saveM.isPending}
+      />
+    </Card>
+  );
+}
+
+function TemplateDialog({
+  open, onOpenChange, editing, onSave, saving,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editing: TemplateRow | null;
+  onSave: (payload: any) => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [channel, setChannel] = useState<"email" | "sms">("email");
+  const [product, setProduct] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  useState(() => {
+    if (editing) {
+      setName(editing.name);
+      setChannel(editing.channel);
+      setProduct(editing.product ?? "");
+      setSubject(editing.subject ?? "");
+      setBody(editing.body);
+      setIsActive(editing.is_active);
+    }
+    return 0;
+  });
+
+  // reset on open change
+  const openKey = open ? (editing?.id ?? "new") : "closed";
+  const [lastKey, setLastKey] = useState<string>("");
+  if (lastKey !== openKey) {
+    setLastKey(openKey);
+    if (open) {
+      setName(editing?.name ?? "");
+      setChannel(editing?.channel ?? "email");
+      setProduct(editing?.product ?? "");
+      setSubject(editing?.subject ?? "");
+      setBody(editing?.body ?? "");
+      setIsActive(editing?.is_active ?? true);
+    }
+  }
+
+  const insertVar = (key: string) => {
+    setBody((b) => `${b}${b && !b.endsWith(" ") && !b.endsWith("\n") ? " " : ""}{{${key}}}`);
+  };
+  const copyVar = (key: string) => {
+    navigator.clipboard.writeText(`{{${key}}}`);
+    toast.success(`Skopiowano {{${key}}}`);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Edytuj szablon" : "Nowy szablon"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Nazwa</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Oferta standardowa – Pellet…" />
+              </div>
+              <div className="space-y-1">
+                <Label>Kanał</Label>
+                <Select value={channel} onValueChange={(v: any) => setChannel(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="sms">SMS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Produkt (opcjonalnie)</Label>
+                <Input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="np. Pellet paleta" />
+              </div>
+              <div className="space-y-1 flex flex-col justify-end">
+                <div className="flex items-center gap-2">
+                  <Switch checked={isActive} onCheckedChange={setIsActive} id="tpl-active" />
+                  <Label htmlFor="tpl-active">Aktywny (widoczny dla handlowców)</Label>
+                </div>
+              </div>
+            </div>
+            {channel === "email" && (
+              <div className="space-y-1">
+                <Label>Temat wiadomości</Label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Oferta pelletu dla {{imie_klienta}}" />
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label>Treść</Label>
+              <Textarea
+                rows={12}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={"Dzień dobry {{imie_klienta}},\n\nprzesyłam ofertę na {{tonaz}} t {{rodzaj_pelletu}} z dostawą pod adres {{adres_dostawy}}.\nKoszt transportu: {{cena_transportu}} zł.\n\nPozdrawiam,\n{{imie_handlowca}}"}
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+          <aside className="rounded-md border bg-muted/30 p-3 space-y-2 text-xs">
+            <div className="font-medium text-sm">Dostępne zmienne</div>
+            <div className="text-muted-foreground">Kliknij, aby wstawić do treści.</div>
+            <div className="space-y-1">
+              {TEMPLATE_VARIABLES.map((v) => (
+                <div key={v.key} className="flex items-center justify-between gap-2 rounded border bg-background px-2 py-1">
+                  <button className="flex-1 text-left" type="button" onClick={() => insertVar(v.key)}>
+                    <div className="font-mono">{`{{${v.key}}}`}</div>
+                    <div className="text-[10px] text-muted-foreground">{v.description}</div>
+                  </button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => copyVar(v.key)} type="button">
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Anuluj</Button>
+          <Button
+            disabled={saving || !name.trim() || !body.trim()}
+            onClick={() => onSave({
+              id: editing?.id,
+              name: name.trim(),
+              product: product.trim() || null,
+              subject: subject.trim() || null,
+              body,
+              channel,
+              is_active: isActive,
+            })}
+          >Zapisz</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
