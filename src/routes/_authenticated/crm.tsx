@@ -78,7 +78,7 @@ function CrmPage() {
       ?? (reserved.data ?? []).find((l) => l.id === search.leadId);
     if (found) {
       setOpenLead(found as Lead);
-      navigate({ search: (p) => ({ ...p, leadId: undefined }), replace: true });
+      navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
     }
   }, [search.leadId, leads, reserved.data, navigate]);
 
