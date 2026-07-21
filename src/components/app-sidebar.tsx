@@ -32,8 +32,21 @@ const nav = [
 ] as const;
 
 
+const SETTINGS_SECTIONS = [
+  { value: "fleet", label: "Flota", icon: Truck },
+  { value: "users", label: "Użytkownicy CRM", icon: Users2 },
+  { value: "products", label: "Słownik produktów", icon: Package2 },
+  { value: "warehouses", label: "Magazyny", icon: Store },
+  { value: "carriers", label: "Przewoźnicy", icon: Building2 },
+  { value: "config", label: "Konfiguracja", icon: Settings2 },
+  { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
+] as const;
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const currentSection = useRouterState({
+    select: (r) => (r.location.search as { section?: string })?.section ?? "fleet",
+  });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState<string>("");
