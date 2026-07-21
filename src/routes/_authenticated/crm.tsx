@@ -24,6 +24,7 @@ import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
