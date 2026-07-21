@@ -16,7 +16,7 @@ export const listLeads = createServerFn({ method: "GET" })
     return data;
   });
 
-const SearchInput = z.object({ q: z.string().trim().min(2).max(120) });
+const SearchInput = z.object({ q: z.string().trim().min(2).max(120).or(z.string().trim().min(2).transform((s) => s.slice(0, 120))) });
 
 export const searchLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
