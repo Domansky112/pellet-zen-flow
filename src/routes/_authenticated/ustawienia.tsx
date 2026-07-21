@@ -97,7 +97,12 @@ function UstawieniaPage() {
     );
   }
 
-  const [section, setSection] = useState("fleet");
+  const search = useSearch({ from: "/_authenticated/ustawienia" });
+  const [section, setSection] = useState(search.section ?? "fleet");
+  // sync with URL when user clicks sidebar sub-items
+  if (search.section && search.section !== section) {
+    setSection(search.section);
+  }
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
@@ -112,26 +117,9 @@ function UstawieniaPage() {
   return (
     <div className="p-6 md:p-8 space-y-6">
       <PageHeader
-        title="Ustawienia / Administracja"
+        title={`Ustawienia / ${current.label}`}
         description="Zarządzanie flotą, kierowcami, kontami CRM, słownikami magazynowymi i konfiguracją globalną."
       />
-      <div className="max-w-sm">
-        <Label className="text-xs text-muted-foreground">Sekcja</Label>
-        <Select value={section} onValueChange={setSection}>
-          <SelectTrigger>
-            <span className="inline-flex items-center gap-2">
-              <current.Icon className="h-4 w-4" /> {current.label}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            {SECTION_OPTIONS.map(({ value, label, Icon }) => (
-              <SelectItem key={value} value={value}>
-                <span className="inline-flex items-center gap-2"><Icon className="h-4 w-4" /> {label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
       <div className="pt-2">
         {section === "fleet" && <FleetTab />}
         {section === "users" && <UsersTab />}
