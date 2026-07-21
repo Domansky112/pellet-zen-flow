@@ -332,7 +332,7 @@ export const createPool = createServerFn({ method: "POST" })
     }
 
     if (needByProduct.size > 0) {
-      const products = Array.from(needByProduct.keys());
+      const products = Array.from(needByProduct.keys()) as ("pellet_paleta" | "pellet_bigbag" | "inne")[];
       const { data: bal, error: bErr } = await context.supabase
         .from("stock_balance")
         .select("product, physical, reserved, available")
