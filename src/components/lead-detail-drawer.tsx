@@ -130,6 +130,11 @@ export function LeadDetailDrawer({
       pooling_enabled: !!lead.pooling_enabled,
       has_unloading_equipment: !!lead.has_unloading_equipment,
     });
+    setRendered(null);
+    setTemplatesOpen(true);
+    setPricePerTonNet("");
+    setTransportNet("");
+    setVatRate("23");
   }, [lead?.id, open]);
 
   const [newNote, setNewNote] = useState("");
