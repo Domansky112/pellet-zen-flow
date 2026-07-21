@@ -288,82 +288,138 @@ export type WzFile = {
   content: string;
 };
 
+const LOADING_PLACE = "Magazyn Słoneczny Pellet, Witoroża, 21-570 Drelów";
+
 export function generateWzFile(data: WzDocumentData): WzFile {
   const rows = data.items
-    .map(
-      (i) => `
+    .map((i, idx) => {
+      const qty = i.pieces ? `${i.pieces}` : i.quantityTons.toFixed(3);
+      const unit = i.pieces ? (i.unit === "big-bag" ? "big-bag" : "paleta") : "t";
+      return `
         <tr>
+          <td class="center">${idx + 1}</td>
           <td>${escapeHtml(i.productLabel)}</td>
-          <td class="right">${i.pieces ?? "—"}</td>
-          <td class="right">${i.quantityTons.toFixed(3)} t</td>
+          <td class="right">${qty}</td>
+          <td class="center">${unit}</td>
           <td>${escapeHtml(i.description)}</td>
-        </tr>`,
+        </tr>`;
+    })
+    .join("");
+
+  const unloading = data.recipients
+    .map(
+      (r) =>
+        `<div class="place-row"><strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
+          r.address,
+        )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}</div>`,
     )
     .join("");
 
-  const recipients = data.recipients
-    .map(
-      (r) => `
-        <div class="recipient">
-          <strong>${escapeHtml(r.company ?? r.name)}</strong><br/>
-          ${r.nip ? `NIP: ${escapeHtml(r.nip)}<br/>` : ""}
-          ${escapeHtml(r.address)}<br/>
-          ${r.phone ? `tel. ${escapeHtml(r.phone)}` : ""}
-        </div>`,
-    )
-    .join("");
+  const firstRecipient = data.recipients[0];
+  const recipientBlock = firstRecipient
+    ? `<strong>${escapeHtml(firstRecipient.company ?? firstRecipient.name)}</strong><br/>
+       ${firstRecipient.nip ? `NIP: ${escapeHtml(firstRecipient.nip)}<br/>` : ""}
+       ${escapeHtml(firstRecipient.address)}${
+         data.recipients.length > 1
+           ? `<br/><span class="muted">+ ${data.recipients.length - 1} kolejnych odbiorców (patrz miejsca rozładunku)</span>`
+           : ""
+       }`
+    : "<em>—</em>";
 
   const html = `<!doctype html>
 <html lang="pl"><head><meta charset="utf-8"/><title>${data.number}</title>
 <style>
-  body { font-family: -apple-system, Segoe UI, Arial, sans-serif; color: #111; margin: 40px; }
-  h1 { font-size: 22px; margin: 0 0 4px 0; }
-  .muted { color: #666; font-size: 12px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
-  .box { border: 1px solid #ddd; padding: 12px 14px; border-radius: 6px; }
-  .box h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #666; letter-spacing: .5px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
-  th { background: #f7f7f7; }
-  .right { text-align: right; }
-  .totals { margin-top: 8px; font-weight: 600; }
-  .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 60px; }
-  .sig { border-top: 1px solid #333; padding-top: 6px; font-size: 12px; text-align: center; }
-  .recipient + .recipient { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; }
-  .mock { background: #fff8e1; border: 1px dashed #d4a600; padding: 8px 12px; border-radius: 6px; font-size: 12px; color: #8a6d00; margin-bottom: 16px; }
+  @page { size: A4; margin: 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: #111; margin: 0; font-size: 12px; line-height: 1.35; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: 1px; }
+  .header .meta { text-align: right; font-size: 11px; }
+  .header .meta strong { font-size: 13px; }
+  table.doc { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  table.doc th, table.doc td { border: 1px solid #333; padding: 6px 8px; vertical-align: top; }
+  table.doc th { background: #eee; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; text-align: left; }
+  .parties td { width: 33.33%; }
+  .places td { width: 50%; }
+  table.items th { background: #eee; font-size: 11px; }
+  table.items td.center, table.items th.center { text-align: center; }
+  table.items td.right, table.items th.right { text-align: right; }
+  .notes { border: 1px solid #333; padding: 8px 10px; min-height: 50px; margin-bottom: 20px; }
+  .notes h3 { margin: 0 0 4px 0; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #555; }
+  .signatures { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 40px; }
+  .sig { border-top: 1px solid #333; padding-top: 4px; text-align: center; font-size: 10px; color: #555; }
+  .sig strong { display: block; color: #111; font-size: 11px; margin-bottom: 20px; }
+  .place-row + .place-row { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #bbb; }
+  .muted { color: #666; font-size: 10px; }
+  .print-btn { position: fixed; top: 12px; right: 12px; padding: 8px 14px; background: #e5661b; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  @media print { .print-btn { display: none; } }
 </style></head><body>
-  <div class="mock">📄 <strong>Podgląd WZ (mock)</strong> — dokument tymczasowy. Docelowo: generator PDF ze wzoru firmowego.</div>
-  <h1>WYDANIE ZEWNĘTRZNE (WZ)</h1>
-  <div class="muted">Nr dokumentu: <strong>${data.number}</strong> · Data wystawienia: ${data.issueDate} · Data wydania: ${data.transportDate}</div>
+  <button class="print-btn" onclick="window.print()">Drukuj / Zapisz PDF</button>
 
-  <div class="grid">
-    <div class="box">
-      <h3>Wydający</h3>
-      <strong>${escapeHtml(data.issuer.name)}</strong><br/>
-      ${escapeHtml(data.issuer.address)}
+  <div class="header">
+    <div>
+      <h1>WYDANIE ZEWNĘTRZNE (WZ)</h1>
+      <div class="muted">Dokument wydania towaru / list przewozowy</div>
     </div>
-    <div class="box">
-      <h3>Odbiorca / Odbiorcy</h3>
-      ${recipients || "<em>—</em>"}
+    <div class="meta">
+      <div>Nr: <strong>${data.number}</strong></div>
+      <div>Data wystawienia: <strong>${data.issueDate}</strong></div>
+      <div>Data wydania: <strong>${data.transportDate}</strong></div>
+      <div>Miejscowość: <strong>Drelów</strong></div>
     </div>
   </div>
 
-  <div class="box">
-    <h3>Przewoźnik / Transport</h3>
-    Kierowca: <strong>${escapeHtml(data.carrier.driver ?? "—")}</strong> ·
-    Pojazd: <strong>${escapeHtml(data.carrier.vehicle ?? "—")}</strong>
-    ${data.carrier.notes ? `<div class="muted" style="margin-top:6px">Uwagi: ${escapeHtml(data.carrier.notes)}</div>` : ""}
-  </div>
-
-  <table>
-    <thead><tr><th>Towar</th><th class="right">Ilość szt.</th><th class="right">Waga</th><th>Opis</th></tr></thead>
-    <tbody>${rows}</tbody>
+  <table class="doc parties">
+    <thead><tr><th>Nadawca / Dostawca</th><th>Odbiorca</th><th>Przewoźnik</th></tr></thead>
+    <tbody><tr>
+      <td>
+        <strong>${escapeHtml(data.issuer.name)}</strong><br/>
+        ${escapeHtml(data.issuer.address)}
+        ${data.issuer.nip ? `<br/>NIP: ${escapeHtml(data.issuer.nip)}` : ""}
+      </td>
+      <td>${recipientBlock}</td>
+      <td>
+        <strong>${escapeHtml(data.issuer.name)}</strong><br/>
+        Kierowca: <strong>${escapeHtml(data.carrier.driver ?? "—")}</strong><br/>
+        Pojazd: <strong>${escapeHtml(data.carrier.vehicle ?? "—")}</strong>
+      </td>
+    </tr></tbody>
   </table>
-  <div class="totals right">RAZEM: ${data.totals.pieces} szt. · ${data.totals.tons.toFixed(3)} t</div>
+
+  <table class="doc places">
+    <thead><tr><th>Miejsce załadunku</th><th>Miejsce(a) rozładunku</th></tr></thead>
+    <tbody><tr>
+      <td>${escapeHtml(LOADING_PLACE)}</td>
+      <td>${unloading || "<em>—</em>"}</td>
+    </tr></tbody>
+  </table>
+
+  <table class="doc items">
+    <thead><tr>
+      <th class="center" style="width:6%">Lp.</th>
+      <th style="width:34%">Nazwa towaru / materiału</th>
+      <th class="right" style="width:12%">Ilość</th>
+      <th class="center" style="width:10%">Jm.</th>
+      <th>Uwagi</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr>
+      <td colspan="2" class="right"><strong>RAZEM</strong></td>
+      <td class="right"><strong>${data.totals.pieces || data.totals.tons.toFixed(3)}</strong></td>
+      <td class="center"><strong>${data.totals.pieces ? "szt." : "t"}</strong></td>
+      <td>${data.totals.pieces ? `${data.totals.tons.toFixed(3)} t łącznie` : ""}</td>
+    </tr></tfoot>
+  </table>
+
+  <div class="notes">
+    <h3>Uwagi dodatkowe / Zastrzeżenia</h3>
+    ${data.carrier.notes ? escapeHtml(data.carrier.notes) : "&nbsp;"}
+  </div>
 
   <div class="signatures">
-    <div class="sig">Wydał: ${escapeHtml(data.signatures.issuedBy)}</div>
-    <div class="sig">Odebrał: ${escapeHtml(data.signatures.receivedBy || "…………………………")}</div>
+    <div class="sig"><strong>&nbsp;</strong>Sporządził / Wydał<br/>${escapeHtml(data.signatures.issuedBy)}</div>
+    <div class="sig"><strong>&nbsp;</strong>Przewoźnik / Kierowca<br/>${escapeHtml(data.carrier.driver ?? "…………………………")}</div>
+    <div class="sig"><strong>&nbsp;</strong>Odebrał / Odbiorca<br/>${escapeHtml(data.signatures.receivedBy || "…………………………")}</div>
   </div>
 </body></html>`;
 
