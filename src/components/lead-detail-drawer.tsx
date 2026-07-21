@@ -378,9 +378,23 @@ export function LeadDetailDrawer({
     onSuccess: ({ to }) => {
       invalidateNotes();
       invalidateLeads();
+      // Auto-collapse the templates/offer panel and return to a clean lead view
+      setRendered(null);
+      setTemplatesOpen(false);
       toast.success(`Oferta została pomyślnie wysłana na adres: ${to}`);
     },
     onError: (e: Error) => toast.error(e.message || "Nie udało się wysłać oferty"),
+  });
+
+  // ---- Assign to me -----------------------------------------------------
+  const assignFn = useServerFn(assignToMe);
+  const assignM = useMutation({
+    mutationFn: () => assignFn({ data: { id: lead!.id } }),
+    onSuccess: () => {
+      invalidateLeads();
+      toast.success("Lead przypisany do Ciebie");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const sendOffer = () => {
