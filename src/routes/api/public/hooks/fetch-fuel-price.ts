@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isAuthorizedCron } from "@/lib/cron-auth.server";
 
 /**
  * Pobiera aktualną HURTOWĄ cenę ON Ekodiesel z JSON API Orlenu i przelicza ją na
@@ -15,9 +16,7 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = request.headers.get("apikey") ?? "";
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? "";
-        if (!expected || apiKey !== expected) {
+        if (!isAuthorizedCron(request)) {
           return json({ error: "Unauthorized" }, 401);
         }
 
