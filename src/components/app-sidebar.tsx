@@ -105,8 +105,23 @@ export function AppSidebar() {
                     <Link to="/ustawienia">
                       <Settings />
                       <span>Ustawienia</span>
+                      <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
                     </Link>
                   </SidebarMenuButton>
+                  {pathname === "/ustawienia" && (
+                    <SidebarMenuSub>
+                      {SETTINGS_SECTIONS.map((s) => (
+                        <SidebarMenuSubItem key={s.value}>
+                          <SidebarMenuSubButton asChild isActive={currentSection === s.value}>
+                            <Link to="/ustawienia" search={{ section: s.value }}>
+                              <s.icon className="h-3.5 w-3.5" />
+                              <span>{s.label}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
