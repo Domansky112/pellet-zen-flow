@@ -92,7 +92,25 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {role.includes("admin") && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administracja</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === "/ustawienia"} tooltip="Ustawienia">
+                    <Link to="/ustawienia">
+                      <Settings />
+                      <span>Ustawienia</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
+
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex flex-col gap-2 px-2 py-2">
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
