@@ -78,6 +78,7 @@ const CreateInput = z.object({
   priority: z.number().int().min(0).max(5).default(0),
   pooling_enabled: z.boolean().default(false),
   pooling_wait_until: z.string().optional().nullable(),
+  has_unloading_equipment: z.boolean().default(false),
 });
 
 export const createLead = createServerFn({ method: "POST" })
@@ -100,6 +101,7 @@ export const createLead = createServerFn({ method: "POST" })
       pooling_enabled: data.pooling_enabled,
       pooling_wait_until: data.pooling_wait_until || null,
       pooling_status: data.pooling_enabled ? "poczekalnia" : "brak",
+      has_unloading_equipment: data.has_unloading_equipment,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
@@ -161,6 +163,7 @@ const UpdateLeadInput = z.object({
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).nullable().optional(),
   quantity: z.number().nonnegative().nullable().optional(),
   pooling_enabled: z.boolean().optional(),
+  has_unloading_equipment: z.boolean().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })
@@ -291,7 +294,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: src, error: se } = await context.supabase
       .from("leads")
-      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source")
+      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment")
       .eq("id", data.lead_id)
       .single();
     if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
@@ -310,6 +313,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
         invoice_nip: src.invoice_nip,
         invoice_address: src.invoice_address,
         source: src.source ?? "inne",
+        has_unloading_equipment: !!src.has_unloading_equipment,
         status: "nowy",
         reservation_status: "brak",
         pooling_status: "brak",

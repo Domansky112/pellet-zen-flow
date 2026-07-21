@@ -285,6 +285,17 @@ export function PoolManifestDialog({
                               = {it.tons} t
                             </span>
                           </div>
+                          <div className="mt-1.5">
+                            {it.has_unloading_equipment ? (
+                              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-[10px]">
+                                Rozładunek: własny sprzęt klienta
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10 text-[10px]">
+                                Rozładunek: wymagany HDS / winda
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         {it.lead_id && (
                           <Button
@@ -358,6 +369,7 @@ function printManifest(args: {
     tons: number;
     pieces: number | null;
     piece_kg: number | null;
+    has_unloading_equipment?: boolean;
   }>;
   aggregate: Array<{ product: string; total_tons: number; total_pieces: number | null }>;
   scheduled_date: string;
@@ -425,7 +437,7 @@ function printManifest(args: {
 
 <h2>Rozdział na klientów</h2>
 <table>
-  <thead><tr><th style="width:32px">#</th><th>Klient</th><th>Adres</th><th>Produkt</th><th class="num">Waga</th></tr></thead>
+  <thead><tr><th style="width:32px">#</th><th>Klient</th><th>Adres</th><th>Produkt</th><th class="num">Waga</th><th>Rozładunek</th></tr></thead>
   <tbody>
     ${args.items
       .map(
@@ -439,6 +451,7 @@ function printManifest(args: {
           : escapeHtml(PRODUCT_LABEL[it.product] ?? it.product)
       }</td>
       <td class="num">${it.tons} t</td>
+      <td><b>${it.has_unloading_equipment ? "✓ własny sprzęt" : "⚠ HDS / winda"}</b></td>
     </tr>`,
       )
       .join("")}

@@ -522,7 +522,7 @@ export const getPoolManifest = createServerFn({ method: "POST" })
     const { data: pool, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes, has_unloading_equipment))",
       )
       .eq("id", data.id)
       .single();
@@ -547,6 +547,7 @@ export const getPoolManifest = createServerFn({ method: "POST" })
         product: "pellet_paleta" | "pellet_bigbag" | "inne";
         quantity: number | null;
         notes: string | null;
+        has_unloading_equipment: boolean | null;
       } | null;
     }>;
 
@@ -576,6 +577,7 @@ export const getPoolManifest = createServerFn({ method: "POST" })
           share_cost: i.share_cost !== null ? Number(i.share_cost) : null,
           detour_km: i.detour_km,
           lead_notes: l?.notes ?? null,
+          has_unloading_equipment: !!l?.has_unloading_equipment,
         };
       });
 

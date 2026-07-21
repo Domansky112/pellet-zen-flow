@@ -58,6 +58,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
       defaults?.pooling_enabled
         ? new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().slice(0, 10)
         : "",
+    has_unloading_equipment: false,
   });
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
@@ -84,6 +85,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           priority: 0,
           pooling_enabled: form.pooling_enabled,
           pooling_wait_until: form.pooling_enabled ? form.pooling_wait_until || null : null,
+          has_unloading_equipment: form.has_unloading_equipment,
         },
       }),
     onSuccess: (row: any) => {
@@ -217,6 +219,16 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               />
             </div>
           )}
+          <div className="flex items-center gap-2 rounded-md border border-border/60 p-3">
+            <Checkbox
+              id="unload"
+              checked={form.has_unloading_equipment}
+              onCheckedChange={(c) => set("has_unloading_equipment", Boolean(c))}
+            />
+            <Label htmlFor="unload" className="flex-1 cursor-pointer text-sm font-normal">
+              Klient posiada własny sprzęt do rozładunku (wózek / ładowarka)
+            </Label>
+          </div>
           {willReserve && (
             <div className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
               <PackageCheck className="h-4 w-4 mt-0.5 text-primary" />

@@ -32,6 +32,7 @@ export type WzRecipient = {
   address: string;
   phone: string | null;
   email: string | null;
+  hasUnloadingEquipment: boolean;
 };
 
 export type WzItem = {
@@ -103,6 +104,7 @@ function leadToRecipient(lead: any): WzRecipient {
     address: address || "—",
     phone: lead?.phone ?? null,
     email: lead?.email ?? null,
+    hasUnloadingEquipment: !!lead?.has_unloading_equipment,
   };
 }
 
@@ -137,7 +139,7 @@ async function prepareFromTransport(
   const { data: t, error } = await supabase
     .from("transports")
     .select(
-      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address))",
+      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", transportId)
     .maybeSingle();
@@ -147,7 +149,7 @@ async function prepareFromTransport(
   const rawItems = (t.transport_items ?? []) as any[];
   const items = rawItems.map((i) => buildItem(i.product, Number(i.quantity)));
   const recipients: WzRecipient[] = rawItems
-    .map((i) =>
+    .map((i): WzRecipient =>
       i.leads
         ? leadToRecipient(i.leads)
         : {
@@ -157,6 +159,7 @@ async function prepareFromTransport(
             address: t.destination_address ?? "—",
             phone: null,
             email: null,
+            hasUnloadingEquipment: false,
           },
     )
     // deduplikuj po nazwie+adres
@@ -189,6 +192,7 @@ async function prepareFromTransport(
         address: t.destination_address ?? "—",
         phone: null,
         email: null,
+        hasUnloadingEquipment: false,
       },
     ],
     items,
@@ -211,7 +215,7 @@ async function prepareFromPool(
   const { data: p, error } = await supabase
     .from("transport_pools")
     .select(
-      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address))",
+      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", poolId)
     .maybeSingle();
@@ -311,9 +315,17 @@ export function generateWzFile(data: WzDocumentData): WzFile {
       (r) =>
         `<div class="place-row"><strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
           r.address,
-        )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}</div>`,
+        )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}<br/><span class="muted">Sprzęt do rozładunku u klienta: <b>${r.hasUnloadingEquipment ? "TAK" : "NIE — wymagany HDS / winda"}</b></span></div>`,
     )
     .join("");
+
+  const anyMissingUnload = data.recipients.some((r) => !r.hasUnloadingEquipment);
+  const allSelfUnload = data.recipients.length > 0 && data.recipients.every((r) => r.hasUnloadingEquipment);
+  const unloadNote = allSelfUnload
+    ? "Sprzęt do rozładunku u klienta: TAK (wszystkie punkty)"
+    : anyMissingUnload
+      ? "UWAGA: co najmniej jeden punkt bez własnego sprzętu — wymagany rozładunek HDS / winda"
+      : "";
 
   const firstRecipient = data.recipients[0];
   const recipientBlock = firstRecipient
@@ -412,8 +424,9 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   </table>
 
   <div class="notes">
-    <h3>Uwagi dodatkowe / Zastrzeżenia</h3>
-    ${data.carrier.notes ? escapeHtml(data.carrier.notes) : "&nbsp;"}
+    <h3>Uwagi do transportu / rozładunku</h3>
+    ${unloadNote ? `<div><strong>${escapeHtml(unloadNote)}</strong></div>` : ""}
+    ${data.carrier.notes ? `<div>${escapeHtml(data.carrier.notes)}</div>` : (!unloadNote ? "&nbsp;" : "")}
   </div>
 
   <div class="signatures">
