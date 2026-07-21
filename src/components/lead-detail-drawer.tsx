@@ -288,8 +288,36 @@ export function LeadDetailDrawer({
               </Badge>
             )}
           </DialogTitle>
-          <DialogDescription>
-            {[lead.phone, lead.email, lead.city].filter(Boolean).join(" · ")}
+          <DialogDescription className="flex flex-wrap items-center gap-3">
+            <span>{[lead.phone, lead.email, lead.city].filter(Boolean).join(" · ")}</span>
+            <span className="flex items-center gap-2 ml-auto">
+              <span className="text-xs uppercase tracking-wide">Status:</span>
+              <Select
+                value={(lead.status_key ?? lead.status ?? "nowy") as string}
+                onValueChange={async (v) => {
+                  try {
+                    await setStatusFn({ data: { id: lead.id, status_key: v } });
+                    qc.invalidateQueries({ queryKey: ["leads"] });
+                    qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+                    toast.success("Status zaktualizowany");
+                  } catch (e) {
+                    toast.error((e as Error).message);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 w-[190px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === (lead.status_key ?? lead.status)).map((s) => (
+                    <SelectItem key={s.key} value={s.key}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                        {s.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </span>
           </DialogDescription>
         </DialogHeader>
 
