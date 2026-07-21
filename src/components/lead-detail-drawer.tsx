@@ -1022,6 +1022,51 @@ export function LeadDetailDrawer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Zaplanuj transport w kalendarzu</DialogTitle>
+            <DialogDescription>
+              System sprawdzi stan rezerwacji: wykorzysta istniejącą lub utworzy nową 100% pod ten lead.
+              Jeśli w magazynie brakuje tonażu — zaplanowanie zostanie zablokowane.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+              <div><span className="text-muted-foreground">Klient:</span> <strong>{lead?.invoice_company || [lead?.first_name, lead?.last_name].filter(Boolean).join(" ") || lead?.name}</strong></div>
+              <div><span className="text-muted-foreground">Zamówienie:</span> <strong>{Number(lead?.quantity ?? 0)} t · {lead?.product ?? "—"}</strong></div>
+              <div><span className="text-muted-foreground">Rezerwacja:</span> <strong>{lead?.reservation_status ?? "brak"}</strong></div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-date">Data odbioru / dostawy *</Label>
+              <Input id="sched-date" type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-addr">Adres dostawy</Label>
+              <Input id="sched-addr" value={schedAddress} onChange={(e) => setSchedAddress(e.target.value)} placeholder="ul. …, kod, miasto" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-driver">Kierowca (opcjonalnie)</Label>
+              <Input id="sched-driver" value={schedDriver} onChange={(e) => setSchedDriver(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-notes">Notatki</Label>
+              <Textarea id="sched-notes" rows={2} value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScheduleOpen(false)}>Anuluj</Button>
+            <Button
+              onClick={() => scheduleM.mutate()}
+              disabled={!schedDate || scheduleM.isPending}
+            >
+              {scheduleM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarPlus className="h-4 w-4 mr-2" />}
+              Zaplanuj i zarezerwuj
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
