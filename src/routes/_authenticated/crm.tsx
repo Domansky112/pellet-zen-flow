@@ -233,6 +233,7 @@ function CrmPage() {
               variant="outline"
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["leads"] });
+                queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
                 queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
                 queryClient.invalidateQueries({ queryKey: ["lead-notes-index"] });
               }}
