@@ -37,17 +37,39 @@ export const createTransport = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    // Optional: verify stock is available before creating (only if reserving)
-    if (data.reserve_stock) {
+    // ------------------------------------------------------------------
+    // Idempotent reservation logic
+    //   - If lead_id given: net-reserve only the missing delta (qty - already reserved).
+    //   - If no lead_id:    reserve full qty (no lead to bind to).
+    //   - If reserve_stock=false: skip stock impact entirely.
+    // ------------------------------------------------------------------
+    let missingQty = data.quantity;
+
+    if (data.reserve_stock && data.lead_id) {
+      const { data: evs } = await context.supabase
+        .from("stock_events")
+        .select("txn_type, quantity, product")
+        .eq("lead_id", data.lead_id);
+      const netReserved = (evs ?? [])
+        .filter((e: any) => e.product === data.product)
+        .reduce((s: number, e: any) => {
+          if (e.txn_type === "rezerwacja") return s + Number(e.quantity);
+          if (e.txn_type === "zwolnienie_rez") return s - Number(e.quantity);
+          return s;
+        }, 0);
+      missingQty = Math.max(0, data.quantity - netReserved);
+    }
+
+    if (data.reserve_stock && missingQty > 0) {
       const { data: bal } = await context.supabase
         .from("stock_balance")
         .select("physical, reserved")
         .eq("product", data.product)
         .maybeSingle();
       const available = Number(bal?.physical ?? 0) - Number(bal?.reserved ?? 0);
-      if (data.quantity > available) {
+      if (missingQty > available) {
         throw new Error(
-          `Za mało dostępnego stanu (${available} t) — potrzeba ${data.quantity} t. Odznacz rezerwację lub uzupełnij magazyn.`,
+          `Za mało dostępnego stanu (${available} t) — potrzeba jeszcze ${missingQty} t. Odznacz rezerwację lub uzupełnij magazyn.`,
         );
       }
     }
@@ -80,21 +102,32 @@ export const createTransport = createServerFn({ method: "POST" })
     });
     if (iErr) throw new Error(iErr.message);
 
-    // 3. Reserve stock (rezerwacja event)
-    if (data.reserve_stock) {
+    // 3. Reserve stock — only the missing delta (idempotent per lead)
+    if (data.reserve_stock && missingQty > 0) {
       const { error: sErr } = await context.supabase.from("stock_events").insert({
         product: data.product,
         txn_type: "rezerwacja",
-        quantity: data.quantity,
+        quantity: missingQty,
         lead_id: data.lead_id ?? null,
         reference: `TRANSPORT:${transport.id.slice(0, 8)}`,
-        note: `Rezerwacja pod transport ${data.scheduled_date} → ${data.city}`,
+        note: data.lead_id
+          ? `Dorezerwacja pod transport ${data.scheduled_date} (delta ${missingQty} t)`
+          : `Rezerwacja pod transport ${data.scheduled_date} → ${data.city}`,
         created_by: context.userId,
       });
       if (sErr) throw new Error(sErr.message);
     }
 
-    return transport;
+    // 4. Sync lead status (only if lead is bound and reservation active)
+    if (data.lead_id && data.reserve_stock) {
+      await context.supabase
+        .from("leads")
+        .update({ reservation_status: "zarezerwowany" })
+        .eq("id", data.lead_id)
+        .in("reservation_status", ["brak", "zwolniony"]);
+    }
+
+    return { ...transport, reused_reservation: data.reserve_stock && !!data.lead_id && missingQty < data.quantity };
   });
 
 export const deleteTransport = createServerFn({ method: "POST" })
