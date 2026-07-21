@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { PageHeader } from "@/components/page-header";
@@ -15,12 +15,21 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calculator, MapPin, Loader2, Users } from "lucide-react";
+import {
+  Calculator,
+  MapPin,
+  Loader2,
+  Users,
+  Fuel,
+  RotateCcw,
+  PencilLine,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   calculateTransport,
   suggestConsolidation,
 } from "@/lib/transport.functions";
+import { getLatestFuelPrice } from "@/lib/fuel.functions";
 
 export const Route = createFileRoute("/_authenticated/transport")({
   head: () => ({
@@ -41,16 +50,32 @@ type CalcResult = Awaited<ReturnType<typeof calculateTransport>>;
 function TransportPage() {
   const calcFn = useServerFn(calculateTransport);
   const consolidationFn = useServerFn(suggestConsolidation);
+  const fuelFn = useServerFn(getLatestFuelPrice);
+
+  const fuelQuery = useQuery({
+    queryKey: ["fuel-price", "latest"],
+    queryFn: () => fuelFn(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [destination, setDestination] = useState("");
   const [tons, setTons] = useState(24);
   const [driverDays, setDriverDays] = useState(1);
   const [fuelPrice, setFuelPrice] = useState(6.8);
+  const [fuelOverridden, setFuelOverridden] = useState(false);
   const [consumption, setConsumption] = useState(30);
   const [perKmRate, setPerKmRate] = useState(0.4);
   const [driverDayRate, setDriverDayRate] = useState(350);
   const [roundTrip, setRoundTrip] = useState(true);
   const [result, setResult] = useState<CalcResult | null>(null);
+
+  // Synchronizuj domyślną cenę z bazy dopóki użytkownik jej nie nadpisał ręcznie.
+  useEffect(() => {
+    if (!fuelOverridden && fuelQuery.data?.price_per_liter) {
+      setFuelPrice(fuelQuery.data.price_per_liter);
+    }
+  }, [fuelQuery.data, fuelOverridden]);
+
 
   const calc = useMutation({
     mutationFn: () =>
