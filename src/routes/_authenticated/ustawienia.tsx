@@ -1177,3 +1177,215 @@ function TemplateDialog({
     </Dialog>
   );
 }
+
+// ============================================================
+// STATUSES TAB — dictionary of lead statuses
+// ============================================================
+function StatusesTab() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listLeadStatuses);
+  const upsertFn = useServerFn(upsertLeadStatus);
+  const delFn = useServerFn(deleteLeadStatus);
+
+  const { data = [], isLoading } = useQuery({
+    queryKey: ["lead-statuses"],
+    queryFn: () => listFn(),
+  });
+
+  const [editing, setEditing] = useState<null | {
+    key: string;
+    label: string;
+    color: string;
+    sort_order: number;
+    is_active: boolean;
+    isNew: boolean;
+  }>(null);
+
+  const save = useMutation({
+    mutationFn: async (v: { key: string; label: string; color: string; sort_order: number; is_active: boolean }) =>
+      upsertFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Zapisano");
+      qc.invalidateQueries({ queryKey: ["lead-statuses"] });
+      setEditing(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: async (key: string) => delFn({ data: { key } }),
+    onSuccess: () => {
+      toast.success("Usunięto");
+      qc.invalidateQueries({ queryKey: ["lead-statuses"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Statusy leadów</CardTitle>
+          <CardDescription>
+            Słownik statusów widocznych w CRM. Statusy systemowe są używane przez logikę magazynową i nie można ich usunąć.
+          </CardDescription>
+        </div>
+        <Button
+          size="sm"
+          onClick={() =>
+            setEditing({ key: "", label: "", color: "#64748b", sort_order: (data.length + 1) * 10, is_active: true, isNew: true })
+          }
+        >
+          <Plus className="h-4 w-4 mr-1" /> Dodaj status
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Ładowanie…</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40px]"></TableHead>
+                <TableHead>Etykieta</TableHead>
+                <TableHead>Klucz</TableHead>
+                <TableHead>Kolejność</TableHead>
+                <TableHead>Aktywny</TableHead>
+                <TableHead className="w-[160px] text-right">Akcje</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((s) => (
+                <TableRow key={s.key}>
+                  <TableCell>
+                    <span
+                      className="inline-block h-4 w-4 rounded-full border"
+                      style={{ backgroundColor: s.color }}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {s.label}{" "}
+                    {s.is_system && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">system</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{s.key}</TableCell>
+                  <TableCell>{s.sort_order}</TableCell>
+                  <TableCell>{s.is_active ? "Tak" : "Nie"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setEditing({
+                          key: s.key,
+                          label: s.label,
+                          color: s.color,
+                          sort_order: s.sort_order,
+                          is_active: s.is_active,
+                          isNew: false,
+                        })
+                      }
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      disabled={s.is_system}
+                      onClick={() => {
+                        if (confirm(`Usunąć status „${s.label}"?`)) del.mutate(s.key);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing?.isNew ? "Nowy status" : "Edytuj status"}</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div>
+                <Label>Etykieta</Label>
+                <Input
+                  value={editing.label}
+                  onChange={(e) => setEditing({ ...editing, label: e.target.value })}
+                  placeholder="np. Oferta wysłana"
+                />
+              </div>
+              <div>
+                <Label>Klucz (małe litery, cyfry, _)</Label>
+                <Input
+                  value={editing.key}
+                  disabled={!editing.isNew}
+                  onChange={(e) => setEditing({ ...editing, key: e.target.value.toLowerCase() })}
+                  placeholder="np. oferta_wyslana"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Kolor</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-9 w-16 p-1"
+                      value={editing.color}
+                      onChange={(e) => setEditing({ ...editing, color: e.target.value })}
+                    />
+                    <Input
+                      value={editing.color}
+                      onChange={(e) => setEditing({ ...editing, color: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Kolejność</Label>
+                  <Input
+                    type="number"
+                    value={editing.sort_order}
+                    onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editing.is_active}
+                  onCheckedChange={(v) => setEditing({ ...editing, is_active: v })}
+                />
+                <Label>Aktywny (widoczny w wyborze)</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>Anuluj</Button>
+            <Button
+              onClick={() => {
+                if (!editing) return;
+                save.mutate({
+                  key: editing.key,
+                  label: editing.label,
+                  color: editing.color,
+                  sort_order: editing.sort_order,
+                  is_active: editing.is_active,
+                });
+              }}
+              disabled={!editing?.label || !editing?.key || !/^#[0-9a-fA-F]{6}$/.test(editing?.color ?? "")}
+            >
+              Zapisz
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
