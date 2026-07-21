@@ -60,6 +60,9 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          invoice_address: string | null
+          invoice_company: string | null
+          invoice_nip: string | null
           last_name: string | null
           name: string
           notes: string | null
@@ -86,6 +89,9 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          invoice_address?: string | null
+          invoice_company?: string | null
+          invoice_nip?: string | null
           last_name?: string | null
           name: string
           notes?: string | null
@@ -112,6 +118,9 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          invoice_address?: string | null
+          invoice_company?: string | null
+          invoice_nip?: string | null
           last_name?: string | null
           name?: string
           notes?: string | null
