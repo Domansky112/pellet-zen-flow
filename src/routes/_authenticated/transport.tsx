@@ -69,12 +69,13 @@ function TransportPage() {
   const [roundTrip, setRoundTrip] = useState(true);
   const [result, setResult] = useState<CalcResult | null>(null);
 
-  // Synchronizuj domyślną cenę z bazy dopóki użytkownik jej nie nadpisał ręcznie.
+  // Synchronizuj sugerowaną cenę (Detal Orlen − 10 gr) dopóki użytkownik jej nie nadpisał ręcznie.
   useEffect(() => {
-    if (!fuelOverridden && fuelQuery.data?.price_per_liter) {
-      setFuelPrice(fuelQuery.data.price_per_liter);
+    if (!fuelOverridden && fuelQuery.data?.suggested_price) {
+      setFuelPrice(fuelQuery.data.suggested_price);
     }
   }, [fuelQuery.data, fuelOverridden]);
+
 
 
   const calc = useMutation({
@@ -150,14 +151,15 @@ function TransportPage() {
                     </Badge>
                   ) : fuelQuery.data ? (
                     <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/20">
-                      {fuelQuery.data.source === "orlen_auto"
-                        ? "Auto z Orlenu"
+                      {fuelQuery.data.source === "orlen_retail_auto" ||
+                      fuelQuery.data.source === "orlen_auto"
+                        ? `Orlen Detal − 10 gr (z dnia ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")})`
                         : fuelQuery.data.source === "manual"
-                          ? "Cena bazowa (manual)"
-                          : "Domyślna stała"}{" "}
-                      · {new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}
+                          ? `Cena bazowa (manual) − 10 gr · ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}`
+                          : `Domyślna − 10 gr · ${new Date(fuelQuery.data.fetched_at).toLocaleDateString("pl-PL")}`}
                     </Badge>
                   ) : null}
+
                 </div>
                 <div className="flex gap-2">
                   <Input
@@ -179,14 +181,15 @@ function TransportPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => {
-                        setFuelPrice(fuelQuery.data!.price_per_liter);
+                        setFuelPrice(fuelQuery.data!.suggested_price);
                         setFuelOverridden(false);
                       }}
-                      title="Przywróć auto-cenę"
+                      title="Przywróć sugerowaną cenę (Detal Orlen − 10 gr)"
                     >
                       <RotateCcw className="h-4 w-4" />
                     </Button>
                   ) : null}
+
                 </div>
                 {fuelQuery.data?.source === "fallback" ? (
                   <p className="text-xs text-muted-foreground">

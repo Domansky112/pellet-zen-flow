@@ -1,11 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Pobiera aktualną hurtową cenę ON Ekodiesel z JSON API Orlenu i zapisuje do bazy.
- * Endpoint publiczny — chroniony apikey Supabase (wywoływany przez pg_cron).
- * Fallback: jeśli API nie odpowie / zmieni strukturę → log warning, brak insertu
- * (kalkulator dalej używa ostatniej zapisanej ceny).
+ * Pobiera aktualną HURTOWĄ cenę ON Ekodiesel z JSON API Orlenu i przelicza ją na
+ * szacowaną cenę DETALICZNĄ (na stacji) według wzoru:
+ *   retail ≈ (netto/1000) * 1.23 (VAT)  +  STATION_MARGIN (marża stacji, akcyza pokryta w cenie hurt)
+ *
+ * Ta wartość detaliczna jest zapisywana w tabeli `fuel_prices` jako `price_per_liter`
+ * (source = "orlen_retail_auto"). Sugerowana cena bazowa dla kalkulatorów =
+ * retail - 0,10 zł (patrz `getLatestFuelPrice` w src/lib/fuel.functions.ts).
  */
+const STATION_MARGIN_PLN_PER_L = 0.55;
+const VAT_MULTIPLIER = 1.23;
+
 export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
   server: {
     handlers: {
@@ -53,7 +59,9 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
                 : null;
               if (eko && typeof eko.value === "number" && eko.value > 3000) {
                 rawValue = eko.value;
-                parsed = round3(eko.value / 1000); // zł/1000l → zł/l
+                const wholesaleNettoPerL = eko.value / 1000; // zł/1000l → zł/l netto
+                const retail = wholesaleNettoPerL * VAT_MULTIPLIER + STATION_MARGIN_PLN_PER_L;
+                parsed = round3(retail);
                 effectiveDate = eko.effectiveDate ?? null;
               } else {
                 console.warn(
@@ -86,14 +94,13 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
           .from("fuel_prices")
           .select("price_per_liter, note")
           .eq("fuel_type", "ON")
-          .eq("source", "orlen_auto")
+          .eq("source", "orlen_retail_auto")
           .order("fetched_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        const noteText = effectiveDate
-          ? `Orlen Ekodiesel (hurt): ${rawValue} zł/1000l, obowiązuje od ${effectiveDate.slice(0, 10)}`
-          : `Orlen Ekodiesel (hurt): ${rawValue} zł/1000l`;
+        const dateStr = effectiveDate ? effectiveDate.slice(0, 10) : null;
+        const noteText = `Orlen Detal (szac.): hurt ${rawValue} zł/1000l × 1,23 VAT + ${STATION_MARGIN_PLN_PER_L.toFixed(2)} zł marża stacji${dateStr ? ` · z dnia ${dateStr}` : ""}`;
 
         const same =
           last &&
@@ -104,7 +111,7 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
           const { error } = await admin.from("fuel_prices").insert({
             fuel_type: "ON",
             price_per_liter: parsed,
-            source: "orlen_auto",
+            source: "orlen_retail_auto",
             note: noteText,
           });
           if (error) {
@@ -112,6 +119,7 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
             return json({ success: false, reason: error.message }, 500);
           }
         }
+
 
         return json({
           success: true,
