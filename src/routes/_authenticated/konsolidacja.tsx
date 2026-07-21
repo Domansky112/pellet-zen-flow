@@ -301,7 +301,16 @@ function Konsolidacja() {
               <p className="text-sm text-muted-foreground py-6 text-center">Brak draftów.</p>
             )}
             {activePools.map((p: any) => (
-              <div key={p.id} className="rounded-lg border p-4">
+              <div
+                key={p.id}
+                className="rounded-lg border p-4 hover:border-primary/40 hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => setConfirmPoolId(p.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") setConfirmPoolId(p.id);
+                }}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-semibold">{p.name}</div>
@@ -309,21 +318,25 @@ function Konsolidacja() {
                       {p.total_tons} t / {p.capacity_tons} t · {p.estimated_km ?? "?"} km · {p.estimated_cost ?? "?"} zł
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <Badge
                       variant={p.status === "potwierdzony" ? "default" : "secondary"}
                     >
                       {p.status}
                     </Badge>
-                    {p.status === "draft" && (
+                    {p.status === "draft" ? (
                       <>
                         <Button size="sm" onClick={() => setConfirmPoolId(p.id)}>
-                          <CalIcon className="h-4 w-4 mr-1" /> Potwierdź
+                          <Eye className="h-4 w-4 mr-1" /> Potwierdź transport
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => doCancel.mutate(p.id)}>
                           <X className="h-4 w-4" />
                         </Button>
                       </>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setConfirmPoolId(p.id)}>
+                        <Eye className="h-4 w-4 mr-1" /> Podgląd
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -343,10 +356,9 @@ function Konsolidacja() {
         </Card>
       </div>
 
-      <ConfirmDialog
+      <PoolManifestDialog
         poolId={confirmPoolId}
         onClose={() => setConfirmPoolId(null)}
-        confirmFn={confirmFn}
         onDone={() => {
           qc.invalidateQueries({ queryKey: ["pools"] });
           qc.invalidateQueries({ queryKey: ["waitlist"] });
@@ -354,84 +366,5 @@ function Konsolidacja() {
         }}
       />
     </>
-  );
-}
-
-function ConfirmDialog({
-  poolId,
-  onClose,
-  confirmFn,
-  onDone,
-}: {
-  poolId: string | null;
-  onClose: () => void;
-  confirmFn: any;
-  onDone: () => void;
-}) {
-  const [date, setDate] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
-  const [driver, setDriver] = useState("");
-  const [vehicle, setVehicle] = useState("");
-  const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">("pellet_paleta");
-
-  const mut = useMutation({
-    mutationFn: () =>
-      confirmFn({
-        data: { id: poolId, scheduled_date: date, driver: driver || null, vehicle: vehicle || null, product, reserve_stock: true },
-      }),
-    onSuccess: () => {
-      toast.success("Transport utworzony, rezerwacja magazynu wykonana");
-      onDone();
-      onClose();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return (
-    <Dialog open={!!poolId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Potwierdź wspólny transport</DialogTitle>
-          <DialogDescription>
-            Utworzy jeden transport z wieloma przystankami i zarezerwuje sumaryczny tonaż w magazynie.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <Label>Data odbioru</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Kierowca</Label>
-              <Input value={driver} onChange={(e) => setDriver(e.target.value)} placeholder="np. Marek" />
-            </div>
-            <div>
-              <Label>Pojazd</Label>
-              <Input value={vehicle} onChange={(e) => setVehicle(e.target.value)} placeholder="np. LUB 12345" />
-            </div>
-          </div>
-          <div>
-            <Label>Produkt</Label>
-            <select
-              value={product}
-              onChange={(e) => setProduct(e.target.value as any)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="pellet_paleta">Pellet — palety</option>
-              <option value="pellet_bigbag">Pellet — Big Bag</option>
-              
-              <option value="inne">Inne</option>
-            </select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Anuluj</Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
-            {mut.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Potwierdź i zaplanuj
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
