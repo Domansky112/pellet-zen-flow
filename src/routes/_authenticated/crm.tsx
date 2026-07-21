@@ -160,6 +160,7 @@ function CrmPage() {
         { event: "*", schema: "public", table: "leads" },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
           queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
           if (payload.eventType === "INSERT") {
             const n = (payload.new as { name?: string })?.name ?? "Nowe zgłoszenie";
