@@ -322,14 +322,31 @@ function Konsolidacja() {
                         <Button size="sm" onClick={() => setConfirmPoolId(p.id)}>
                           <Eye className="h-4 w-4 mr-1" /> Potwierdź transport
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => doCancel.mutate(p.id)}>
-                          <X className="h-4 w-4" />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Usuń transport"
+                          onClick={() => setCancelTarget({ id: p.id, name: p.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </>
                     ) : (
-                      <Button size="sm" variant="outline" onClick={() => setConfirmPoolId(p.id)}>
-                        <Eye className="h-4 w-4 mr-1" /> Podgląd
-                      </Button>
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmPoolId(p.id)}>
+                          <Eye className="h-4 w-4 mr-1" /> Podgląd
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          title="Usuń transport"
+                          onClick={() => setCancelTarget({ id: p.id, name: p.name })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
