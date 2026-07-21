@@ -284,6 +284,7 @@ function CrmPage() {
                     status_key: undefined,
                     has_notes: undefined,
                     sort: undefined,
+                    mine: undefined,
                   }),
                 })
               }
