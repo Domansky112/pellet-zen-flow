@@ -17,18 +17,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MapPin, Users, Truck, Sparkles, Loader2, X, Eye } from "lucide-react";
+import { MapPin, Users, Truck, Sparkles, Loader2, Trash2, Eye } from "lucide-react";
 import {
   listWaitlist,
   findPoolSuggestions,
   geocodePendingLeads,
   createPool,
   listPools,
-  cancelPool,
 } from "@/lib/pooling.functions";
 import { format } from "date-fns";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { PoolManifestDialog } from "@/components/pool-manifest-dialog";
+import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 import { pl } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
