@@ -283,6 +283,47 @@ export const hardDeleteLead = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const DuplicateInput = z.object({ lead_id: z.string().uuid() });
+
+export const duplicateLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => DuplicateInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: src, error: se } = await context.supabase
+      .from("leads")
+      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source")
+      .eq("id", data.lead_id)
+      .single();
+    if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
+
+    const { data: row, error } = await context.supabase
+      .from("leads")
+      .insert({
+        first_name: src.first_name,
+        last_name: src.last_name,
+        name: src.name,
+        email: src.email,
+        phone: src.phone,
+        city: src.city,
+        postal_code: src.postal_code,
+        invoice_company: src.invoice_company,
+        invoice_nip: src.invoice_nip,
+        invoice_address: src.invoice_address,
+        source: src.source ?? "inne",
+        status: "nowy",
+        reservation_status: "brak",
+        pooling_status: "brak",
+        pooling_enabled: false,
+        product: null,
+        quantity: null,
+        notes: `Powtórne zamówienie (duplikat leada ${data.lead_id.slice(0, 8)})`,
+      } as any)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
 const HistoryFilterInput = z.object({
   from: z.string().optional().nullable(),
   to: z.string().optional().nullable(),
