@@ -468,34 +468,62 @@ export function LeadDetailDrawer({
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
             <div className="p-6 space-y-6">
-              {/* TOP: Templates panel (collapsible) */}
+              {/* TOP: Templates panel (collapsible, controlled) */}
               <TemplatesPanel
                 templates={templatesQuery.data ?? []}
                 onApply={applyTemplate}
                 activeName={rendered?.subject}
+                open={templatesOpen}
+                onOpenChange={setTemplatesOpen}
               />
 
-              {/* Actions */}
-              <section className="flex flex-wrap gap-2">
-                {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
-                  <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
-                    {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
-                    Zarezerwuj magazyn
-                  </Button>
+              {/* Ownership + Actions */}
+              <section className="flex flex-wrap items-center gap-2">
+                {lead.assigned_to ? (
+                  lead.assigned_to === currentUser?.id ? (
+                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                      <UserCheck className="h-3 w-3 mr-1" /> Przypisany do Ciebie
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
+                      <UserCheck className="h-3 w-3 mr-1" /> Przypisany do innego opiekuna
+                    </Badge>
+                  )
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Brak opiekuna
+                  </Badge>
                 )}
-                {lead.reservation_status === "zarezerwowany" && (
-                  <>
-                    <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
-                      {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
-                      Wydaj z magazynu
+                <Button
+                  size="sm"
+                  variant={lead.assigned_to === currentUser?.id ? "outline" : "default"}
+                  onClick={() => assignM.mutate()}
+                  disabled={assignM.isPending || !currentUser || lead.assigned_to === currentUser?.id}
+                  title={lead.assigned_to === currentUser?.id ? "Już masz przypisany ten lead" : "Zostań opiekunem tego leada"}
+                >
+                  {assignM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                  Przypisz do mnie
+                </Button>
+
+                <div className="ml-auto flex flex-wrap gap-2">
+                  {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
+                    <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
+                      {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
+                      Zarezerwuj magazyn
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
-                      {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
-                      Zwolnij rezerwację
-                    </Button>
-                  </>
-                )}
-                <div className="ml-auto flex gap-2">
+                  )}
+                  {lead.reservation_status === "zarezerwowany" && (
+                    <>
+                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                        {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
+                        Wydaj z magazynu
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
+                        {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
+                        Zwolnij rezerwację
+                      </Button>
+                    </>
+                  )}
                   <Button size="sm" variant="outline"
                     onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
                     title="Utwórz nowe zamówienie dla tego klienta">
@@ -513,6 +541,82 @@ export function LeadDetailDrawer({
                   )}
                 </div>
               </section>
+
+              {/* VAT calculator */}
+              <section className="rounded-lg border border-primary/25 bg-primary/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  Kalkulator oferty (VAT)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-price">Cena netto (zł / t)</Label>
+                    <Input
+                      id="vat-price"
+                      inputMode="decimal"
+                      placeholder="np. 1250"
+                      value={pricePerTonNet}
+                      onChange={(e) => setPricePerTonNet(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-transport">Transport netto (zł)</Label>
+                    <Input
+                      id="vat-transport"
+                      inputMode="decimal"
+                      placeholder="np. 850"
+                      value={transportNet}
+                      onChange={(e) => setTransportNet(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="vat-rate">Stawka VAT (%)</Label>
+                    <Select value={vatRate} onValueChange={setVatRate}>
+                      <SelectTrigger id="vat-rate"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="23">23%</SelectItem>
+                        <SelectItem value="8">8%</SelectItem>
+                        <SelectItem value="5">5%</SelectItem>
+                        <SelectItem value="0">0%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="rounded-md border border-border/60 bg-background/70 p-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Pozycja</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Netto</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">VAT</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide text-right">Brutto</div>
+
+                    <div>Towar {lead.quantity ? `(${lead.quantity} t)` : ""}</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.towarVat)} zł</div>
+                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.towarBr)} zł</div>
+
+                    <div>Transport</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.trVat)} zł</div>
+                    <div className="text-right tabular-nums font-medium">{vatCalc.fmt(vatCalc.trBr)} zł</div>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-y-1 gap-x-3 font-semibold">
+                    <div>RAZEM</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumNet)} zł</div>
+                    <div className="text-right tabular-nums">{vatCalc.fmt(vatCalc.sumVat)} zł</div>
+                    <div className="text-right tabular-nums text-primary">{vatCalc.fmt(vatCalc.sumBr)} zł</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Wartości trafiają do zmiennych szablonu: <code>{"{{cena_jedn_netto}}"}</code>,{" "}
+                  <code>{"{{stawka_vat}}"}</code>, <code>{"{{towar_netto}}"}</code>,{" "}
+                  <code>{"{{towar_vat}}"}</code>, <code>{"{{towar_brutto}}"}</code>,{" "}
+                  <code>{"{{transport_netto}}"}</code>, <code>{"{{transport_vat}}"}</code>,{" "}
+                  <code>{"{{transport_brutto}}"}</code>, <code>{"{{suma_netto}}"}</code>,{" "}
+                  <code>{"{{suma_vat}}"}</code>, <code>{"{{suma_brutto}}"}</code>. Podsumowanie z podziałem na Netto / VAT / Brutto jest też dopisywane automatycznie na końcu wiadomości.
+                </p>
+              </section>
+
 
               {/* Editable lead data */}
               <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
