@@ -114,6 +114,7 @@ export function LeadDetailDrawer({
     invoice_address: "",
     pooling_enabled: false,
     has_unloading_equipment: false,
+    quantity: "" as string,
   });
 
   useEffect(() => {
@@ -130,9 +131,11 @@ export function LeadDetailDrawer({
       invoice_address: lead.invoice_address ?? "",
       pooling_enabled: !!lead.pooling_enabled,
       has_unloading_equipment: !!lead.has_unloading_equipment,
+      quantity: lead.quantity != null ? String(lead.quantity) : "",
     });
     setRendered(null);
     setTemplatesOpen(true);
+    setCalcOpen(true);
     setPricePerTonNet("");
     setTransportNet("");
     setVatRate("23");
