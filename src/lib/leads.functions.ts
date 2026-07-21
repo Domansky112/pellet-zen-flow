@@ -8,6 +8,7 @@ export const listLeads = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
@@ -21,6 +22,7 @@ export const listReservedLeads = createServerFn({ method: "GET" })
       .from("leads")
       .select("*")
       .eq("reservation_status", "zarezerwowany")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
