@@ -120,7 +120,12 @@ function CalendarPage() {
             ) : (
               <div className="space-y-2">
                 {upcoming.map((t) => (
-                  <TransportRow key={t.id} t={t} onDelete={(id) => del.mutate(id)} />
+                  <TransportRow
+                    key={t.id}
+                    t={t}
+                    onDelete={(id) => del.mutate(id)}
+                    onReschedule={(id, d) => resched.mutate({ id, scheduled_date: d })}
+                  />
                 ))}
               </div>
             )}
