@@ -163,7 +163,7 @@ export const deleteTransport = createServerFn({ method: "POST" })
         .from("transport_items")
         .select("id")
         .eq("lead_id", b.lead_id)
-        .eq("product", b.product)
+        .eq("product", b.product as "pellet_paleta" | "pellet_bigbag" | "inne")
         .limit(1);
       if ((stillLinked ?? []).length > 0) continue; // reservation still needed
 
@@ -181,7 +181,7 @@ export const deleteTransport = createServerFn({ method: "POST" })
       if (netReserved <= 0) continue;
 
       await context.supabase.from("stock_events").insert({
-        product: b.product,
+        product: b.product as "pellet_paleta" | "pellet_bigbag" | "inne",
         txn_type: "zwolnienie_rez",
         quantity: netReserved,
         lead_id: b.lead_id,
