@@ -267,7 +267,8 @@ export function LeadDetailDrawer({
 
   // ---- VAT calculator (derived) -----------------------------------------
   const vatCalc = useMemo(() => {
-    const qty = Number(lead?.quantity ?? 0) || 0;
+    const qtyRaw = (form.quantity ?? "").toString().replace(",", ".");
+    const qty = Number(qtyRaw) || 0;
     const priceNet = Number(pricePerTonNet.replace(",", ".")) || 0;
     const trNet = Number(transportNet.replace(",", ".")) || 0;
     const rate = Number(vatRate.replace(",", ".")) || 0;
@@ -282,14 +283,16 @@ export function LeadDetailDrawer({
     const fmt = (n: number) =>
       n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return {
+      qty,
       priceNet, trNet, rate,
       towarNet, towarVat, towarBr,
       trVat, trBr,
       sumNet, sumVat, sumBr,
       fmt,
+      hasTransport: trNet > 0,
       hasPricing: priceNet > 0 || trNet > 0,
     };
-  }, [lead?.quantity, pricePerTonNet, transportNet, vatRate]);
+  }, [form.quantity, pricePerTonNet, transportNet, vatRate]);
 
   const applyTemplate = async (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
