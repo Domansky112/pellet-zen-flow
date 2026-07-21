@@ -78,6 +78,7 @@ const CreateInput = z.object({
   priority: z.number().int().min(0).max(5).default(0),
   pooling_enabled: z.boolean().default(false),
   pooling_wait_until: z.string().optional().nullable(),
+  has_unloading_equipment: z.boolean().default(false),
 });
 
 export const createLead = createServerFn({ method: "POST" })
