@@ -44,6 +44,7 @@ type Lead = {
   reservation_status?: string;
   status?: string;
   pooling_enabled?: boolean | null;
+  has_unloading_equipment?: boolean | null;
 };
 
 
@@ -91,6 +92,7 @@ export function LeadDetailDrawer({
     invoice_nip: "",
     invoice_address: "",
     pooling_enabled: false,
+    has_unloading_equipment: false,
   });
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export function LeadDetailDrawer({
       invoice_nip: lead.invoice_nip ?? "",
       invoice_address: lead.invoice_address ?? "",
       pooling_enabled: !!lead.pooling_enabled,
+      has_unloading_equipment: !!lead.has_unloading_equipment,
     });
   }, [lead?.id, open]);
 
@@ -387,6 +390,20 @@ export function LeadDetailDrawer({
                     <Switch
                       checked={form.pooling_enabled}
                       onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <PackageCheck className="h-4 w-4 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium">Ma czym rozładować transport</div>
+                        <div className="text-xs text-muted-foreground">Klient posiada własny sprzęt (wózek / ładowarka)</div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={form.has_unloading_equipment}
+                      onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
                     />
                   </div>
                 </section>
