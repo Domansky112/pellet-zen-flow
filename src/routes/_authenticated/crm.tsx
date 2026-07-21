@@ -242,6 +242,26 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                 <Button size="sm" variant="secondary" onClick={() => onOpen(l)}>
                   Otwórz
                 </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
+                  onClick={async () => {
+                    if (!confirm(`Anulować lead "${l.name}"?${(l as any).reservation_status === "zarezerwowany" ? " Rezerwacja zostanie zwolniona." : ""}`)) return;
+                    try {
+                      await cancelFn({ data: { lead_id: l.id, reason: "" } });
+                      qc.invalidateQueries({ queryKey: ["leads"] });
+                      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+                      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+                      qc.invalidateQueries({ queryKey: ["stock-events"] });
+                      toast.success("Lead anulowany");
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Usuń
+                </Button>
               </div>
             </CardContent>
           </Card>
