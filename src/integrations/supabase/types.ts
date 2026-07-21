@@ -14,6 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
+      external_carriers: {
+        Row: {
+          base_rate_per_km: number | null
+          company_name: string
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nip: string | null
+          notes: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_rate_per_km?: number | null
+          company_name: string
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nip?: string | null
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_rate_per_km?: number | null
+          company_name?: string
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nip?: string | null
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_drivers: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          trailer_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          trailer_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          trailer_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_drivers_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_trailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_drivers_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_trailers: {
+        Row: {
+          capacity_tons: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          registration: string
+          status: string
+          trailer_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          capacity_tons?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          registration: string
+          status?: string
+          trailer_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          capacity_tons?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          registration?: string
+          status?: string
+          trailer_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_vehicles: {
+        Row: {
+          brand: string | null
+          capacity_tons: number | null
+          created_at: string
+          id: string
+          model: string | null
+          notes: string | null
+          registration: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          brand?: string | null
+          capacity_tons?: number | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          notes?: string | null
+          registration: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          brand?: string | null
+          capacity_tons?: number | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          notes?: string | null
+          registration?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fuel_prices: {
         Row: {
           created_at: string
@@ -217,6 +385,42 @@ export type Database = {
         }
         Relationships: []
       }
+      product_definitions: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          label: string
+          notes: string | null
+          packaging: string | null
+          unit_weight_kg: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          label: string
+          notes?: string | null
+          packaging?: string | null
+          unit_weight_kg?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          packaging?: string | null
+          unit_weight_kg?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_events: {
         Row: {
           created_at: string
@@ -260,6 +464,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
       }
       telegram_chats: {
         Row: {
@@ -529,6 +757,45 @@ export type Database = {
         }
         Relationships: []
       }
+      warehouses: {
+        Row: {
+          address_line: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          notes: string | null
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_line?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          notes?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_line?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          notes?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       stock_balance: {
@@ -559,7 +826,7 @@ export type Database = {
       reserve_stock_for_lead: { Args: { _lead_id: string }; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "sales" | "warehouse" | "transport"
+      app_role: "admin" | "sales" | "warehouse" | "transport" | "logistyk"
       lead_source: "www" | "email" | "telefon" | "b2b" | "inne"
       lead_status: "nowy" | "w_kontakcie" | "oferta" | "wygrany" | "przegrany"
       product_type: "pellet_paleta" | "pellet_bigbag" | "inne"
@@ -702,7 +969,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "sales", "warehouse", "transport"],
+      app_role: ["admin", "sales", "warehouse", "transport", "logistyk"],
       lead_source: ["www", "email", "telefon", "b2b", "inne"],
       lead_status: ["nowy", "w_kontakcie", "oferta", "wygrany", "przegrany"],
       product_type: ["pellet_paleta", "pellet_bigbag", "inne"],

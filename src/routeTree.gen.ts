@@ -13,6 +13,7 @@ import { Route as FormularzRouteImport } from './routes/formularz'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedUstawieniaRouteImport } from './routes/_authenticated/ustawienia'
 import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
 import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
 import { Route as AuthenticatedKonsolidacjaRouteImport } from './routes/_authenticated/konsolidacja'
@@ -44,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedUstawieniaRoute = AuthenticatedUstawieniaRouteImport.update({
+  id: '/ustawienia',
+  path: '/ustawienia',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
   id: '/transport',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
+  '/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
+  '/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
@@ -158,6 +166,7 @@ export interface FileRoutesById {
   '/_authenticated/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/_authenticated/magazyn': typeof AuthenticatedMagazynRoute
   '/_authenticated/transport': typeof AuthenticatedTransportRoute
+  '/_authenticated/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
   '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/konsolidacja'
     | '/magazyn'
     | '/transport'
+    | '/ustawienia'
     | '/api/public/leads'
     | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/konsolidacja'
     | '/magazyn'
     | '/transport'
+    | '/ustawienia'
     | '/api/public/leads'
     | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/_authenticated/konsolidacja'
     | '/_authenticated/magazyn'
     | '/_authenticated/transport'
+    | '/_authenticated/ustawienia'
     | '/api/public/leads'
     | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
@@ -258,6 +270,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/ustawienia': {
+      id: '/_authenticated/ustawienia'
+      path: '/ustawienia'
+      fullPath: '/ustawienia'
+      preLoaderRoute: typeof AuthenticatedUstawieniaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/transport': {
       id: '/_authenticated/transport'
@@ -355,6 +374,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKonsolidacjaRoute: typeof AuthenticatedKonsolidacjaRoute
   AuthenticatedMagazynRoute: typeof AuthenticatedMagazynRoute
   AuthenticatedTransportRoute: typeof AuthenticatedTransportRoute
+  AuthenticatedUstawieniaRoute: typeof AuthenticatedUstawieniaRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -366,6 +386,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKonsolidacjaRoute: AuthenticatedKonsolidacjaRoute,
   AuthenticatedMagazynRoute: AuthenticatedMagazynRoute,
   AuthenticatedTransportRoute: AuthenticatedTransportRoute,
+  AuthenticatedUstawieniaRoute: AuthenticatedUstawieniaRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
