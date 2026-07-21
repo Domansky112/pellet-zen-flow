@@ -107,14 +107,7 @@ function Konsolidacja() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const doCancel = useMutation({
-    mutationFn: (id: string) => cancelFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Anulowano");
-      qc.invalidateQueries({ queryKey: ["pools"] });
-      qc.invalidateQueries({ queryKey: ["waitlist"] });
-    },
-  });
+
 
   const needsGeocoding = waitlist.filter((l: any) => l.pooling_lat == null).length;
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
