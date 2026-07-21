@@ -74,6 +74,8 @@ function UstawieniaPage() {
     queryKey: ["is-admin"],
     queryFn: () => checkAdmin(),
   });
+  const search = useSearch({ from: "/_authenticated/ustawienia" });
+  const section = search.section ?? "fleet";
 
   if (isLoading) {
     return (
@@ -97,8 +99,6 @@ function UstawieniaPage() {
     );
   }
 
-  const search = useSearch({ from: "/_authenticated/ustawienia" });
-  const section = search.section ?? "fleet";
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
