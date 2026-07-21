@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/public/hooks/fetch-fuel-price")({
               if (eko && typeof eko.value === "number" && eko.value > 3000) {
                 rawValue = eko.value;
                 const wholesaleNettoPerL = eko.value / 1000; // zł/1000l → zł/l netto
-                const retail = wholesaleNettoPerL * VAT_MULTIPLIER + STATION_MARGIN_PLN_PER_L;
+                const retail = wholesaleNettoPerL * RETAIL_MULTIPLIER;
                 parsed = round3(retail);
                 effectiveDate = eko.effectiveDate ?? null;
               } else {
