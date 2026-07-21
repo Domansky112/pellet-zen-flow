@@ -22,6 +22,7 @@ function AuthedLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur">
             <SidebarTrigger />
+            <GlobalSearch className="ml-2 flex-1 max-w-lg" />
             <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
               <span className="hidden sm:inline">
                 {new Date().toLocaleDateString("pl-PL", {
@@ -31,7 +32,7 @@ function AuthedLayout() {
                 })}
               </span>
               <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              <span>System online</span>
+              <span className="hidden sm:inline">System online</span>
             </div>
           </header>
           <main className="flex-1 min-w-0">
