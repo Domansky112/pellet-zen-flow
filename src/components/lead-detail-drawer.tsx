@@ -243,12 +243,93 @@ export function LeadDetailDrawer({
                     </Button>
                   )}
                   {lead.reservation_status === "zarezerwowany" && (
-                    <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
-                      {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
-                      Wydaj z magazynu
-                    </Button>
+                    <>
+                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                        {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
+                        Wydaj z magazynu
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { if (confirm("Zwolnić rezerwację (bez wydania)?")) releaseM.mutate(); }} disabled={releaseM.isPending}>
+                        {releaseM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageX className="h-4 w-4 mr-2" />}
+                        Zwolnij rezerwację
+                      </Button>
+                    </>
                   )}
                 </section>
+
+                {/* Editable lead data */}
+                <section className="rounded-lg border border-border/60 bg-background p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">Dane leada</div>
+                    <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
+                      {saveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Zapisz
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-fn">Imię</Label>
+                      <Input id="ld-fn" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-ln">Nazwisko</Label>
+                      <Input id="ld-ln" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-ph">Telefon</Label>
+                      <Input id="ld-ph" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-em">E-mail</Label>
+                      <Input id="ld-em" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-city">Miasto</Label>
+                      <Input id="ld-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="ld-pc">Kod pocztowy</Label>
+                      <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dane do faktury</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label htmlFor="ld-co">Nazwa firmy</Label>
+                        <Input id="ld-co" value={form.invoice_company} onChange={(e) => setForm({ ...form, invoice_company: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="ld-nip">NIP</Label>
+                        <Input id="ld-nip" value={form.invoice_nip} onChange={(e) => setForm({ ...form, invoice_nip: e.target.value })} />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label htmlFor="ld-ia">Adres do faktury</Label>
+                        <Textarea id="ld-ia" rows={2} value={form.invoice_address} onChange={(e) => setForm({ ...form, invoice_address: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      <div>
+                        <div className="text-sm font-medium">Wspólny transport</div>
+                        <div className="text-xs text-muted-foreground">Klient zgadza się na konsolidację przewozu</div>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={form.pooling_enabled}
+                      onCheckedChange={(v) => setForm({ ...form, pooling_enabled: v })}
+                    />
+                  </div>
+                </section>
+
 
                 {/* Rendered offer */}
                 {rendered && (
