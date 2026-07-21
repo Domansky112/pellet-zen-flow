@@ -14,13 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      lead_notes: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          edited: boolean
+          id: string
+          lead_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          lead_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          lead_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
           city: string | null
           created_at: string
           email: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -34,6 +74,7 @@ export type Database = {
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
+          reservation_status: string
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
@@ -43,7 +84,9 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -57,6 +100,7 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
@@ -66,7 +110,9 @@ export type Database = {
           city?: string | null
           created_at?: string
           email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -80,8 +126,39 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      offer_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          name: string
+          product: string | null
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          product?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          product?: string | null
+          subject?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -417,6 +494,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      release_reservation_as_wydanie: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
+      reserve_stock_for_lead: { Args: { _lead_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "sales" | "warehouse" | "transport"
