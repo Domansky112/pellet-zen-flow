@@ -36,8 +36,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound,
+  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   isCurrentUserAdmin,
   listVehicles, upsertVehicle, deleteVehicle,
@@ -49,6 +50,7 @@ import {
   listSettings, upsertSetting,
   listCrmUsers, createCrmUser, setUserRoles, resetUserPassword, deleteCrmUser,
 } from "@/lib/admin.functions";
+import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
   head: () => ({
@@ -103,6 +105,7 @@ function UstawieniaPage() {
           <TabsTrigger value="warehouses"><Store className="h-4 w-4 mr-1" /> Magazyny</TabsTrigger>
           <TabsTrigger value="carriers"><Building2 className="h-4 w-4 mr-1" /> Przewoźnicy</TabsTrigger>
           <TabsTrigger value="config"><Settings2 className="h-4 w-4 mr-1" /> Konfiguracja</TabsTrigger>
+          <TabsTrigger value="templates"><MessageSquare className="h-4 w-4 mr-1" /> Szablony wiadomości</TabsTrigger>
         </TabsList>
         <TabsContent value="fleet" className="pt-4"><FleetTab /></TabsContent>
         <TabsContent value="users" className="pt-4"><UsersTab /></TabsContent>
@@ -110,6 +113,7 @@ function UstawieniaPage() {
         <TabsContent value="warehouses" className="pt-4"><WarehousesTab /></TabsContent>
         <TabsContent value="carriers" className="pt-4"><CarriersTab /></TabsContent>
         <TabsContent value="config" className="pt-4"><ConfigTab /></TabsContent>
+        <TabsContent value="templates" className="pt-4"><TemplatesTab /></TabsContent>
       </Tabs>
     </div>
   );
