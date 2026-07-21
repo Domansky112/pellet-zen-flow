@@ -614,6 +614,13 @@ export function LeadDetailDrawer({
                     </>
                   )}
                   <Button size="sm" variant="outline"
+                    onClick={() => setScheduleOpen(true)}
+                    disabled={!lead.product || !lead.quantity}
+                    title="Utwórz wpis w kalendarzu z auto-rezerwacją magazynu">
+                    <CalendarPlus className="h-4 w-4 mr-2" />
+                    Zaplanuj transport
+                  </Button>
+                  <Button size="sm" variant="outline"
                     onClick={() => duplicateM.mutate()} disabled={duplicateM.isPending}
                     title="Utwórz nowe zamówienie dla tego klienta">
                     {duplicateM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CopyPlus className="h-4 w-4 mr-2" />}
