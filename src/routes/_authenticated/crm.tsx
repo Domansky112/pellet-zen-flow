@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen } from "lucide-react";
-import { listLeads, listReservedLeads, updateLeadStatus, assignToMe, confirmWydanie } from "@/lib/leads.functions";
+import { Mail, Globe, Building2, Phone, Search, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2 } from "lucide-react";
+import { listLeads, listReservedLeads, updateLeadStatus, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { supabase } from "@/integrations/supabase/client";
@@ -138,6 +138,7 @@ function CrmPage() {
 function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
   const updateStatus = useServerFn(updateLeadStatus);
   const assign = useServerFn(assignToMe);
+  const cancelFn = useServerFn(cancelLead);
   const qc = useQueryClient();
 
   if (items.length === 0) {
@@ -240,6 +241,26 @@ function LeadList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void 
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => onOpen(l)}>
                   Otwórz
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
+                  onClick={async () => {
+                    if (!confirm(`Anulować lead "${l.name}"?${(l as any).reservation_status === "zarezerwowany" ? " Rezerwacja zostanie zwolniona." : ""}`)) return;
+                    try {
+                      await cancelFn({ data: { lead_id: l.id, reason: "" } });
+                      qc.invalidateQueries({ queryKey: ["leads"] });
+                      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+                      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+                      qc.invalidateQueries({ queryKey: ["stock-events"] });
+                      toast.success("Lead anulowany");
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Usuń
                 </Button>
               </div>
             </CardContent>

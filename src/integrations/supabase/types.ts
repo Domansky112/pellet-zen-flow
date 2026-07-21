@@ -57,6 +57,10 @@ export type Database = {
           assigned_to: string | null
           city: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
+          delivered_at: string | null
           email: string | null
           first_name: string | null
           id: string
@@ -86,6 +90,10 @@ export type Database = {
           assigned_to?: string | null
           city?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
+          delivered_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
@@ -115,6 +123,10 @@ export type Database = {
           assigned_to?: string | null
           city?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
+          delivered_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
@@ -496,6 +508,10 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_lead: {
+        Args: { _lead_id: string; _reason?: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead } from "@/lib/leads.functions";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { formatDistanceToNow } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -155,6 +157,34 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const cancelFn = useServerFn(cancelLead);
+  const hardDeleteFn = useServerFn(hardDeleteLead);
+  const isAdmin = useIsAdmin();
+  const [confirmDelete, setConfirmDelete] = useState<null | "soft" | "hard">(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  const cancelM = useMutation({
+    mutationFn: () => cancelFn({ data: { lead_id: lead!.id, reason: deleteReason } }),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      setDeleteReason("");
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Lead anulowany, rezerwacja zwolniona");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const hardDeleteM = useMutation({
+    mutationFn: () => hardDeleteFn({ data: { lead_id: lead!.id } }),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Lead trwale usunięty");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const vars = {
@@ -254,6 +284,17 @@ export function LeadDetailDrawer({
                       </Button>
                     </>
                   )}
+                  <div className="ml-auto flex gap-2">
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setConfirmDelete("soft")}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Anuluj lead
+                    </Button>
+                    {isAdmin && (
+                      <Button size="sm" variant="destructive" onClick={() => setConfirmDelete("hard")}>
+                        <ShieldAlert className="h-4 w-4 mr-2" /> Trwałe usunięcie
+                      </Button>
+                    )}
+                  </div>
                 </section>
 
                 {/* Editable lead data */}
@@ -426,6 +467,57 @@ export function LeadDetailDrawer({
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmDelete === "hard" ? (
+                <><ShieldAlert className="h-5 w-5 text-destructive" /> Trwałe usunięcie leada</>
+              ) : (
+                <><Trash2 className="h-5 w-5 text-destructive" /> Anulować lead?</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDelete === "hard"
+                ? "Ta operacja jest nieodwracalna. Lead zostanie całkowicie usunięty z bazy. Aktywna rezerwacja zostanie wcześniej zwolniona."
+                : lead.reservation_status === "zarezerwowany"
+                  ? `Lead zostanie oznaczony jako anulowany, a ${lead.quantity ?? 0} t ${lead.product ?? ""} wróci do dostępnego stanu magazynu.`
+                  : "Lead zostanie oznaczony jako anulowany. Będzie ukryty na liście, ale zachowany w bazie."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmDelete === "soft" && (
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">Powód (opcjonalnie)</Label>
+              <Textarea
+                id="cancel-reason"
+                rows={3}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="np. klient zrezygnował, duplikat…"
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+              Zamknij
+            </Button>
+            {confirmDelete === "hard" ? (
+              <Button variant="destructive" onClick={() => hardDeleteM.mutate()} disabled={hardDeleteM.isPending}>
+                {hardDeleteM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
+                Tak, usuń trwale
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={() => cancelM.mutate()} disabled={cancelM.isPending}>
+                {cancelM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Tak, anuluj lead
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

@@ -8,6 +8,7 @@ export const listLeads = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select("*")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
@@ -21,6 +22,7 @@ export const listReservedLeads = createServerFn({ method: "GET" })
       .from("leads")
       .select("*")
       .eq("reservation_status", "zarezerwowany")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -219,3 +221,124 @@ export const releaseReservation = createServerFn({ method: "POST" })
     if (ue) throw new Error(ue.message);
     return { ok: true };
   });
+
+const CancelInput = z.object({
+  lead_id: z.string().uuid(),
+  reason: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const cancelLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CancelInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("cancel_lead", {
+      _lead_id: data.lead_id,
+      _reason: data.reason ? data.reason : undefined,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const HardDeleteInput = z.object({ lead_id: z.string().uuid() });
+
+export const hardDeleteLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => HardDeleteInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin, error: rerr } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (rerr) throw new Error(rerr.message);
+    if (!isAdmin) throw new Error("Brak uprawnień — tylko administrator może trwale usuwać leady.");
+
+    await context.supabase.rpc("cancel_lead", { _lead_id: data.lead_id, _reason: "Hard delete" });
+
+    const { error } = await context.supabase
+      .from("leads")
+      .delete()
+      .eq("id", data.lead_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const HistoryFilterInput = z.object({
+  from: z.string().optional().nullable(),
+  to: z.string().optional().nullable(),
+  search: z.string().trim().max(120).optional().nullable(),
+  pooling_only: z.boolean().optional(),
+});
+
+export const listDeliveryHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => HistoryFilterInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("leads")
+      .select("*")
+      .eq("reservation_status", "wydany")
+      .is("deleted_at", null)
+      .order("delivered_at", { ascending: false, nullsFirst: false })
+      .limit(500);
+
+    if (data.from) q = q.gte("delivered_at", data.from);
+    if (data.to) q = q.lte("delivered_at", data.to);
+    if (data.pooling_only) q = q.eq("pooling_enabled", true);
+    if (data.search) {
+      const s = `%${data.search}%`;
+      q = q.or(
+        `name.ilike.${s},first_name.ilike.${s},last_name.ilike.${s},phone.ilike.${s},email.ilike.${s},city.ilike.${s}`,
+      );
+    }
+
+    const { data: leads, error } = await q;
+    if (error) throw new Error(error.message);
+    const rows = leads ?? [];
+
+    const ids = rows.map((r) => r.id);
+    const itemsByLead = new Map<string, { transport_id: string }[]>();
+    const coByTransport = new Map<string, { lead_id: string | null; name: string | null; quantity: number | null }[]>();
+    if (ids.length > 0) {
+      const { data: items } = await context.supabase
+        .from("transport_items")
+        .select("lead_id, transport_id")
+        .in("lead_id", ids);
+      const tIds = Array.from(new Set((items ?? []).map((i) => i.transport_id)));
+      for (const it of items ?? []) {
+        if (!it.lead_id) continue;
+        const arr = itemsByLead.get(it.lead_id) ?? [];
+        arr.push({ transport_id: it.transport_id });
+        itemsByLead.set(it.lead_id, arr);
+      }
+      if (tIds.length > 0) {
+        const { data: co } = await context.supabase
+          .from("transport_items")
+          .select("transport_id, lead_id, quantity, leads(name)")
+          .in("transport_id", tIds);
+        for (const c of (co ?? []) as any[]) {
+          const arr = coByTransport.get(c.transport_id) ?? [];
+          arr.push({ lead_id: c.lead_id, name: c.leads?.name ?? null, quantity: c.quantity });
+          coByTransport.set(c.transport_id, arr);
+        }
+      }
+    }
+
+    return rows.map((l) => {
+      const tItems = itemsByLead.get(l.id) ?? [];
+      const partners: { name: string; quantity: number | null }[] = [];
+      for (const t of tItems) {
+        const co = coByTransport.get(t.transport_id) ?? [];
+        for (const c of co) {
+          if (c.lead_id && c.lead_id !== l.id && c.name) {
+            partners.push({ name: c.name, quantity: c.quantity });
+          }
+        }
+      }
+      return {
+        ...l,
+        shared_transport: partners.length > 0 || !!l.pooling_enabled,
+        transport_partners: partners,
+      };
+    });
+  });
+
