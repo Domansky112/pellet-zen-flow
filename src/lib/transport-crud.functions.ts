@@ -134,8 +134,70 @@ export const deleteTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
+    // Load transport items + their leads BEFORE delete so we can release the
+    // shared lead↔transport reservation exactly once.
+    const { data: items } = await context.supabase
+      .from("transport_items")
+      .select("lead_id, product, quantity")
+      .eq("transport_id", data.id);
+
+    // Group items by (lead_id, product) — one release per bucket.
+    type Bucket = { lead_id: string; product: string; qty: number };
+    const buckets = new Map<string, Bucket>();
+    for (const it of items ?? []) {
+      if (!it.lead_id) continue;
+      const key = `${it.lead_id}::${it.product}`;
+      const b = buckets.get(key) ?? { lead_id: it.lead_id, product: it.product, qty: 0 };
+      b.qty += Number(it.quantity);
+      buckets.set(key, b);
+    }
+
+    // Delete transport first (cascade removes transport_items).
     const { error } = await context.supabase.from("transports").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    // For each bucket: skip if lead still has OTHER active transports for the
+    // same product. Otherwise release the net reservation for that lead+product.
+    for (const b of buckets.values()) {
+      const { data: stillLinked } = await context.supabase
+        .from("transport_items")
+        .select("id")
+        .eq("lead_id", b.lead_id)
+        .eq("product", b.product)
+        .limit(1);
+      if ((stillLinked ?? []).length > 0) continue; // reservation still needed
+
+      const { data: evs } = await context.supabase
+        .from("stock_events")
+        .select("txn_type, quantity, product")
+        .eq("lead_id", b.lead_id);
+      const netReserved = (evs ?? [])
+        .filter((e: any) => e.product === b.product)
+        .reduce((s: number, e: any) => {
+          if (e.txn_type === "rezerwacja") return s + Number(e.quantity);
+          if (e.txn_type === "zwolnienie_rez") return s - Number(e.quantity);
+          return s;
+        }, 0);
+      if (netReserved <= 0) continue;
+
+      await context.supabase.from("stock_events").insert({
+        product: b.product,
+        txn_type: "zwolnienie_rez",
+        quantity: netReserved,
+        lead_id: b.lead_id,
+        reference: `TRANSPORT:${data.id.slice(0, 8)}`,
+        note: "Zwolnienie rezerwacji — usunięcie transportu",
+        created_by: context.userId,
+      });
+
+      // Mark lead released (unless already delivered)
+      await context.supabase
+        .from("leads")
+        .update({ reservation_status: "zwolniony" })
+        .eq("id", b.lead_id)
+        .neq("reservation_status", "wydany");
+    }
+
     return { ok: true };
   });
 
