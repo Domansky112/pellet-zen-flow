@@ -157,6 +157,34 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const cancelFn = useServerFn(cancelLead);
+  const hardDeleteFn = useServerFn(hardDeleteLead);
+  const isAdmin = useIsAdmin();
+  const [confirmDelete, setConfirmDelete] = useState<null | "soft" | "hard">(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  const cancelM = useMutation({
+    mutationFn: () => cancelFn({ data: { lead_id: lead!.id, reason: deleteReason } }),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      setDeleteReason("");
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Lead anulowany, rezerwacja zwolniona");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const hardDeleteM = useMutation({
+    mutationFn: () => hardDeleteFn({ data: { lead_id: lead!.id } }),
+    onSuccess: () => {
+      setConfirmDelete(null);
+      invalidateLeads();
+      onOpenChange(false);
+      toast.success("Lead trwale usunięty");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const applyTemplate = (t: { subject: string | null; body: string; name: string }) => {
     if (!lead) return;
     const vars = {
