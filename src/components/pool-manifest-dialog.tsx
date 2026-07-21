@@ -15,6 +15,7 @@ import {
   User,
   Phone,
   Calendar as CalIcon,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
