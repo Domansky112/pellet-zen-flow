@@ -24,6 +24,7 @@ import { Route as AuthenticatedBotRouteImport } from './routes/_authenticated/bo
 import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicHooksTransportRemindersRouteImport } from './routes/api/public/hooks/transport-reminders'
+import { Route as ApiPublicHooksFetchFuelPriceRouteImport } from './routes/api/public/hooks/fetch-fuel-price'
 
 const FormularzRoute = FormularzRouteImport.update({
   id: '/formularz',
@@ -102,6 +103,12 @@ const ApiPublicHooksTransportRemindersRoute =
     path: '/api/public/hooks/transport-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksFetchFuelPriceRoute =
+  ApiPublicHooksFetchFuelPriceRouteImport.update({
+    id: '/api/public/hooks/fetch-fuel-price',
+    path: '/api/public/hooks/fetch-fuel-price',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
@@ -132,6 +140,7 @@ export interface FileRoutesByTo {
   '/magazyn': typeof AuthenticatedMagazynRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
@@ -150,6 +159,7 @@ export interface FileRoutesById {
   '/_authenticated/magazyn': typeof AuthenticatedMagazynRoute
   '/_authenticated/transport': typeof AuthenticatedTransportRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
+  '/api/public/hooks/fetch-fuel-price': typeof ApiPublicHooksFetchFuelPriceRoute
   '/api/public/hooks/transport-reminders': typeof ApiPublicHooksTransportRemindersRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
     | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/magazyn'
     | '/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
     | '/api/public/telegram/webhook'
   id:
@@ -201,6 +213,7 @@ export interface FileRouteTypes {
     | '/_authenticated/magazyn'
     | '/_authenticated/transport'
     | '/api/public/leads'
+    | '/api/public/hooks/fetch-fuel-price'
     | '/api/public/hooks/transport-reminders'
     | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
@@ -211,6 +224,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   FormularzRoute: typeof FormularzRoute
   ApiPublicLeadsRoute: typeof ApiPublicLeadsRoute
+  ApiPublicHooksFetchFuelPriceRoute: typeof ApiPublicHooksFetchFuelPriceRoute
   ApiPublicHooksTransportRemindersRoute: typeof ApiPublicHooksTransportRemindersRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
@@ -322,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTransportRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/fetch-fuel-price': {
+      id: '/api/public/hooks/fetch-fuel-price'
+      path: '/api/public/hooks/fetch-fuel-price'
+      fullPath: '/api/public/hooks/fetch-fuel-price'
+      preLoaderRoute: typeof ApiPublicHooksFetchFuelPriceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -356,6 +377,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   FormularzRoute: FormularzRoute,
   ApiPublicLeadsRoute: ApiPublicLeadsRoute,
+  ApiPublicHooksFetchFuelPriceRoute: ApiPublicHooksFetchFuelPriceRoute,
   ApiPublicHooksTransportRemindersRoute: ApiPublicHooksTransportRemindersRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
