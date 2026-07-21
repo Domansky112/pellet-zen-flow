@@ -700,3 +700,76 @@ export function LeadDetailDrawer({
     </Dialog>
   );
 }
+
+// ============================================================
+// Templates panel — collapsible list at the top of the drawer
+// ============================================================
+function TemplatesPanel({
+  templates,
+  onApply,
+  activeName,
+}: {
+  templates: Array<{ id: string; name: string; subject: string | null; body: string; product?: string | null }>;
+  onApply: (t: { id: string; name: string; subject: string | null; body: string }) => void;
+  activeName?: string;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <section className="rounded-lg border border-primary/30 bg-primary/5">
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-primary/20">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <FileText className="h-4 w-4 text-primary" />
+          Szablony ofert
+          <Badge variant="outline" className="ml-1 text-[10px]">{templates.length}</Badge>
+        </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setOpen((v) => !v)}
+          className="h-7 gap-1"
+          title={open ? "Zwiń panel" : "Rozwiń panel"}
+          aria-expanded={open}
+        >
+          {open ? (
+            <>
+              <ChevronUp className="h-3.5 w-3.5" /> Zwiń
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3.5 w-3.5" /> Rozwiń
+            </>
+          )}
+        </Button>
+      </header>
+      {open && (
+        <div className="p-3">
+          {templates.length === 0 ? (
+            <div className="text-xs text-muted-foreground p-2">
+              Brak szablonów. Dodaj je w Ustawieniach → Szablony wiadomości.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onApply(t)}
+                  className={`text-left rounded-md border px-3 py-2 transition-colors bg-background hover:border-primary/60 hover:bg-primary/5 ${
+                    activeName && (t.subject === activeName || t.name === activeName)
+                      ? "border-primary ring-1 ring-primary/40"
+                      : "border-border/60"
+                  }`}
+                >
+                  <div className="text-sm font-medium truncate">{t.name}</div>
+                  {t.product && (
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{t.product}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
