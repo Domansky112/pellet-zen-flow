@@ -375,6 +375,11 @@ function Konsolidacja() {
           qc.invalidateQueries({ queryKey: ["transports"] });
         }}
       />
+      <CancelPoolDialog
+        poolId={cancelTarget?.id ?? null}
+        poolName={cancelTarget?.name}
+        onClose={() => setCancelTarget(null)}
+      />
     </>
   );
 }
