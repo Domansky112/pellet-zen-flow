@@ -467,6 +467,57 @@ export function LeadDetailDrawer({
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmDelete === "hard" ? (
+                <><ShieldAlert className="h-5 w-5 text-destructive" /> Trwałe usunięcie leada</>
+              ) : (
+                <><Trash2 className="h-5 w-5 text-destructive" /> Anulować lead?</>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmDelete === "hard"
+                ? "Ta operacja jest nieodwracalna. Lead zostanie całkowicie usunięty z bazy. Aktywna rezerwacja zostanie wcześniej zwolniona."
+                : lead.reservation_status === "zarezerwowany"
+                  ? `Lead zostanie oznaczony jako anulowany, a ${lead.quantity ?? 0} t ${lead.product ?? ""} wróci do dostępnego stanu magazynu.`
+                  : "Lead zostanie oznaczony jako anulowany. Będzie ukryty na liście, ale zachowany w bazie."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmDelete === "soft" && (
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">Powód (opcjonalnie)</Label>
+              <Textarea
+                id="cancel-reason"
+                rows={3}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="np. klient zrezygnował, duplikat…"
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+              Zamknij
+            </Button>
+            {confirmDelete === "hard" ? (
+              <Button variant="destructive" onClick={() => hardDeleteM.mutate()} disabled={hardDeleteM.isPending}>
+                {hardDeleteM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldAlert className="h-4 w-4 mr-2" />}
+                Tak, usuń trwale
+              </Button>
+            ) : (
+              <Button variant="destructive" onClick={() => cancelM.mutate()} disabled={cancelM.isPending}>
+                {cancelM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Tak, anuluj lead
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
