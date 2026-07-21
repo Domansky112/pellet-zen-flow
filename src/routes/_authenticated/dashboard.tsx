@@ -247,9 +247,8 @@ function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-5">
               {[
-                { label: "Palety", bal: palety },
-                { label: "Big Bagi", bal: bigbag },
-                
+                { label: "Palety", bal: palety, key: "pellet_paleta" as const },
+                { label: "Big Bagi", bal: bigbag, key: "pellet_bigbag" as const },
               ].map((row) => {
                 const pct = row.bal.physical > 0 ? (row.bal.available / row.bal.physical) * 100 : 0;
                 return (
@@ -262,9 +261,13 @@ function Dashboard() {
                     </div>
                     <Progress value={Math.max(0, Math.min(100, pct))} />
                     {row.bal.reserved > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Zarezerwowane: {row.bal.reserved.toFixed(1)} t
-                      </p>
+                      <Link
+                        to="/crm"
+                        search={{ tab: "reserved", product: row.key }}
+                        className="text-xs text-muted-foreground mt-1 inline-block hover:text-primary underline-offset-2 hover:underline"
+                      >
+                        Zarezerwowane: {row.bal.reserved.toFixed(1)} t →
+                      </Link>
                     )}
                   </div>
                 );

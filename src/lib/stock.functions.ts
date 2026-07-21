@@ -94,6 +94,20 @@ export const reserveForLead = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+    // Keep leads in sync so the CRM "Z rezerwacją" tab matches the warehouse
+    const { data: lead } = await context.supabase
+      .from("leads")
+      .select("product, quantity")
+      .eq("id", data.lead_id)
+      .maybeSingle();
+    await context.supabase
+      .from("leads")
+      .update({
+        reservation_status: "zarezerwowany",
+        product: lead?.product ?? data.product,
+        quantity: lead?.quantity ?? data.quantity,
+      })
+      .eq("id", data.lead_id);
     return row;
   });
 
@@ -122,6 +136,22 @@ export const releaseReservation = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+    // If net reservation for this lead is now 0, mark lead as released
+    const { data: evs } = await context.supabase
+      .from("stock_events")
+      .select("txn_type, quantity")
+      .eq("lead_id", data.lead_id);
+    const net = (evs ?? []).reduce((s, e) => {
+      if (e.txn_type === "rezerwacja") return s + Number(e.quantity);
+      if (e.txn_type === "zwolnienie_rez") return s - Number(e.quantity);
+      return s;
+    }, 0);
+    if (net <= 0) {
+      await context.supabase
+        .from("leads")
+        .update({ reservation_status: "zwolniony" })
+        .eq("id", data.lead_id);
+    }
     return row;
   });
 
