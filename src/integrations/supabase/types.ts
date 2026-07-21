@@ -391,8 +391,10 @@ export type Database = {
       offer_templates: {
         Row: {
           body: string
+          channel: string
           created_at: string
           id: string
+          is_active: boolean
           name: string
           product: string | null
           subject: string | null
@@ -400,8 +402,10 @@ export type Database = {
         }
         Insert: {
           body: string
+          channel?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
           product?: string | null
           subject?: string | null
@@ -409,8 +413,10 @@ export type Database = {
         }
         Update: {
           body?: string
+          channel?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           product?: string | null
           subject?: string | null
