@@ -107,6 +107,7 @@ function UstawieniaPage() {
     { value: "carriers", label: "Przewoźnicy", Icon: Building2 },
     { value: "config", label: "Konfiguracja", Icon: Settings2 },
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
+    { value: "statuses", label: "Statusy leadów", Icon: Settings2 },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
