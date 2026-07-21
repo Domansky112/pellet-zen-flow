@@ -330,9 +330,9 @@ function CrmPage() {
             navigate({ search: (p: Record<string, unknown>) => ({ ...p, tab: v === "all" ? undefined : (v as typeof tab) }) })
           }
         >
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">
-              Wszystkie <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
+              Wszystkie <Badge variant="secondary" className="ml-2">{activeLeads.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="reserved">
               Z rezerwacją{" "}
@@ -344,9 +344,21 @@ function CrmPage() {
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="b2b">B2B</TabsTrigger>
             <TabsTrigger value="nowy">Nowe</TabsTrigger>
+            <TabsTrigger value="realized">
+              Zrealizowane{" "}
+              <Badge variant="outline" className="ml-2 border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+                {realizedLeads.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="cancelled">
+              Anulowane{" "}
+              <Badge variant="outline" className="ml-2 border-destructive/40 text-destructive bg-destructive/10">
+                {cancelled.data?.length ?? 0}
+              </Badge>
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="all" className="mt-4">
-            <LeadList items={applyFilters(leads as Lead[])} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+            <LeadList items={applyFilters(activeLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
           </TabsContent>
           <TabsContent value="reserved" className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
@@ -380,10 +392,28 @@ function CrmPage() {
             </div>
             <ReservedList items={reserved.data ?? []} onOpen={setOpenLead} />
           </TabsContent>
-          <TabsContent value="www" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "www"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="email" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "email"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
-          <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters((leads as Lead[]).filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="www" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "www"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="email" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "email"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
+          <TabsContent value="realized" className="mt-4">
+            <div className="mb-3 text-sm text-muted-foreground">
+              Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).
+            </div>
+            <LeadList items={applyFilters(realizedLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+          </TabsContent>
+          <TabsContent value="cancelled" className="mt-4">
+            <div className="mb-3 text-sm text-muted-foreground">
+              Leady anulowane — rezerwacje zostały zwolnione, dane pozostają w archiwum.
+            </div>
+            {cancelled.isLoading ? (
+              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+                Wczytywanie…
+              </div>
+            ) : (
+              <LeadList items={applyFilters((cancelled.data ?? []) as Lead[])} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
