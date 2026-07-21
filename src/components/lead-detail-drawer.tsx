@@ -83,6 +83,13 @@ export function LeadDetailDrawer({
   const updateLeadFn = useServerFn(updateLead);
   const releaseFn = useServerFn(releaseReservation);
 
+  const statusesQuery = useQuery({
+    queryKey: ["lead-statuses"],
+    queryFn: () => listLeadStatuses(),
+    enabled: open,
+  });
+  const setStatusFn = useServerFn(setLeadStatusKey);
+
   // Editable form state
   const [form, setForm] = useState({
     first_name: "",
