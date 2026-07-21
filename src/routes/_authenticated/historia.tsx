@@ -29,6 +29,8 @@ function HistoriaPage() {
   const [to, setTo] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [poolingOnly, setPoolingOnly] = useState(false);
+  const [openTransportId, setOpenTransportId] = useState<string | null>(null);
+
 
   const filters = useMemo(
     () => ({ from: from || null, to: to || null, search: search || null, pooling_only: poolingOnly }),
