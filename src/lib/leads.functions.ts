@@ -17,15 +17,19 @@ export const listLeads = createServerFn({ method: "GET" })
 
 export const listReservedLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((d: unknown) =>
+    z.object({ product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
       .from("leads")
       .select("*")
       .eq("reservation_status", "zarezerwowany")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+      .is("deleted_at", null);
+    if (data.product) q = q.eq("product", data.product);
+    const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return rows ?? [];
   });
 
 const StatusInput = z.object({
