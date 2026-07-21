@@ -14,6 +14,18 @@ export const listLeads = createServerFn({ method: "GET" })
     return data;
   });
 
+export const listReservedLeads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("leads")
+      .select("*")
+      .eq("reservation_status", "zarezerwowany")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
 const StatusInput = z.object({
   id: z.string().uuid(),
   status: z.enum(["nowy", "w_kontakcie", "oferta", "wygrany", "przegrany"]),
@@ -46,6 +58,8 @@ export const assignToMe = createServerFn({ method: "POST" })
   });
 
 const CreateInput = z.object({
+  first_name: z.string().trim().max(120).optional().or(z.literal("")),
+  last_name: z.string().trim().max(120).optional().or(z.literal("")),
   name: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(255).optional().or(z.literal("")),
   phone: z.string().trim().max(50).optional().or(z.literal("")),
@@ -65,6 +79,8 @@ export const createLead = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => CreateInput.parse(d))
   .handler(async ({ data, context }) => {
     const payload: Record<string, unknown> = {
+      first_name: data.first_name || null,
+      last_name: data.last_name || null,
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
@@ -86,5 +102,40 @@ export const createLead = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Auto-rezerwacja: pooling + produkt + ilość
+    if (data.pooling_enabled && data.product && data.quantity && data.quantity > 0) {
+      const { error: rpcErr } = await context.supabase.rpc("reserve_stock_for_lead", {
+        _lead_id: row.id,
+      });
+      if (rpcErr) {
+        // Nie usuwamy leada — zwracamy z ostrzeżeniem
+        return { ...row, _reservation_error: rpcErr.message };
+      }
+    }
     return row;
+  });
+
+const LeadIdInput = z.object({ lead_id: z.string().uuid() });
+
+export const reserveLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => LeadIdInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("reserve_stock_for_lead", {
+      _lead_id: data.lead_id,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const confirmWydanie = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => LeadIdInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("release_reservation_as_wydanie", {
+      _lead_id: data.lead_id,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

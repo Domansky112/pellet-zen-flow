@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,6 @@ import {
 import { createLead } from "@/lib/leads.functions";
 
 type Props = {
-  /** Preset defaults — e.g. force pooling_enabled on the consolidation page. */
   defaults?: Partial<{
     source: "www" | "email" | "b2b" | "telefon" | "inne";
     pooling_enabled: boolean;
@@ -43,9 +42,11 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
   const createFn = useServerFn(createLead);
 
   const [form, setForm] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
     phone: "",
     email: "",
+    company: "",
     city: "",
     postal_code: "",
     source: defaults?.source ?? "telefon",
@@ -62,11 +63,16 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const fullName = [form.first_name.trim(), form.last_name.trim()].filter(Boolean).join(" ")
+    || form.company.trim();
+
   const mutation = useMutation({
     mutationFn: () =>
       createFn({
         data: {
-          name: form.name.trim(),
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          name: fullName,
           email: form.email.trim(),
           phone: form.phone.trim(),
           city: form.city.trim(),
@@ -80,15 +86,30 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           pooling_wait_until: form.pooling_enabled ? form.pooling_wait_until || null : null,
         },
       }),
-    onSuccess: () => {
-      toast.success("Lead dodany");
+    onSuccess: (row: any) => {
+      if (row?._reservation_error) {
+        toast.warning(`Lead dodany, ale rezerwacja nie powiodła się: ${row._reservation_error}`);
+      } else if (form.pooling_enabled && form.product && Number(form.quantity) > 0) {
+        toast.success(`Lead dodany. Zarezerwowano ${form.quantity} t w magazynie.`);
+      } else {
+        toast.success("Lead dodany");
+      }
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["waitlist"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+      qc.invalidateQueries({ queryKey: ["stock-events"] });
       setOpen(false);
-      setForm((f) => ({ ...f, name: "", phone: "", email: "", city: "", postal_code: "", quantity: "", notes: "" }));
+      setForm((f) => ({
+        ...f,
+        first_name: "", last_name: "", phone: "", email: "", company: "",
+        city: "", postal_code: "", quantity: "", notes: "",
+      }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const willReserve = form.pooling_enabled && !!form.product && Number(form.quantity) > 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -97,23 +118,33 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           <Plus className="mr-2 h-4 w-4" /> {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nowy lead</DialogTitle>
           <DialogDescription>Ręczne dodanie zgłoszenia (telefon, targ, polecenie).</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Imię *</Label>
+              <Input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Nazwisko</Label>
+              <Input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} />
+            </div>
+          </div>
           <div className="grid gap-1.5">
-            <Label>Imię i nazwisko / firma *</Label>
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
+            <Label>Firma (opcjonalnie)</Label>
+            <Input value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Jeśli klient B2B" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label>Telefon</Label>
+              <Label>Telefon *</Label>
               <Input value={form.phone} onChange={(e) => set("phone", e.target.value)} />
             </div>
             <div className="grid gap-1.5">
-              <Label>E-mail</Label>
+              <Label>E-mail *</Label>
               <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
             </div>
           </div>
@@ -186,10 +217,23 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               />
             </div>
           )}
+          {willReserve && (
+            <div className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+              <PackageCheck className="h-4 w-4 mt-0.5 text-primary" />
+              <div>
+                <b>Automatyczna rezerwacja magazynu:</b> zapisanie leada zablokuje{" "}
+                <b>{form.quantity} t {form.product === "pellet_paleta" ? "palet" : form.product === "pellet_bigbag" ? "big-bagów" : "produktu"}</b>{" "}
+                w stanie magazynowym (transakcja bazodanowa).
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Anuluj</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!form.name.trim() || mutation.isPending}>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!fullName || !form.phone.trim() || mutation.isPending}
+          >
             {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Dodaj lead
           </Button>

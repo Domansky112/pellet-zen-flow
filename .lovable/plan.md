@@ -1,72 +1,71 @@
-## Moduł „Wspólny Transport" — plan
+# Plan: Leady z rezerwacją, szablony, notatki
 
-Budujemy nowy moduł `/konsolidacja` + rozszerzenie CRM/kalendarza. Bazujemy na istniejących tabelach `leads`, `transports`, `stock_events` + jedna nowa tabela z ustawieniami trasy.
+## 1. Baza danych (jedna migracja)
 
-### 1. Schemat bazy (migracja)
+**leads** — nowe kolumny:
+- `first_name text`, `last_name text` (opcjonalne, `name` zostaje jako pełna nazwa/firma)
+- `reservation_status text` — `brak | zarezerwowany | wydany | zwolniony` (default `brak`)
 
-Rozszerzamy `leads` o pola „poczekalni":
-- `pooling_enabled boolean default false` — klient zgodził się na transport łączony
-- `pooling_wait_until date` — deadline oczekiwania (np. +14 dni)
-- `postal_code text` — kod pocztowy (już mamy `city`, dokładamy kod)
-- `pooling_lat double precision`, `pooling_lng double precision` — cache geolokalizacji z Google Maps (jednorazowy geocoding po zapisie leada z pooling=on)
-- `pooling_km_from_base double precision` — dystans z Witoroży (cache)
-- `pooling_status text` — `oczekuje` / `zgrupowany` / `wyslany` / `wygasl`
+**lead_notes** — nowa tabela:
+- `id, lead_id, author_id, body text, created_at, updated_at, edited boolean`
+- RLS: staff (admin/sales) czyta i edytuje własne wpisy; admin edytuje wszystkie
+- Trigger: przy UPDATE ustawia `edited=true`, `updated_at=now()`
+- Opcjonalna `lead_note_history` (poprzednie wersje) — zapis w triggerze BEFORE UPDATE
 
-Nowa tabela `transport_pools` (draftowa grupa przed potwierdzeniem):
-- `name`, `route_from`, `route_to`, `total_tons`, `capacity_tons`, `estimated_km`, `estimated_cost`, `status` (`draft`/`potwierdzony`/`anulowany`), `transport_id` (po konwersji na realny transport), `created_by`
-- Wiązanie many-to-many przez `transport_pool_items(pool_id, lead_id, tons, share_cost)`
+**offer_templates** — nowa tabela:
+- `id, name, product, body text, created_at, updated_at`
+- Seed: 3 szablony (Paleta – oferta wstępna, Big-bag – oferta, Wspólny transport – potwierdzenie)
+- RLS: read dla staff, zapis dla admin
 
-RLS: `sales/admin` — pełen dostęp; `warehouse/transport` — read.
+**Funkcja SQL `reserve_stock_for_lead(lead_id uuid)`** — `SECURITY DEFINER`, transakcyjna:
+- `SELECT ... FOR UPDATE` na wierszach `stock_events` danego produktu (blokada)
+- Wylicza `available = physical - reserved`; jeśli `quantity > available` → RAISE
+- INSERT `stock_events` typ `rezerwacja` z `lead_id`, `created_by = auth.uid()`
+- UPDATE `leads.reservation_status = 'zarezerwowany'`
+- Wywoływana z serwera po zapisaniu leada z `pooling_enabled=true` (lub ręcznie z CRM)
 
-### 2. Silnik grupowania (server function)
+**Funkcja SQL `release_reservation_as_wydanie(lead_id uuid)`** — transakcyjna:
+- Suma dotychczasowych `rezerwacja - zwolnienie_rez` dla leada
+- INSERT `zwolnienie_rez` (na tę sumę) + INSERT `wydanie` (na tę sumę)
+- UPDATE `leads.reservation_status = 'wydany'`
 
-`src/lib/pooling.functions.ts`:
+## 2. Server functions (`src/lib/leads.functions.ts`, `src/lib/notes.functions.ts`, `src/lib/templates.functions.ts`)
 
-- **`geocodePendingLeads`** — dla nowych leadów z `pooling_enabled=true` bez `pooling_lat`: geokodowanie przez Google Maps Geocoding API + zapis lat/lng + `computeRouteMatrix` dla dystansu z Witoroży.
-- **`findPoolSuggestions({ maxDetourKm=75, targetCapacityTons=24, minFillTons=20 })`** — algorytm:
-  1. Bierze wszystkie leady `pooling_enabled=true`, `pooling_status='oczekuje'`, `wait_until >= today`.
-  2. Grupuje po kierunku (bucket geograficzny: podobny kierunek z bazy + promień). Używamy `computeRouteMatrix` żeby policzyć „detour" — ile km dodaje wstawka danego leada do trasy do najdalszego punktu.
-  3. Greedy Tetris: dla każdego kandydata na trasę główną (najdalszy lead) dokładamy kolejne leady tak, żeby suma ton ≤ 24 t i każdy dodatkowy postój ≤ `maxDetourKm`.
-  4. Zwraca listy grup z: leady, całkowity dystans, koszt (wzory transportu), podział kosztu proporcjonalnie do `tons × detour`.
-- **`createPoolFromSuggestion`** — zapis draftu jako `transport_pools` + itemy.
-- **`confirmPool(poolId, {scheduled_date, driver, vehicle})`** — konwertuje pool na jeden `transport` z wieloma `transport_items` (jeden per lead, każdy z `address`), robi jedną `rezerwacja` w magazynie na sumę ton, ustawia leady na `pooling_status='wyslany'` + `status='wygrany'`. Wysyła alert na Telegram.
+Wszystkie z `.middleware([requireSupabaseAuth])` — RBAC przez RLS + `has_role`.
 
-### 3. UI
+- `createLead` — jeśli `pooling_enabled && quantity && product` → po INSERT wywołuje `reserve_stock_for_lead(id)` (RPC)
+- `confirmWydanie({ lead_id })` — RPC do `release_reservation_as_wydanie`
+- `listReservedLeads()` — leady z `reservation_status IN ('zarezerwowany')`
+- `listNotes(lead_id)`, `addNote`, `updateNote`, `deleteNote`
+- `listTemplates()`, `renderTemplate(id, lead_id)` — proste podstawienie `{{name}}`, `{{quantity}}`
 
-**`/crm` (rozszerzenie formularza leada)**: checkbox „Zgoda na transport łączony" + input „Poczekamy do (data)". Domyślnie +14 dni.
+## 3. UI
 
-**Publiczny `/formularz`**: dodatkowy checkbox „Zgadzam się poczekać na transport łączony (do 50% taniej)".
+**`src/components/new-lead-dialog.tsx`**:
+- Rozdzielić na `Imię` + `Nazwisko` (obok siebie), zostawić Telefon + Email
+- Info-box gdy `pooling_enabled=true`: "Zapisanie automatycznie zarezerwuje X t w magazynie"
 
-**Nowa strona `/konsolidacja`** (moduł „Wspólny Transport"):
-- Mapa (Google Maps JS) z pinezkami wszystkich leadów w poczekalni, kolor wg statusu.
-- Lewa kolumna: lista leadów w poczekalni (filtry: kierunek, deadline).
-- Prawa kolumna: sugestie algorytmu — karty grupowe:
-  - „Trasa Lublin → Szczecin · 23 t · 3 klientów · 875 km · 4 200 zł (183 zł/t)"
-  - Rozbicie kosztu na klientów.
-  - Akcje: „Utwórz draft", „Odrzuć".
-- Panel draftów: konwersja na transport (data, kierowca, auto) → wpada do `/kalendarz`.
+**`src/routes/_authenticated/crm.tsx`** — nowa zakładka `Z rezerwacją`:
+- Lista leadów `reservation_status = 'zarezerwowany'` z przyciskiem `Wydaj z magazynu` (confirm dialog → `confirmWydanie`)
 
-**`/kalendarz`**: badge „POOL 3 klientów" na transportach z poolu, rozwijalna lista adresów odbioru.
+**`src/components/lead-detail-drawer.tsx`** — nowy drawer/dialog otwierany po kliknięciu leada w CRM:
+- Layout dwukolumnowy: lewa kolumna — **Szablony ofert** (lista przycisków, klik → wypełnia textarea po prawej i otwiera mailto/kopiuje)
+- Prawa kolumna — dane leada + sekcja **Notatki**:
+  - Lista notatek z edycją inline (pencil icon → textarea → zapisz), badge "edytowano"
+  - Formularz dodania nowej notatki
+- Sekcja akcji: status, rezerwacja (Zarezerwuj / Wydaj / Zwolnij)
 
-### 4. Powiadomienia Telegram
+## 4. Bezpieczeństwo
 
-Rozszerzenie webhooka o `/pool` — pokazuje aktywne sugestie. Cron dziennie sprawdza świeże grupy ≥20 t i broadcastuje do handlowców.
+- Wszystkie endpointy przez `requireSupabaseAuth` (JWT bearer + walidacja `getClaims`)
+- RLS na wszystkich tabelach: `has_role(auth.uid(), 'admin'|'sales')`
+- Transakcje magazynowe w PL/pgSQL z `FOR UPDATE` na `stock_events` per produkt — brak race condition
+- Zod walidacja na wejściu każdego server fn
 
-### 5. Kolejność implementacji
+## Kolejność wykonania
 
-1. Migracja (pola w `leads` + tabele `transport_pools`, `transport_pool_items`).
-2. Funkcje geokodowania + `findPoolSuggestions`.
-3. Rozszerzenie formularzy CRM i publicznego.
-4. Strona `/konsolidacja` z mapą i sugestiami.
-5. `confirmPool` + integracja z kalendarzem/magazynem.
-6. Komenda `/pool` w bocie + broadcast.
-
-### Decyzje do potwierdzenia
-
-- **Domyślna pojemność auta**: 24 t (będzie edytowalna).
-- **Max detour**: 75 km od głównej trasy (edytowalne w UI).
-- **Min. wypełnienie do sugestii**: 20 t.
-- **Podział kosztu**: proporcjonalnie do `ton × (km_od_bazy + detour)`.
-- **Geokodowanie**: automatycznie przy zapisie leada z pooling=on (jednorazowy koszt Google Maps API).
-
-Startuję od kroku 1 (migracja), potem lecę w dół listy. OK czy chcesz coś zmienić w regułach algorytmu / domyślnych wartościach?
+1. Migracja SQL (tabele, funkcje, RLS, seed szablonów)
+2. Server functions
+3. `NewLeadDialog` (imię/nazwisko + auto-rezerwacja)
+4. Zakładka "Z rezerwacją" w CRM + akcja Wydaj
+5. Lead detail drawer (szablony + notatki edytowalne)
