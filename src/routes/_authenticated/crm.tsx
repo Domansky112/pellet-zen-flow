@@ -117,7 +117,12 @@ function CrmPage() {
         }
       />
       <div className="p-6 space-y-4">
-        <Tabs defaultValue="all">
+        <Tabs
+          value={tab}
+          onValueChange={(v) =>
+            navigate({ search: (p) => ({ ...p, tab: v === "all" ? undefined : (v as typeof tab) }) })
+          }
+        >
           <TabsList>
             <TabsTrigger value="all">
               Wszystkie <Badge variant="secondary" className="ml-2">{leads.length}</Badge>
@@ -134,7 +139,38 @@ function CrmPage() {
             <TabsTrigger value="nowy">Nowe</TabsTrigger>
           </TabsList>
           <TabsContent value="all" className="mt-4"><LeadList items={leads} onOpen={setOpenLead} /></TabsContent>
-          <TabsContent value="reserved" className="mt-4"><ReservedList items={reserved.data ?? []} onOpen={setOpenLead} /></TabsContent>
+          <TabsContent value="reserved" className="mt-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: "all", label: "Wszystkie" },
+                { key: "pellet_paleta", label: "Palety" },
+                { key: "pellet_bigbag", label: "Big Bagi" },
+                { key: "inne", label: "Inne" },
+              ] as { key: ProductFilter; label: string }[]).map((f) => (
+                <Button
+                  key={f.key}
+                  size="sm"
+                  variant={productFilter === f.key ? "default" : "outline"}
+                  onClick={() =>
+                    navigate({
+                      search: (p) => ({ ...p, product: f.key === "all" ? undefined : f.key }),
+                    })
+                  }
+                >
+                  {f.label}
+                </Button>
+              ))}
+              {reserved.data && reserved.data.length > 0 && (
+                <div className="ml-auto text-sm text-muted-foreground self-center">
+                  Suma: <span className="font-semibold text-foreground">
+                    {reserved.data.reduce((s, l) => s + Number(l.quantity ?? 0), 0).toFixed(1)} t
+                  </span>{" "}
+                  · {reserved.data.length} leadów
+                </div>
+              )}
+            </div>
+            <ReservedList items={reserved.data ?? []} onOpen={setOpenLead} />
+          </TabsContent>
           <TabsContent value="www" className="mt-4"><LeadList items={leads.filter((l) => l.source === "www")} onOpen={setOpenLead} /></TabsContent>
           <TabsContent value="email" className="mt-4"><LeadList items={leads.filter((l) => l.source === "email")} onOpen={setOpenLead} /></TabsContent>
           <TabsContent value="b2b" className="mt-4"><LeadList items={leads.filter((l) => l.source === "b2b")} onOpen={setOpenLead} /></TabsContent>
