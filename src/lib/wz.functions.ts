@@ -106,6 +106,7 @@ function leadToRecipient(lead: any): WzRecipient {
     phone: lead?.phone ?? null,
     email: lead?.email ?? null,
     hasUnloadingEquipment: !!lead?.has_unloading_equipment,
+    leadNumber: lead?.lead_number ?? null,
   };
 }
 
