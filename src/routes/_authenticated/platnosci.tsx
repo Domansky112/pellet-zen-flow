@@ -76,7 +76,6 @@ function PaymentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={Wallet}
         title="Płatności i rozliczenia"
         description="Podgląd nadchodzących transportów, statusy płatności zrealizowanych dostaw oraz rozliczenia gotówki z kierowcą."
       />
