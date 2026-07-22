@@ -102,6 +102,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           urgent_no_fuel: form.urgent_no_fuel,
+          is_b2b_kurnik: form.is_b2b_kurnik,
+          cycle_days: form.is_b2b_kurnik ? (form.cycle_days ? Number(form.cycle_days) : 30) : null,
         },
       }),
     onSuccess: (row: any) => {
