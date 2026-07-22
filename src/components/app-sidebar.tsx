@@ -28,6 +28,7 @@ const nav = [
   { title: "Wspólny transport", url: "/konsolidacja", icon: Users },
   { title: "Kalendarz", url: "/kalendarz", icon: CalendarDays },
   { title: "Historia dostaw", url: "/historia", icon: History },
+  { title: "Płatności", url: "/platnosci", icon: Wallet },
   { title: "Bot magazynowy", url: "/bot", icon: Bot },
 ] as const;
 
