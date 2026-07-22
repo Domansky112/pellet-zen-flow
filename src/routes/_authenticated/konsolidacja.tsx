@@ -61,12 +61,13 @@ const PRODUCT_LABEL: Record<string, string> = {
 
 function Konsolidacja() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const listFn = useServerFn(listWaitlist);
   const findFn = useServerFn(findPoolSuggestions);
   const geocodeFn = useServerFn(geocodePendingLeads);
   const createFn = useServerFn(createPool);
   const poolsFn = useServerFn(listPools);
-  
+  const addToPoolFn = useServerFn(addLeadToPool);
 
   const { data: waitlist } = useSuspenseQuery({ queryKey: ["waitlist"], queryFn: () => listFn() });
   const { data: pools } = useSuspenseQuery({ queryKey: ["pools"], queryFn: () => poolsFn() });
@@ -74,6 +75,7 @@ function Konsolidacja() {
   const [params, setParams] = useState({ maxDetourKm: 75, capacityTons: 24, minFillTons: 20 });
   const [confirmPoolId, setConfirmPoolId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
 
   const suggestions = useQuery({
     queryKey: ["pool-suggestions", params],
@@ -118,10 +120,65 @@ function Konsolidacja() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
+  const assignMut = useMutation({
+    mutationFn: (leadId: string) =>
+      (addToPoolFn as any)({ data: { pool_id: selectedDraftId!, lead_id: leadId } }),
+    onSuccess: () => {
+      toast.success("Dodano do transportu");
+      qc.invalidateQueries({ queryKey: ["waitlist"] });
+      qc.invalidateQueries({ queryKey: ["pools"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const needsGeocoding = waitlist.filter((l: any) => l.pooling_lat == null).length;
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
+  const draftPools = activePools.filter((p: any) => p.status === "draft");
+
+  const mapPoints = useMemo(() => {
+    const pts: any[] = [];
+    const assignedIds = new Set<string>();
+    for (const p of activePools) {
+      for (const it of p.transport_pool_items ?? []) {
+        const l = it.leads;
+        if (!l || l.pooling_lat == null || l.pooling_lng == null) continue;
+        assignedIds.add(l.id);
+        const isSelected = selectedDraftId && p.id === selectedDraftId;
+        pts.push({
+          id: l.id,
+          name: l.name,
+          city: l.city,
+          postal_code: l.postal_code,
+          product: l.product,
+          quantity: it.tons,
+          lat: l.pooling_lat,
+          lng: l.pooling_lng,
+          has_unloading_equipment: (l as any).has_unloading_equipment,
+          kind: isSelected ? "assigned" : "pending",
+        });
+      }
+    }
+    for (const l of waitlist as any[]) {
+      if (assignedIds.has(l.id)) continue;
+      if (l.pooling_lat == null || l.pooling_lng == null) continue;
+      pts.push({
+        id: l.id,
+        name: l.name,
+        city: l.city,
+        postal_code: l.postal_code,
+        product: l.product,
+        quantity: l.quantity,
+        lat: l.pooling_lat,
+        lng: l.pooling_lng,
+        has_unloading_equipment: l.has_unloading_equipment,
+        priority: l.priority,
+        status: l.status,
+        kind: "waitlist",
+      });
+    }
+    return pts;
+  }, [waitlist, activePools, selectedDraftId]);
+
 
   return (
     <>
