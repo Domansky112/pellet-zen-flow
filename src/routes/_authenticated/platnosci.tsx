@@ -25,7 +25,7 @@ import {
   settleTransportWithDriver,
   markPaymentReminderSent,
 } from "@/lib/payments.functions";
-import { generateWzForTransport } from "@/lib/wz.functions";
+import { getWzDocument } from "@/lib/wz.functions";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
   head: () => ({
