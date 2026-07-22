@@ -27,8 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bell, Loader2, Plus, Trash2, Truck } from "lucide-react";
+import { Bell, Loader2, Plus, Trash2, Truck, Bird } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   createTransport,
   deleteTransport,
@@ -37,6 +38,8 @@ import {
 } from "@/lib/transport-crud.functions";
 import { listLeads } from "@/lib/leads.functions";
 import { WzDownloadButton } from "@/components/wz-download-button";
+import { PoultryCalendar } from "@/components/poultry-calendar";
+
 
 export const Route = createFileRoute("/_authenticated/kalendarz")({
   head: () => ({
