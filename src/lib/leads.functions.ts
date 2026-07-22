@@ -214,6 +214,8 @@ const UpdateLeadInput = z.object({
   payment_method: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
   payment_status: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
   urgent_no_fuel: z.boolean().optional(),
+  is_b2b_kurnik: z.boolean().optional(),
+  cycle_days: z.number().int().min(1).max(365).nullable().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })
