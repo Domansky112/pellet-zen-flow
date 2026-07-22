@@ -135,10 +135,12 @@ export function LeadDetailDrawer({
       pooling_enabled: !!lead.pooling_enabled,
       has_unloading_equipment: !!lead.has_unloading_equipment,
       quantity: lead.quantity != null ? String(lead.quantity) : "",
+      product: lead.product ?? "",
     });
     setRendered(null);
-    setTemplatesOpen(true);
-    setCalcOpen(true);
+    setTemplatesOpen(false);
+    setCalcOpen(false);
+    setPreviewOpen(false);
     setPricePerTonNet("");
     setTransportNet("");
     setVatRate("23");
