@@ -33,6 +33,7 @@ export type WzRecipient = {
   phone: string | null;
   email: string | null;
   hasUnloadingEquipment: boolean;
+  leadNumber: string | null;
 };
 
 export type WzItem = {
