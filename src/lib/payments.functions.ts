@@ -17,7 +17,7 @@ export const listUpcomingPayments = createServerFn({ method: "GET" })
         `id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, pool_id,
          transport_items(id, product, quantity, leads(${LEAD_COLS}))`,
       )
-      .in("status", ["planowany", "w_trakcie"])
+      .in("status", ["planowany", "potwierdzony", "w_trasie"])
       .order("scheduled_date", { ascending: true })
       .limit(200);
     if (error) throw new Error(error.message);
