@@ -284,7 +284,13 @@ function Konsolidacja() {
                 <div key={l.id} className="rounded-md border p-3 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{l.name}</div>
+                      <div className="font-medium truncate flex items-center gap-1.5 flex-wrap">
+                        {l.lead_number && (
+                          <span className="font-mono text-[11px] px-1 rounded bg-muted text-muted-foreground">{l.lead_number}</span>
+                        )}
+                        {l.urgent_no_fuel && <span className="text-xs font-semibold text-destructive">🚨</span>}
+                        <span className="truncate">{l.name}</span>
+                      </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {[l.postal_code, l.city].filter(Boolean).join(" ") || "—"} · {l.quantity ?? "?"} t · {PRODUCT_LABEL[l.product] ?? "—"}
                       </div>

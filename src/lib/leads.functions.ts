@@ -104,6 +104,13 @@ const CreateInput = z.object({
   pooling_enabled: z.boolean().default(false),
   pooling_wait_until: z.string().optional().nullable(),
   has_unloading_equipment: z.boolean().default(false),
+  delivery_window: z.string().trim().max(200).optional().or(z.literal("")),
+  access_tight: z.boolean().default(false),
+  access_tonnage_limit: z.string().trim().max(50).optional().or(z.literal("")),
+  access_unpaved: z.boolean().default(false),
+  payment_method: z.string().trim().max(50).optional().or(z.literal("")),
+  payment_status: z.string().trim().max(50).optional().or(z.literal("")),
+  urgent_no_fuel: z.boolean().default(false),
 });
 
 export const createLead = createServerFn({ method: "POST" })
@@ -127,6 +134,13 @@ export const createLead = createServerFn({ method: "POST" })
       pooling_wait_until: data.pooling_wait_until || null,
       pooling_status: data.pooling_enabled ? "poczekalnia" : "brak",
       has_unloading_equipment: data.has_unloading_equipment,
+      delivery_window: data.delivery_window || null,
+      access_tight: data.access_tight,
+      access_tonnage_limit: data.access_tonnage_limit || null,
+      access_unpaved: data.access_unpaved,
+      payment_method: data.payment_method || null,
+      payment_status: data.payment_status || null,
+      urgent_no_fuel: data.urgent_no_fuel,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
@@ -189,6 +203,13 @@ const UpdateLeadInput = z.object({
   quantity: z.number().nonnegative().nullable().optional(),
   pooling_enabled: z.boolean().optional(),
   has_unloading_equipment: z.boolean().optional(),
+  delivery_window: z.string().trim().max(200).nullable().or(z.literal("")).optional(),
+  access_tight: z.boolean().optional(),
+  access_tonnage_limit: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  access_unpaved: z.boolean().optional(),
+  payment_method: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  payment_status: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  urgent_no_fuel: z.boolean().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })

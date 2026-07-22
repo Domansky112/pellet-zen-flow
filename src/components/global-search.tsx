@@ -11,6 +11,7 @@ import { searchLeads, duplicateLead } from "@/lib/leads.functions";
 
 type Lead = {
   id: string;
+  lead_number: string | null;
   name: string;
   first_name: string | null;
   last_name: string | null;
@@ -23,6 +24,7 @@ type Lead = {
   reservation_status: "brak" | "zarezerwowany" | "zwolniony" | "wydany" | null;
   product: string | null;
   quantity: number | null;
+  urgent_no_fuel: boolean | null;
 };
 
 function useDebounced<T>(value: T, ms = 250) {
@@ -109,7 +111,7 @@ export function GlobalSearch({ className }: { className?: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && results[0]) goToLead(results[0].id);
           }}
-          placeholder="Szukaj (imię, telefon, e-mail, NIP)…  ⌘K"
+          placeholder="Szukaj (# numer, imię, telefon, e-mail, NIP)…  ⌘K"
           className="pl-8 pr-8 w-full md:w-80"
           aria-label="Wyszukiwarka globalna"
         />
@@ -148,6 +150,12 @@ export function GlobalSearch({ className }: { className?: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {l.lead_number && (
+                        <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{l.lead_number}</span>
+                      )}
+                      {l.urgent_no_fuel && (
+                        <span className="text-xs font-semibold text-destructive">🚨 PILNE</span>
+                      )}
                       <span className="font-medium truncate">{l.name}</span>
                       {statusBadge(l)}
                     </div>

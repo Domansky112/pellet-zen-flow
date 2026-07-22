@@ -33,6 +33,7 @@ export type WzRecipient = {
   phone: string | null;
   email: string | null;
   hasUnloadingEquipment: boolean;
+  leadNumber: string | null;
 };
 
 export type WzItem = {
@@ -105,6 +106,7 @@ function leadToRecipient(lead: any): WzRecipient {
     phone: lead?.phone ?? null,
     email: lead?.email ?? null,
     hasUnloadingEquipment: !!lead?.has_unloading_equipment,
+    leadNumber: lead?.lead_number ?? null,
   };
 }
 
@@ -139,7 +141,7 @@ async function prepareFromTransport(
   const { data: t, error } = await supabase
     .from("transports")
     .select(
-      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
+      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", transportId)
     .maybeSingle();
@@ -160,6 +162,7 @@ async function prepareFromTransport(
             phone: null,
             email: null,
             hasUnloadingEquipment: false,
+            leadNumber: null,
           },
     )
     // deduplikuj po nazwie+adres
@@ -193,6 +196,7 @@ async function prepareFromTransport(
         phone: null,
         email: null,
         hasUnloadingEquipment: false,
+        leadNumber: null,
       },
     ],
     items,
@@ -215,7 +219,7 @@ async function prepareFromPool(
   const { data: p, error } = await supabase
     .from("transport_pools")
     .select(
-      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
+      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", poolId)
     .maybeSingle();
@@ -313,7 +317,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   const unloading = data.recipients
     .map(
       (r) =>
-        `<div class="place-row"><strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
+        `<div class="place-row">${r.leadNumber ? `<span class="muted">${escapeHtml(r.leadNumber)}</span> · ` : ""}<strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
           r.address,
         )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}<br/><span class="muted">Sprzęt do rozładunku u klienta: <b>${r.hasUnloadingEquipment ? "TAK" : "NIE — wymagany HDS / winda"}</b></span></div>`,
     )

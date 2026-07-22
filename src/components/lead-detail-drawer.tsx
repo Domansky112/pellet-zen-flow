@@ -118,6 +118,13 @@ export function LeadDetailDrawer({
     has_unloading_equipment: false,
     quantity: "" as string,
     product: "" as string,
+    delivery_window: "",
+    access_tight: false,
+    access_tonnage_limit: "",
+    access_unpaved: false,
+    payment_method: "",
+    payment_status: "",
+    urgent_no_fuel: false,
   });
 
   useEffect(() => {
@@ -136,6 +143,13 @@ export function LeadDetailDrawer({
       has_unloading_equipment: !!lead.has_unloading_equipment,
       quantity: lead.quantity != null ? String(lead.quantity) : "",
       product: lead.product ?? "",
+      delivery_window: (lead as any).delivery_window ?? "",
+      access_tight: !!(lead as any).access_tight,
+      access_tonnage_limit: (lead as any).access_tonnage_limit ?? "",
+      access_unpaved: !!(lead as any).access_unpaved,
+      payment_method: (lead as any).payment_method ?? "",
+      payment_status: (lead as any).payment_status ?? "",
+      urgent_no_fuel: !!(lead as any).urgent_no_fuel,
     });
     setRendered(null);
     setTemplatesOpen(false);
@@ -522,6 +536,14 @@ export function LeadDetailDrawer({
       <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-3 flex-wrap">
+            {(lead as any).lead_number && (
+              <span className="font-mono text-sm px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                {(lead as any).lead_number}
+              </span>
+            )}
+            {(lead as any).urgent_no_fuel && (
+              <Badge className="bg-destructive text-destructive-foreground animate-pulse">🚨 PILNE — brak opału</Badge>
+            )}
             {lead.name}
             {lead.reservation_status === "zarezerwowany" && (
               <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
@@ -933,6 +955,77 @@ export function LeadDetailDrawer({
                     checked={form.has_unloading_equipment}
                     onCheckedChange={(v) => setForm({ ...form, has_unloading_equipment: v })}
                   />
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+                  <div>
+                    <div className="text-sm font-medium">🚨 PILNE — brak opału u klienta</div>
+                    <div className="text-xs text-muted-foreground">Wyróżnia lead na wszystkich listach</div>
+                  </div>
+                  <Switch
+                    checked={form.urgent_no_fuel}
+                    onCheckedChange={(v) => setForm({ ...form, urgent_no_fuel: v })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="ld-dw">Preferowany termin / godziny dostawy</Label>
+                  <Input
+                    id="ld-dw"
+                    value={form.delivery_window}
+                    onChange={(e) => setForm({ ...form, delivery_window: e.target.value })}
+                    placeholder="np. Środy po 15:00"
+                  />
+                </div>
+
+                <div className="rounded-md border border-border/60 p-3 space-y-2">
+                  <div className="text-sm font-medium">Ograniczenia dojazdu</div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="ld-tight" className="cursor-pointer text-sm font-normal">Ciasny wjazd / małe podwórko</Label>
+                    <Switch id="ld-tight" checked={form.access_tight} onCheckedChange={(v) => setForm({ ...form, access_tight: v })} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="ld-unp" className="cursor-pointer text-sm font-normal">Droga nieutwardzona / szutrowa</Label>
+                    <Switch id="ld-unp" checked={form.access_unpaved} onCheckedChange={(v) => setForm({ ...form, access_unpaved: v })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="ld-tl" className="text-xs text-muted-foreground">Ograniczenie tonażowe drogi</Label>
+                    <Input
+                      id="ld-tl"
+                      value={form.access_tonnage_limit}
+                      onChange={(e) => setForm({ ...form, access_tonnage_limit: e.target.value })}
+                      placeholder="np. do 3.5t"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Forma płatności</Label>
+                    <Select value={form.payment_method || "none"} onValueChange={(v) => setForm({ ...form, payment_method: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— nie ustalono —</SelectItem>
+                        <SelectItem value="gotowka">Gotówka przy odbiorze</SelectItem>
+                        <SelectItem value="karta_blik">Karta / BLIK u kierowcy</SelectItem>
+                        <SelectItem value="przedplata">Przedpłata – przelew</SelectItem>
+                        <SelectItem value="termin_7">Termin 7 dni</SelectItem>
+                        <SelectItem value="termin_14">Termin 14 dni</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Status płatności</Label>
+                    <Select value={form.payment_status || "none"} onValueChange={(v) => setForm({ ...form, payment_status: v === "none" ? "" : v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— nie ustalono —</SelectItem>
+                        <SelectItem value="oczekuje">Oczekuje</SelectItem>
+                        <SelectItem value="zaliczka">Zaliczka opłacona</SelectItem>
+                        <SelectItem value="zaplacone">Zapłacone w całości</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </section>
 

@@ -318,6 +318,9 @@ export type Database = {
       }
       leads: {
         Row: {
+          access_tight: boolean
+          access_tonnage_limit: string | null
+          access_unpaved: boolean
           assigned_to: string | null
           city: string | null
           created_at: string
@@ -325,6 +328,7 @@ export type Database = {
           deleted_by: string | null
           deleted_reason: string | null
           delivered_at: string | null
+          delivery_window: string | null
           email: string | null
           first_name: string | null
           has_unloading_equipment: boolean
@@ -333,8 +337,11 @@ export type Database = {
           invoice_company: string | null
           invoice_nip: string | null
           last_name: string | null
+          lead_number: string | null
           name: string
           notes: string | null
+          payment_method: string | null
+          payment_status: string | null
           phone: string | null
           pooling_enabled: boolean
           pooling_km_from_base: number | null
@@ -351,8 +358,12 @@ export type Database = {
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
           updated_at: string
+          urgent_no_fuel: boolean
         }
         Insert: {
+          access_tight?: boolean
+          access_tonnage_limit?: string | null
+          access_unpaved?: boolean
           assigned_to?: string | null
           city?: string | null
           created_at?: string
@@ -360,6 +371,7 @@ export type Database = {
           deleted_by?: string | null
           deleted_reason?: string | null
           delivered_at?: string | null
+          delivery_window?: string | null
           email?: string | null
           first_name?: string | null
           has_unloading_equipment?: boolean
@@ -368,8 +380,11 @@ export type Database = {
           invoice_company?: string | null
           invoice_nip?: string | null
           last_name?: string | null
+          lead_number?: string | null
           name: string
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           phone?: string | null
           pooling_enabled?: boolean
           pooling_km_from_base?: number | null
@@ -386,8 +401,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
           updated_at?: string
+          urgent_no_fuel?: boolean
         }
         Update: {
+          access_tight?: boolean
+          access_tonnage_limit?: string | null
+          access_unpaved?: boolean
           assigned_to?: string | null
           city?: string | null
           created_at?: string
@@ -395,6 +414,7 @@ export type Database = {
           deleted_by?: string | null
           deleted_reason?: string | null
           delivered_at?: string | null
+          delivery_window?: string | null
           email?: string | null
           first_name?: string | null
           has_unloading_equipment?: boolean
@@ -403,8 +423,11 @@ export type Database = {
           invoice_company?: string | null
           invoice_nip?: string | null
           last_name?: string | null
+          lead_number?: string | null
           name?: string
           notes?: string | null
+          payment_method?: string | null
+          payment_status?: string | null
           phone?: string | null
           pooling_enabled?: boolean
           pooling_km_from_base?: number | null
@@ -421,6 +444,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
           updated_at?: string
+          urgent_no_fuel?: boolean
         }
         Relationships: [
           {
@@ -959,6 +983,9 @@ export type Database = {
       search_leads_global: {
         Args: { _q: string }
         Returns: {
+          access_tight: boolean
+          access_tonnage_limit: string | null
+          access_unpaved: boolean
           assigned_to: string | null
           city: string | null
           created_at: string
@@ -966,6 +993,7 @@ export type Database = {
           deleted_by: string | null
           deleted_reason: string | null
           delivered_at: string | null
+          delivery_window: string | null
           email: string | null
           first_name: string | null
           has_unloading_equipment: boolean
@@ -974,8 +1002,11 @@ export type Database = {
           invoice_company: string | null
           invoice_nip: string | null
           last_name: string | null
+          lead_number: string | null
           name: string
           notes: string | null
+          payment_method: string | null
+          payment_status: string | null
           phone: string | null
           pooling_enabled: boolean
           pooling_km_from_base: number | null
@@ -992,6 +1023,7 @@ export type Database = {
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
           updated_at: string
+          urgent_no_fuel: boolean
         }[]
         SetofOptions: {
           from: "*"
