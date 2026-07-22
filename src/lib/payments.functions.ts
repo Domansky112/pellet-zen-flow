@@ -36,7 +36,7 @@ export const listCompletedPayments = createServerFn({ method: "GET" })
         `id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, pool_id,
          transport_items(id, product, quantity, leads(${LEAD_COLS}))`,
       )
-      .eq("status", "zrealizowany")
+      .eq("status", "dostarczony")
       .order("scheduled_date", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
