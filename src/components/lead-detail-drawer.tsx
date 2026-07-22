@@ -125,6 +125,8 @@ export function LeadDetailDrawer({
     payment_method: "",
     payment_status: "",
     urgent_no_fuel: false,
+    is_b2b_kurnik: false,
+    cycle_days: "" as string,
   });
 
   useEffect(() => {
