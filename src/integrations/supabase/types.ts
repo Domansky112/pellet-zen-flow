@@ -329,6 +329,8 @@ export type Database = {
           deleted_reason: string | null
           delivered_at: string | null
           delivery_window: string | null
+          driver_settled_at: string | null
+          driver_settled_by: string | null
           email: string | null
           first_name: string | null
           has_unloading_equipment: boolean
@@ -336,11 +338,14 @@ export type Database = {
           invoice_address: string | null
           invoice_company: string | null
           invoice_nip: string | null
+          invoice_number: string | null
           last_name: string | null
           lead_number: string | null
           name: string
           notes: string | null
+          payment_amount_gross: number | null
           payment_method: string | null
+          payment_reminded_at: string | null
           payment_status: string | null
           phone: string | null
           pooling_enabled: boolean
@@ -353,6 +358,7 @@ export type Database = {
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
+          receipt_number: string | null
           reservation_status: string
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
@@ -372,6 +378,8 @@ export type Database = {
           deleted_reason?: string | null
           delivered_at?: string | null
           delivery_window?: string | null
+          driver_settled_at?: string | null
+          driver_settled_by?: string | null
           email?: string | null
           first_name?: string | null
           has_unloading_equipment?: boolean
@@ -379,11 +387,14 @@ export type Database = {
           invoice_address?: string | null
           invoice_company?: string | null
           invoice_nip?: string | null
+          invoice_number?: string | null
           last_name?: string | null
           lead_number?: string | null
           name: string
           notes?: string | null
+          payment_amount_gross?: number | null
           payment_method?: string | null
+          payment_reminded_at?: string | null
           payment_status?: string | null
           phone?: string | null
           pooling_enabled?: boolean
@@ -396,6 +407,7 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          receipt_number?: string | null
           reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
@@ -415,6 +427,8 @@ export type Database = {
           deleted_reason?: string | null
           delivered_at?: string | null
           delivery_window?: string | null
+          driver_settled_at?: string | null
+          driver_settled_by?: string | null
           email?: string | null
           first_name?: string | null
           has_unloading_equipment?: boolean
@@ -422,11 +436,14 @@ export type Database = {
           invoice_address?: string | null
           invoice_company?: string | null
           invoice_nip?: string | null
+          invoice_number?: string | null
           last_name?: string | null
           lead_number?: string | null
           name?: string
           notes?: string | null
+          payment_amount_gross?: number | null
           payment_method?: string | null
+          payment_reminded_at?: string | null
           payment_status?: string | null
           phone?: string | null
           pooling_enabled?: boolean
@@ -439,6 +456,7 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          receipt_number?: string | null
           reservation_status?: string
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
@@ -994,6 +1012,8 @@ export type Database = {
           deleted_reason: string | null
           delivered_at: string | null
           delivery_window: string | null
+          driver_settled_at: string | null
+          driver_settled_by: string | null
           email: string | null
           first_name: string | null
           has_unloading_equipment: boolean
@@ -1001,11 +1021,14 @@ export type Database = {
           invoice_address: string | null
           invoice_company: string | null
           invoice_nip: string | null
+          invoice_number: string | null
           last_name: string | null
           lead_number: string | null
           name: string
           notes: string | null
+          payment_amount_gross: number | null
           payment_method: string | null
+          payment_reminded_at: string | null
           payment_status: string | null
           phone: string | null
           pooling_enabled: boolean
@@ -1018,6 +1041,7 @@ export type Database = {
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
+          receipt_number: string | null
           reservation_status: string
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
