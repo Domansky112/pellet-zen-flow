@@ -152,6 +152,8 @@ export function LeadDetailDrawer({
       payment_method: (lead as any).payment_method ?? "",
       payment_status: (lead as any).payment_status ?? "",
       urgent_no_fuel: !!(lead as any).urgent_no_fuel,
+      is_b2b_kurnik: !!(lead as any).is_b2b_kurnik,
+      cycle_days: (lead as any).cycle_days != null ? String((lead as any).cycle_days) : "",
     });
     setRendered(null);
     setTemplatesOpen(false);
