@@ -10,7 +10,7 @@ export const listTransports = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transports")
       .select(
-        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name))",
+        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name, is_b2b_kurnik, cycle_days))",
       )
       .order("scheduled_date", { ascending: true });
     if (error) throw new Error(error.message);

@@ -221,6 +221,14 @@ function TransportRow({
               {Number(item.quantity)} t · {productLabel[item.product] ?? item.product}
             </Badge>
           )}
+          {(item?.leads as any)?.is_b2b_kurnik && (
+            <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/40">
+              <Bird className="h-3 w-3 mr-1" /> Kurnik / B2B
+              {(item?.leads as any)?.cycle_days && (
+                <span className="ml-1 opacity-75">· {(item?.leads as any).cycle_days}d</span>
+              )}
+            </Badge>
+          )}
           {t.telegram_t7_sent_at && (
             <Badge className="bg-info/15 text-info border-info/30">
               <Bell className="h-3 w-3 mr-1" /> T-7 wysłany
