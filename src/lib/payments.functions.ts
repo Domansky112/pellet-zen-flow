@@ -139,7 +139,7 @@ export const markPaymentReminderSent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("leads")
-      .update({ payment_reminded_at: new Date().toISOString() })
+      .update({ payment_reminded_at: new Date().toISOString() } as any)
       .eq("id", data.leadId);
     if (error) throw new Error(error.message);
 
