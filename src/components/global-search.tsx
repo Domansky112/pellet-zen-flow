@@ -11,6 +11,7 @@ import { searchLeads, duplicateLead } from "@/lib/leads.functions";
 
 type Lead = {
   id: string;
+  lead_number: string | null;
   name: string;
   first_name: string | null;
   last_name: string | null;
@@ -23,6 +24,7 @@ type Lead = {
   reservation_status: "brak" | "zarezerwowany" | "zwolniony" | "wydany" | null;
   product: string | null;
   quantity: number | null;
+  urgent_no_fuel: boolean | null;
 };
 
 function useDebounced<T>(value: T, ms = 250) {
