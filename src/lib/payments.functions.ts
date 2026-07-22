@@ -119,7 +119,7 @@ export const settleTransportWithDriver = createServerFn({ method: "POST" })
 
     const { error: upErr } = await context.supabase
       .from("leads")
-      .update({ driver_settled_at: new Date().toISOString(), driver_settled_by: context.userId })
+      .update({ driver_settled_at: new Date().toISOString(), driver_settled_by: context.userId } as any)
       .in("id", leadIds);
     if (upErr) throw new Error(upErr.message);
     return { settled: leadIds.length };
