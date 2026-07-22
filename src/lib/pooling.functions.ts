@@ -101,7 +101,7 @@ export const listWaitlist = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, created_at",
+        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
