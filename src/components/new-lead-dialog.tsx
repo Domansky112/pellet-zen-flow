@@ -59,6 +59,13 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
         ? new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().slice(0, 10)
         : "",
     has_unloading_equipment: false,
+    delivery_window: "",
+    access_tight: false,
+    access_tonnage_limit: "",
+    access_unpaved: false,
+    payment_method: "",
+    payment_status: "",
+    urgent_no_fuel: false,
   });
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
