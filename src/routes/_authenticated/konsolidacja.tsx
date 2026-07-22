@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +32,15 @@ import {
   geocodePendingLeads,
   createPool,
   listPools,
+  addLeadToPool,
 } from "@/lib/pooling.functions";
 import { format } from "date-fns";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { PoolManifestDialog } from "@/components/pool-manifest-dialog";
 import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 import { pl } from "date-fns/locale";
+
+const PoolingMap = lazy(() => import("@/components/pooling-map"));
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
   head: () => ({
