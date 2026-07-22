@@ -243,6 +243,76 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               Klient posiada własny sprzęt do rozładunku (wózek / ładowarka)
             </Label>
           </div>
+
+          <div className="grid gap-1.5">
+            <Label>Preferowany termin / godziny dostawy</Label>
+            <Input
+              value={form.delivery_window}
+              onChange={(e) => set("delivery_window", e.target.value)}
+              placeholder="np. Środy po 15:00, dni robocze 8:00–14:00"
+            />
+          </div>
+
+          <div className="rounded-md border border-border/60 p-3 space-y-2">
+            <div className="text-sm font-medium">Ograniczenia dojazdu</div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="tight" checked={form.access_tight} onCheckedChange={(c) => set("access_tight", Boolean(c))} />
+              <Label htmlFor="tight" className="cursor-pointer text-sm font-normal">Ciasny wjazd / małe podwórko (wymaga mniejszego auta)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="unpaved" checked={form.access_unpaved} onCheckedChange={(c) => set("access_unpaved", Boolean(c))} />
+              <Label htmlFor="unpaved" className="cursor-pointer text-sm font-normal">Droga nieutwardzona / szutrowa</Label>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Ograniczenie tonażowe drogi (opcjonalnie)</Label>
+              <Input
+                value={form.access_tonnage_limit}
+                onChange={(e) => set("access_tonnage_limit", e.target.value)}
+                placeholder="np. do 3.5t, do 12t"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Forma płatności</Label>
+              <Select value={form.payment_method || "none"} onValueChange={(v) => set("payment_method", v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— nie ustalono —</SelectItem>
+                  <SelectItem value="gotowka">Gotówka przy odbiorze</SelectItem>
+                  <SelectItem value="karta_blik">Karta / BLIK u kierowcy</SelectItem>
+                  <SelectItem value="przedplata">Przedpłata – przelew</SelectItem>
+                  <SelectItem value="termin_7">Termin 7 dni</SelectItem>
+                  <SelectItem value="termin_14">Termin 14 dni</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Status płatności</Label>
+              <Select value={form.payment_status || "none"} onValueChange={(v) => set("payment_status", v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— nie ustalono —</SelectItem>
+                  <SelectItem value="oczekuje">Oczekuje</SelectItem>
+                  <SelectItem value="zaliczka">Zaliczka opłacona</SelectItem>
+                  <SelectItem value="zaplacone">Zapłacone w całości</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+            <Checkbox
+              id="urgent"
+              checked={form.urgent_no_fuel}
+              onCheckedChange={(c) => set("urgent_no_fuel", Boolean(c))}
+            />
+            <Label htmlFor="urgent" className="flex-1 cursor-pointer text-sm font-normal">
+              🚨 PILNE — brak opału u klienta
+            </Label>
+          </div>
+
           {willReserve && (
             <div className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
               <PackageCheck className="h-4 w-4 mt-0.5 text-primary" />
