@@ -63,36 +63,45 @@ export const geocodePendingLeads = createServerFn({ method: "POST" })
       .select("id, city, postal_code")
       .eq("pooling_enabled", true)
       .is("pooling_lat", null)
-      .limit(20);
+      .limit(50);
 
     let done = 0;
     let failed = 0;
     for (const lead of pending ?? []) {
-      const addr = [lead.postal_code, lead.city, "Polska"].filter(Boolean).join(", ");
-      if (!addr || addr === "Polska") continue;
-      try {
-        const geo = await geocodeAddress(addr);
-        if (!geo) {
-          failed++;
-          continue;
+      // Try in order: full (postal+city), postal only, city only
+      const attempts = [
+        [lead.postal_code, lead.city, "Polska"].filter(Boolean).join(", "),
+        lead.postal_code ? `${lead.postal_code}, Polska` : "",
+        lead.city ? `${lead.city}, Polska` : "",
+      ].filter((s) => s && s !== "Polska");
+
+      let geo: { lat: number; lng: number } | null = null;
+      for (const addr of attempts) {
+        try {
+          geo = await geocodeAddress(addr);
+          if (geo) break;
+        } catch (e) {
+          console.error("[geocode]", lead.id, addr, e);
         }
-        const km = haversineKm(BASE_LAT, BASE_LNG, geo.lat, geo.lng);
-        await context.supabase
-          .from("leads")
-          .update({
-            pooling_lat: geo.lat,
-            pooling_lng: geo.lng,
-            pooling_km_from_base: Math.round(km),
-          })
-          .eq("id", lead.id);
-        done++;
-      } catch (e) {
-        console.error("[geocode]", lead.id, e);
-        failed++;
       }
+      if (!geo) {
+        failed++;
+        continue;
+      }
+      const km = haversineKm(BASE_LAT, BASE_LNG, geo.lat, geo.lng);
+      await context.supabase
+        .from("leads")
+        .update({
+          pooling_lat: geo.lat,
+          pooling_lng: geo.lng,
+          pooling_km_from_base: Math.round(km),
+        })
+        .eq("id", lead.id);
+      done++;
     }
     return { done, failed, total: pending?.length ?? 0 };
   });
+
 
 // ---------- list waitlist ----------
 export const listWaitlist = createServerFn({ method: "GET" })

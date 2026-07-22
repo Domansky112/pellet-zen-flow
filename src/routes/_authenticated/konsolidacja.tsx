@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -135,6 +135,22 @@ function Konsolidacja() {
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
   const draftPools = activePools.filter((p: any) => p.status === "draft");
 
+  // Auto-geocode any pending leads (by postal_code / city) once on mount / when new items appear.
+  const autoGeoRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const pendingIds = (waitlist as any[])
+      .filter((l) => l.pooling_lat == null && (l.postal_code || l.city))
+      .map((l) => l.id)
+      .sort()
+      .join(",");
+    if (!pendingIds) return;
+    if (autoGeoRef.current.has(pendingIds)) return;
+    if (geocode.isPending) return;
+    autoGeoRef.current.add(pendingIds);
+    geocode.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitlist]);
+
   const mapPoints = useMemo(() => {
     const pts: any[] = [];
     const assignedIds = new Set<string>();
@@ -247,55 +263,6 @@ function Konsolidacja() {
           </CardContent>
         </Card>
 
-        {/* Mapa */}
-        <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" /> Mapa leadów i transportów
-              </CardTitle>
-              <CardDescription className="mt-1">
-                Wybierz draft transportu, żeby klikać „Dopisz" bezpośrednio na pinesce.
-              </CardDescription>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#2563eb]" /> wolny</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#f97316]" /> pilny / w kontakcie</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#16a34a]" /> w wybranym drafcie</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#eab308]" /> w innym drafcie</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#dc2626]" /> baza</span>
-              </div>
-            </div>
-            <div className="w-64 shrink-0">
-              <Label className="text-xs">Draft do dopisywania</Label>
-              <Select
-                value={selectedDraftId ?? "none"}
-                onValueChange={(v) => setSelectedDraftId(v === "none" ? null : v)}
-              >
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— brak —</SelectItem>
-                  {draftPools.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.total_tons}/{p.capacity_tons}t)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ClientOnly fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
-              <Suspense fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
-                <PoolingMap
-                  points={mapPoints}
-                  selectedPoolId={selectedDraftId}
-                  onOpenLead={(id) => navigate({ to: "/crm", search: { lead: id } as any })}
-                  onAssignToPool={(id) => assignMut.mutate(id)}
-                />
-              </Suspense>
-            </ClientOnly>
-          </CardContent>
-        </Card>
 
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -323,10 +290,14 @@ function Konsolidacja() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      {l.pooling_lat == null ? (
-                        <Badge variant="outline" className="text-warning border-warning/40">bez GPS</Badge>
-                      ) : (
+                      {l.pooling_lat != null ? (
                         <Badge variant="secondary">{Math.round(l.pooling_km_from_base ?? 0)} km</Badge>
+                      ) : l.postal_code ? (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> lokalizuję…
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-warning border-warning/40">brak adresu</Badge>
                       )}
                       {l.pooling_wait_until && (
                         <span className="text-[11px] text-muted-foreground">
@@ -400,6 +371,56 @@ function Konsolidacja() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Mapa */}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" /> Mapa leadów i transportów
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Wybierz draft transportu, żeby klikać „Dopisz" bezpośrednio na pinesce.
+              </CardDescription>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#2563eb]" /> wolny</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#f97316]" /> pilny / w kontakcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#16a34a]" /> w wybranym drafcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#eab308]" /> w innym drafcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#dc2626]" /> baza</span>
+              </div>
+            </div>
+            <div className="w-64 shrink-0">
+              <Label className="text-xs">Draft do dopisywania</Label>
+              <Select
+                value={selectedDraftId ?? "none"}
+                onValueChange={(v) => setSelectedDraftId(v === "none" ? null : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— brak —</SelectItem>
+                  {draftPools.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.total_tons}/{p.capacity_tons}t)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ClientOnly fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
+              <Suspense fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
+                <PoolingMap
+                  points={mapPoints}
+                  selectedPoolId={selectedDraftId}
+                  onOpenLead={(id) => navigate({ to: "/crm", search: { lead: id } as any })}
+                  onAssignToPool={(id) => assignMut.mutate(id)}
+                />
+              </Suspense>
+            </ClientOnly>
+          </CardContent>
+        </Card>
 
         {/* Drafty i potwierdzone */}
         <Card>
