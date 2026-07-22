@@ -522,6 +522,14 @@ export function LeadDetailDrawer({
       <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle className="flex items-center gap-3 flex-wrap">
+            {(lead as any).lead_number && (
+              <span className="font-mono text-sm px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                {(lead as any).lead_number}
+              </span>
+            )}
+            {(lead as any).urgent_no_fuel && (
+              <Badge className="bg-destructive text-destructive-foreground animate-pulse">🚨 PILNE — brak opału</Badge>
+            )}
             {lead.name}
             {lead.reservation_status === "zarezerwowany" && (
               <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
