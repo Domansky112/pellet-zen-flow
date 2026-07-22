@@ -203,6 +203,13 @@ const UpdateLeadInput = z.object({
   quantity: z.number().nonnegative().nullable().optional(),
   pooling_enabled: z.boolean().optional(),
   has_unloading_equipment: z.boolean().optional(),
+  delivery_window: z.string().trim().max(200).nullable().or(z.literal("")).optional(),
+  access_tight: z.boolean().optional(),
+  access_tonnage_limit: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  access_unpaved: z.boolean().optional(),
+  payment_method: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  payment_status: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
+  urgent_no_fuel: z.boolean().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })
