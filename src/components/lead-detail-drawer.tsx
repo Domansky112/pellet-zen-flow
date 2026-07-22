@@ -117,6 +117,7 @@ export function LeadDetailDrawer({
     pooling_enabled: false,
     has_unloading_equipment: false,
     quantity: "" as string,
+    product: "" as string,
   });
 
   useEffect(() => {
