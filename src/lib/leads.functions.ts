@@ -111,6 +111,8 @@ const CreateInput = z.object({
   payment_method: z.string().trim().max(50).optional().or(z.literal("")),
   payment_status: z.string().trim().max(50).optional().or(z.literal("")),
   urgent_no_fuel: z.boolean().default(false),
+  is_b2b_kurnik: z.boolean().default(false),
+  cycle_days: z.number().int().min(1).max(365).optional().nullable(),
 });
 
 export const createLead = createServerFn({ method: "POST" })
@@ -141,6 +143,8 @@ export const createLead = createServerFn({ method: "POST" })
       payment_method: data.payment_method || null,
       payment_status: data.payment_status || null,
       urgent_no_fuel: data.urgent_no_fuel,
+      is_b2b_kurnik: data.is_b2b_kurnik,
+      cycle_days: data.cycle_days ?? null,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
@@ -210,6 +214,8 @@ const UpdateLeadInput = z.object({
   payment_method: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
   payment_status: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
   urgent_no_fuel: z.boolean().optional(),
+  is_b2b_kurnik: z.boolean().optional(),
+  cycle_days: z.number().int().min(1).max(365).nullable().optional(),
 });
 
 export const updateLead = createServerFn({ method: "POST" })

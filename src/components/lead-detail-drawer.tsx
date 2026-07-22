@@ -125,6 +125,8 @@ export function LeadDetailDrawer({
     payment_method: "",
     payment_status: "",
     urgent_no_fuel: false,
+    is_b2b_kurnik: false,
+    cycle_days: "" as string,
   });
 
   useEffect(() => {
@@ -150,6 +152,8 @@ export function LeadDetailDrawer({
       payment_method: (lead as any).payment_method ?? "",
       payment_status: (lead as any).payment_status ?? "",
       urgent_no_fuel: !!(lead as any).urgent_no_fuel,
+      is_b2b_kurnik: !!(lead as any).is_b2b_kurnik,
+      cycle_days: (lead as any).cycle_days != null ? String((lead as any).cycle_days) : "",
     });
     setRendered(null);
     setTemplatesOpen(false);
@@ -216,8 +220,18 @@ export function LeadDetailDrawer({
       const oldProduct = (lead?.product ?? null) as string | null;
       const productChanged = (newProduct ?? null) !== (oldProduct ?? null);
 
-      const { quantity: _q, product: _p, ...rest } = form;
-      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty, product: newProduct } });
+      const { quantity: _q, product: _p, cycle_days: _cd, ...rest } = form;
+      const cycleDaysNum =
+        form.is_b2b_kurnik && form.cycle_days ? Number(form.cycle_days) : null;
+      await updateLeadFn({
+        data: {
+          id: lead!.id,
+          ...rest,
+          quantity: newQty,
+          product: newProduct,
+          cycle_days: cycleDaysNum,
+        },
+      });
 
       // If lead had an active reservation and product/quantity changed, resize/switch it:
       // release the old net reservation, then reserve the new quantity under the new product.
@@ -967,6 +981,33 @@ export function LeadDetailDrawer({
                     onCheckedChange={(v) => setForm({ ...form, urgent_no_fuel: v })}
                   />
                 </div>
+
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">🐔 Klient B2B — Kurnik / Fermy</div>
+                      <div className="text-xs text-muted-foreground">Cykliczne wstawienia — generuje przypomnienia w Kalendarzu Wstawień</div>
+                    </div>
+                    <Switch
+                      checked={form.is_b2b_kurnik}
+                      onCheckedChange={(v) => setForm({ ...form, is_b2b_kurnik: v })}
+                    />
+                  </div>
+                  {form.is_b2b_kurnik && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Długość cyklu / następne wstawienie za (dni)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={form.cycle_days}
+                        onChange={(e) => setForm({ ...form, cycle_days: e.target.value })}
+                        placeholder="30"
+                      />
+                    </div>
+                  )}
+                </div>
+
 
                 <div className="space-y-1">
                   <Label htmlFor="ld-dw">Preferowany termin / godziny dostawy</Label>

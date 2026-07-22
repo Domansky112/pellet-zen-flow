@@ -66,6 +66,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
     payment_method: "",
     payment_status: "",
     urgent_no_fuel: false,
+    is_b2b_kurnik: false,
+    cycle_days: "30",
   });
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
@@ -100,6 +102,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           payment_method: form.payment_method,
           payment_status: form.payment_status,
           urgent_no_fuel: form.urgent_no_fuel,
+          is_b2b_kurnik: form.is_b2b_kurnik,
+          cycle_days: form.is_b2b_kurnik ? (form.cycle_days ? Number(form.cycle_days) : 30) : null,
         },
       }),
     onSuccess: (row: any) => {
@@ -312,6 +316,38 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               🚨 PILNE — brak opału u klienta
             </Label>
           </div>
+
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="b2b-kurnik"
+                checked={form.is_b2b_kurnik}
+                onCheckedChange={(c) => set("is_b2b_kurnik", Boolean(c))}
+              />
+              <Label htmlFor="b2b-kurnik" className="flex-1 cursor-pointer text-sm font-medium">
+                🐔 Klient B2B — Kurnik / Fermy (cykliczne wstawienia)
+              </Label>
+            </div>
+            {form.is_b2b_kurnik && (
+              <div className="grid gap-1.5 pl-6">
+                <Label className="text-xs text-muted-foreground">
+                  Długość cyklu / następne wstawienie za (dni)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={form.cycle_days}
+                  onChange={(e) => set("cycle_days", e.target.value)}
+                  placeholder="30"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Po wydaniu towaru system automatycznie doda przypomnienie w Kalendarzu Wstawień.
+                </p>
+              </div>
+            )}
+          </div>
+
 
           {willReserve && (
             <div className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
