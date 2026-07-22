@@ -982,6 +982,33 @@ export function LeadDetailDrawer({
                   />
                 </div>
 
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">🐔 Klient B2B — Kurnik / Fermy</div>
+                      <div className="text-xs text-muted-foreground">Cykliczne wstawienia — generuje przypomnienia w Kalendarzu Wstawień</div>
+                    </div>
+                    <Switch
+                      checked={form.is_b2b_kurnik}
+                      onCheckedChange={(v) => setForm({ ...form, is_b2b_kurnik: v })}
+                    />
+                  </div>
+                  {form.is_b2b_kurnik && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Długość cyklu / następne wstawienie za (dni)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={form.cycle_days}
+                        onChange={(e) => setForm({ ...form, cycle_days: e.target.value })}
+                        placeholder="30"
+                      />
+                    </div>
+                  )}
+                </div>
+
+
                 <div className="space-y-1">
                   <Label htmlFor="ld-dw">Preferowany termin / godziny dostawy</Label>
                   <Input
