@@ -101,7 +101,7 @@ export const listWaitlist = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, created_at",
+        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
@@ -733,4 +733,67 @@ export const confirmPool = createServerFn({ method: "POST" })
 
 
     return { transport_id: transport.id };
+  });
+
+// ---------- add lead to existing draft pool ----------
+const AddLeadInput = z.object({
+  pool_id: z.string().uuid(),
+  lead_id: z.string().uuid(),
+});
+
+export const addLeadToPool = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => AddLeadInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: pool, error: pErr } = await context.supabase
+      .from("transport_pools")
+      .select("id, status, total_tons, capacity_tons")
+      .eq("id", data.pool_id)
+      .single();
+    if (pErr || !pool) throw new Error("Nie znaleziono transportu");
+    if (pool.status !== "draft") throw new Error("Do transportu można dopisywać tylko w statusie draft");
+
+    const { data: lead, error: lErr } = await context.supabase
+      .from("leads")
+      .select("id, name, quantity, reservation_status, pooling_lat, pooling_lng")
+      .eq("id", data.lead_id)
+      .single();
+    if (lErr || !lead) throw new Error("Nie znaleziono leada");
+    const tons = Number(lead.quantity ?? 0);
+    if (!tons) throw new Error("Lead nie ma określonego tonażu");
+
+    const newTotal = Number(pool.total_tons ?? 0) + tons;
+    if (newTotal > Number(pool.capacity_tons ?? 24)) {
+      throw new Error(`Przekroczono pojemność (${newTotal}t > ${pool.capacity_tons}t)`);
+    }
+
+    const { data: existing } = await context.supabase
+      .from("transport_pool_items")
+      .select("stop_order")
+      .eq("pool_id", data.pool_id);
+    const nextOrder = (existing ?? []).reduce((m, x: any) => Math.max(m, Number(x.stop_order ?? 0)), -1) + 1;
+
+    const { error: iErr } = await context.supabase.from("transport_pool_items").insert({
+      pool_id: data.pool_id,
+      lead_id: data.lead_id,
+      tons,
+      stop_order: nextOrder,
+    });
+    if (iErr) throw new Error(iErr.message);
+
+    await context.supabase
+      .from("transport_pools")
+      .update({ total_tons: newTotal })
+      .eq("id", data.pool_id);
+
+    await context.supabase
+      .from("leads")
+      .update({ pooling_status: "zgrupowany" })
+      .eq("id", data.lead_id);
+
+    if (lead.reservation_status !== "zarezerwowany") {
+      await context.supabase.rpc("reserve_stock_for_lead", { _lead_id: data.lead_id });
+    }
+
+    return { ok: true };
   });

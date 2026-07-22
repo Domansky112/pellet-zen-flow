@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +32,15 @@ import {
   geocodePendingLeads,
   createPool,
   listPools,
+  addLeadToPool,
 } from "@/lib/pooling.functions";
 import { format } from "date-fns";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { PoolManifestDialog } from "@/components/pool-manifest-dialog";
 import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
 import { pl } from "date-fns/locale";
+
+const PoolingMap = lazy(() => import("@/components/pooling-map"));
 
 export const Route = createFileRoute("/_authenticated/konsolidacja")({
   head: () => ({
@@ -50,12 +61,13 @@ const PRODUCT_LABEL: Record<string, string> = {
 
 function Konsolidacja() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const listFn = useServerFn(listWaitlist);
   const findFn = useServerFn(findPoolSuggestions);
   const geocodeFn = useServerFn(geocodePendingLeads);
   const createFn = useServerFn(createPool);
   const poolsFn = useServerFn(listPools);
-  
+  const addToPoolFn = useServerFn(addLeadToPool);
 
   const { data: waitlist } = useSuspenseQuery({ queryKey: ["waitlist"], queryFn: () => listFn() });
   const { data: pools } = useSuspenseQuery({ queryKey: ["pools"], queryFn: () => poolsFn() });
@@ -63,6 +75,7 @@ function Konsolidacja() {
   const [params, setParams] = useState({ maxDetourKm: 75, capacityTons: 24, minFillTons: 20 });
   const [confirmPoolId, setConfirmPoolId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
 
   const suggestions = useQuery({
     queryKey: ["pool-suggestions", params],
@@ -107,10 +120,65 @@ function Konsolidacja() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
+  const assignMut = useMutation({
+    mutationFn: (leadId: string) =>
+      (addToPoolFn as any)({ data: { pool_id: selectedDraftId!, lead_id: leadId } }),
+    onSuccess: () => {
+      toast.success("Dodano do transportu");
+      qc.invalidateQueries({ queryKey: ["waitlist"] });
+      qc.invalidateQueries({ queryKey: ["pools"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const needsGeocoding = waitlist.filter((l: any) => l.pooling_lat == null).length;
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
+  const draftPools = activePools.filter((p: any) => p.status === "draft");
+
+  const mapPoints = useMemo(() => {
+    const pts: any[] = [];
+    const assignedIds = new Set<string>();
+    for (const p of activePools) {
+      for (const it of p.transport_pool_items ?? []) {
+        const l = it.leads;
+        if (!l || l.pooling_lat == null || l.pooling_lng == null) continue;
+        assignedIds.add(l.id);
+        const isSelected = selectedDraftId && p.id === selectedDraftId;
+        pts.push({
+          id: l.id,
+          name: l.name,
+          city: l.city,
+          postal_code: l.postal_code,
+          product: l.product,
+          quantity: it.tons,
+          lat: l.pooling_lat,
+          lng: l.pooling_lng,
+          has_unloading_equipment: (l as any).has_unloading_equipment,
+          kind: isSelected ? "assigned" : "pending",
+        });
+      }
+    }
+    for (const l of waitlist as any[]) {
+      if (assignedIds.has(l.id)) continue;
+      if (l.pooling_lat == null || l.pooling_lng == null) continue;
+      pts.push({
+        id: l.id,
+        name: l.name,
+        city: l.city,
+        postal_code: l.postal_code,
+        product: l.product,
+        quantity: l.quantity,
+        lat: l.pooling_lat,
+        lng: l.pooling_lng,
+        has_unloading_equipment: l.has_unloading_equipment,
+        priority: l.priority,
+        status: l.status,
+        kind: "waitlist",
+      });
+    }
+    return pts;
+  }, [waitlist, activePools, selectedDraftId]);
+
 
   return (
     <>
@@ -178,6 +246,57 @@ function Konsolidacja() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Mapa */}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" /> Mapa leadów i transportów
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Wybierz draft transportu, żeby klikać „Dopisz" bezpośrednio na pinesce.
+              </CardDescription>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#2563eb]" /> wolny</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#f97316]" /> pilny / w kontakcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#16a34a]" /> w wybranym drafcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#eab308]" /> w innym drafcie</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded-full bg-[#dc2626]" /> baza</span>
+              </div>
+            </div>
+            <div className="w-64 shrink-0">
+              <Label className="text-xs">Draft do dopisywania</Label>
+              <Select
+                value={selectedDraftId ?? "none"}
+                onValueChange={(v) => setSelectedDraftId(v === "none" ? null : v)}
+              >
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— brak —</SelectItem>
+                  {draftPools.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.total_tons}/{p.capacity_tons}t)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ClientOnly fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
+              <Suspense fallback={<div className="h-[520px] w-full rounded-md border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mr-2" /> Ładowanie mapy…</div>}>
+                <PoolingMap
+                  points={mapPoints}
+                  selectedPoolId={selectedDraftId}
+                  onOpenLead={(id) => navigate({ to: "/crm", search: { lead: id } as any })}
+                  onAssignToPool={(id) => assignMut.mutate(id)}
+                />
+              </Suspense>
+            </ClientOnly>
+          </CardContent>
+        </Card>
+
 
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Poczekalnia */}
