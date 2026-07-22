@@ -198,33 +198,40 @@ export function LeadDetailDrawer({
       }
       const oldQty = lead?.quantity != null ? Number(lead.quantity) : null;
       const qtyChanged = (newQty ?? null) !== (oldQty ?? null);
+      const newProduct = (form.product || null) as "pellet_paleta" | "pellet_bigbag" | "inne" | null;
+      const oldProduct = (lead?.product ?? null) as string | null;
+      const productChanged = (newProduct ?? null) !== (oldProduct ?? null);
 
-      const { quantity: _q, ...rest } = form;
-      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty } });
+      const { quantity: _q, product: _p, ...rest } = form;
+      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty, product: newProduct } });
 
-      // If lead had an active reservation and quantity changed, resize it:
-      // release the old net reservation, then reserve the new quantity.
+      // If lead had an active reservation and product/quantity changed, resize/switch it:
+      // release the old net reservation, then reserve the new quantity under the new product.
       if (
-        qtyChanged &&
+        (qtyChanged || productChanged) &&
         lead?.reservation_status === "zarezerwowany" &&
         newQty !== null &&
         (newQty as number) > 0 &&
-        lead.product
+        newProduct
       ) {
         try {
           await releaseFn({ data: { lead_id: lead!.id } });
           await reserveFn({ data: { lead_id: lead!.id } });
         } catch (e) {
           throw new Error(
-            `Zapisano tonaż, ale nie udało się przeliczyć rezerwacji: ${(e as Error).message}`,
+            `Zapisano dane, ale nie udało się przeliczyć rezerwacji: ${(e as Error).message}`,
           );
         }
       }
-      return { qtyChanged };
+      return { qtyChanged, productChanged };
     },
-    onSuccess: ({ qtyChanged }) => {
+    onSuccess: ({ qtyChanged, productChanged }) => {
       invalidateLeads();
-      toast.success(qtyChanged ? "Zapisano — rezerwacja zaktualizowana" : "Zapisano zmiany");
+      toast.success(
+        qtyChanged || productChanged
+          ? "Zapisano — rezerwacja zaktualizowana"
+          : "Zapisano zmiany",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
