@@ -118,6 +118,13 @@ export function LeadDetailDrawer({
     has_unloading_equipment: false,
     quantity: "" as string,
     product: "" as string,
+    delivery_window: "",
+    access_tight: false,
+    access_tonnage_limit: "",
+    access_unpaved: false,
+    payment_method: "",
+    payment_status: "",
+    urgent_no_fuel: false,
   });
 
   useEffect(() => {
