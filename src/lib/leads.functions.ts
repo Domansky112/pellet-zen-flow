@@ -134,6 +134,13 @@ export const createLead = createServerFn({ method: "POST" })
       pooling_wait_until: data.pooling_wait_until || null,
       pooling_status: data.pooling_enabled ? "poczekalnia" : "brak",
       has_unloading_equipment: data.has_unloading_equipment,
+      delivery_window: data.delivery_window || null,
+      access_tight: data.access_tight,
+      access_tonnage_limit: data.access_tonnage_limit || null,
+      access_unpaved: data.access_unpaved,
+      payment_method: data.payment_method || null,
+      payment_status: data.payment_status || null,
+      urgent_no_fuel: data.urgent_no_fuel,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
