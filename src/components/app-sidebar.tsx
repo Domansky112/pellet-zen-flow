@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2 } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2, Wallet } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
