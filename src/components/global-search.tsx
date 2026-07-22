@@ -150,6 +150,12 @@ export function GlobalSearch({ className }: { className?: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
+                      {l.lead_number && (
+                        <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{l.lead_number}</span>
+                      )}
+                      {l.urgent_no_fuel && (
+                        <span className="text-xs font-semibold text-destructive">🚨 PILNE</span>
+                      )}
                       <span className="font-medium truncate">{l.name}</span>
                       {statusBadge(l)}
                     </div>
