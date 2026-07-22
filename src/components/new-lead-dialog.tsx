@@ -66,6 +66,8 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
     payment_method: "",
     payment_status: "",
     urgent_no_fuel: false,
+    is_b2b_kurnik: false,
+    cycle_days: "30",
   });
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
