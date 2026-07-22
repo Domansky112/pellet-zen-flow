@@ -339,10 +339,14 @@ function Konsolidacja() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
-                      {l.pooling_lat == null ? (
-                        <Badge variant="outline" className="text-warning border-warning/40">bez GPS</Badge>
-                      ) : (
+                      {l.pooling_lat != null ? (
                         <Badge variant="secondary">{Math.round(l.pooling_km_from_base ?? 0)} km</Badge>
+                      ) : l.postal_code ? (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" /> lokalizuję…
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-warning border-warning/40">brak adresu</Badge>
                       )}
                       {l.pooling_wait_until && (
                         <span className="text-[11px] text-muted-foreground">
