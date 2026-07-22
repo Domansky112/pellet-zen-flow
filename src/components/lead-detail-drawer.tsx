@@ -143,6 +143,13 @@ export function LeadDetailDrawer({
       has_unloading_equipment: !!lead.has_unloading_equipment,
       quantity: lead.quantity != null ? String(lead.quantity) : "",
       product: lead.product ?? "",
+      delivery_window: (lead as any).delivery_window ?? "",
+      access_tight: !!(lead as any).access_tight,
+      access_tonnage_limit: (lead as any).access_tonnage_limit ?? "",
+      access_unpaved: !!(lead as any).access_unpaved,
+      payment_method: (lead as any).payment_method ?? "",
+      payment_status: (lead as any).payment_status ?? "",
+      urgent_no_fuel: !!(lead as any).urgent_no_fuel,
     });
     setRendered(null);
     setTemplatesOpen(false);
