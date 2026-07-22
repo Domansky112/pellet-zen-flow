@@ -143,6 +143,8 @@ export const createLead = createServerFn({ method: "POST" })
       payment_method: data.payment_method || null,
       payment_status: data.payment_status || null,
       urgent_no_fuel: data.urgent_no_fuel,
+      is_b2b_kurnik: data.is_b2b_kurnik,
+      cycle_days: data.cycle_days ?? null,
       status: "nowy",
     };
     const { data: row, error } = await context.supabase
