@@ -102,55 +102,73 @@ function CalendarPage() {
   return (
     <>
       <PageHeader
-        title="Kalendarz transportów"
-        description="Planowane odbiory z automatyczną rezerwacją magazynu i alertami Telegram T-7 / T-4."
+        title="Kalendarz"
+        description="Transporty i cykliczne wstawienia B2B (Kurniki) w jednym miejscu."
         actions={<NewTransportDialog />}
       />
       <div className="p-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary" /> Nadchodzące ({upcoming.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">Ładuję…</p>
-            ) : upcoming.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Brak zaplanowanych transportów. Kliknij „Nowy transport" żeby dodać.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {upcoming.map((t) => (
-                  <TransportRow
-                    key={t.id}
-                    t={t}
-                    onDelete={(id) => del.mutate(id)}
-                    onReschedule={(id, d) => resched.mutate({ id, scheduled_date: d })}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="transports">
+          <TabsList>
+            <TabsTrigger value="transports">
+              <Truck className="h-4 w-4 mr-2" /> Transporty
+            </TabsTrigger>
+            <TabsTrigger value="poultry">
+              <Bird className="h-4 w-4 mr-2" /> Kalendarz Wstawień — Kurniki
+            </TabsTrigger>
+          </TabsList>
 
-        {past.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-muted-foreground">Historia ({past.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {past.slice(0, 20).map((t) => (
-                <TransportRow key={t.id} t={t} onDelete={(id) => del.mutate(id)} muted />
-              ))}
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="transports" className="space-y-6 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-primary" /> Nadchodzące ({upcoming.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground">Ładuję…</p>
+                ) : upcoming.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Brak zaplanowanych transportów. Kliknij „Nowy transport" żeby dodać.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {upcoming.map((t) => (
+                      <TransportRow
+                        key={t.id}
+                        t={t}
+                        onDelete={(id) => del.mutate(id)}
+                        onReschedule={(id, d) => resched.mutate({ id, scheduled_date: d })}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {past.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-muted-foreground">Historia ({past.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {past.slice(0, 20).map((t) => (
+                    <TransportRow key={t.id} t={t} onDelete={(id) => del.mutate(id)} muted />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="poultry" className="mt-4">
+            <PoultryCalendar />
+          </TabsContent>
+        </Tabs>
       </div>
     </>
   );
 }
+
 
 type TransportRow = Awaited<ReturnType<typeof listTransports>>[number];
 
