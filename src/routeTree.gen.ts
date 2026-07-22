@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUstawieniaRouteImport } from './routes/_authenticated/ustawienia'
 import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
+import { Route as AuthenticatedPlatnosciRouteImport } from './routes/_authenticated/platnosci'
 import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
 import { Route as AuthenticatedKonsolidacjaRouteImport } from './routes/_authenticated/konsolidacja'
 import { Route as AuthenticatedKalendarzRouteImport } from './routes/_authenticated/kalendarz'
@@ -54,6 +55,11 @@ const AuthenticatedUstawieniaRoute = AuthenticatedUstawieniaRouteImport.update({
 const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
   id: '/transport',
   path: '/transport',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPlatnosciRoute = AuthenticatedPlatnosciRouteImport.update({
+  id: '/platnosci',
+  path: '/platnosci',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMagazynRoute = AuthenticatedMagazynRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/kalendarz': typeof AuthenticatedKalendarzRoute
   '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
+  '/platnosci': typeof AuthenticatedPlatnosciRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/kalendarz': typeof AuthenticatedKalendarzRoute
   '/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/magazyn': typeof AuthenticatedMagazynRoute
+  '/platnosci': typeof AuthenticatedPlatnosciRoute
   '/transport': typeof AuthenticatedTransportRoute
   '/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/_authenticated/kalendarz': typeof AuthenticatedKalendarzRoute
   '/_authenticated/konsolidacja': typeof AuthenticatedKonsolidacjaRoute
   '/_authenticated/magazyn': typeof AuthenticatedMagazynRoute
+  '/_authenticated/platnosci': typeof AuthenticatedPlatnosciRoute
   '/_authenticated/transport': typeof AuthenticatedTransportRoute
   '/_authenticated/ustawienia': typeof AuthenticatedUstawieniaRoute
   '/api/public/leads': typeof ApiPublicLeadsRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/kalendarz'
     | '/konsolidacja'
     | '/magazyn'
+    | '/platnosci'
     | '/transport'
     | '/ustawienia'
     | '/api/public/leads'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/kalendarz'
     | '/konsolidacja'
     | '/magazyn'
+    | '/platnosci'
     | '/transport'
     | '/ustawienia'
     | '/api/public/leads'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kalendarz'
     | '/_authenticated/konsolidacja'
     | '/_authenticated/magazyn'
+    | '/_authenticated/platnosci'
     | '/_authenticated/transport'
     | '/_authenticated/ustawienia'
     | '/api/public/leads'
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: '/transport'
       fullPath: '/transport'
       preLoaderRoute: typeof AuthenticatedTransportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/platnosci': {
+      id: '/_authenticated/platnosci'
+      path: '/platnosci'
+      fullPath: '/platnosci'
+      preLoaderRoute: typeof AuthenticatedPlatnosciRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/magazyn': {
@@ -373,6 +392,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKalendarzRoute: typeof AuthenticatedKalendarzRoute
   AuthenticatedKonsolidacjaRoute: typeof AuthenticatedKonsolidacjaRoute
   AuthenticatedMagazynRoute: typeof AuthenticatedMagazynRoute
+  AuthenticatedPlatnosciRoute: typeof AuthenticatedPlatnosciRoute
   AuthenticatedTransportRoute: typeof AuthenticatedTransportRoute
   AuthenticatedUstawieniaRoute: typeof AuthenticatedUstawieniaRoute
 }
@@ -385,6 +405,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKalendarzRoute: AuthenticatedKalendarzRoute,
   AuthenticatedKonsolidacjaRoute: AuthenticatedKonsolidacjaRoute,
   AuthenticatedMagazynRoute: AuthenticatedMagazynRoute,
+  AuthenticatedPlatnosciRoute: AuthenticatedPlatnosciRoute,
   AuthenticatedTransportRoute: AuthenticatedTransportRoute,
   AuthenticatedUstawieniaRoute: AuthenticatedUstawieniaRoute,
 }
