@@ -605,7 +605,29 @@ export function LeadDetailDrawer({
                   Przypisz do mnie
                 </Button>
 
-                <div className="ml-auto flex flex-wrap gap-2">
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Produkt:</span>
+                    <Select
+                      value={form.product || ""}
+                      onValueChange={(v) => setForm({ ...form, product: v })}
+                    >
+                      <SelectTrigger className="h-7 w-[150px] border-0 bg-transparent px-1 text-sm focus:ring-0">
+                        <SelectValue placeholder="Wybierz…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pellet_paleta">Pellet — Paleta</SelectItem>
+                        <SelectItem value="pellet_bigbag">Pellet — Big Bag</SelectItem>
+                        <SelectItem value="inne">Inne</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.product !== (lead.product ?? "") && (
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
+                        {saveM.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Zastosuj"}
+                      </Button>
+                    )}
+                  </div>
+
                   {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
                     <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
                       {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
