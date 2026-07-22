@@ -220,8 +220,18 @@ export function LeadDetailDrawer({
       const oldProduct = (lead?.product ?? null) as string | null;
       const productChanged = (newProduct ?? null) !== (oldProduct ?? null);
 
-      const { quantity: _q, product: _p, ...rest } = form;
-      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty, product: newProduct } });
+      const { quantity: _q, product: _p, cycle_days: _cd, ...rest } = form;
+      const cycleDaysNum =
+        form.is_b2b_kurnik && form.cycle_days ? Number(form.cycle_days) : null;
+      await updateLeadFn({
+        data: {
+          id: lead!.id,
+          ...rest,
+          quantity: newQty,
+          product: newProduct,
+          cycle_days: cycleDaysNum,
+        },
+      });
 
       // If lead had an active reservation and product/quantity changed, resize/switch it:
       // release the old net reservation, then reserve the new quantity under the new product.
