@@ -93,6 +93,13 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           pooling_enabled: form.pooling_enabled,
           pooling_wait_until: form.pooling_enabled ? form.pooling_wait_until || null : null,
           has_unloading_equipment: form.has_unloading_equipment,
+          delivery_window: form.delivery_window.trim(),
+          access_tight: form.access_tight,
+          access_tonnage_limit: form.access_tonnage_limit.trim(),
+          access_unpaved: form.access_unpaved,
+          payment_method: form.payment_method,
+          payment_status: form.payment_status,
+          urgent_no_fuel: form.urgent_no_fuel,
         },
       }),
     onSuccess: (row: any) => {
