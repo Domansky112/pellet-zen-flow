@@ -66,8 +66,9 @@ export function LeadDetailDrawer({
   const qc = useQueryClient();
   const currentUser = useCurrentUser();
   const [rendered, setRendered] = useState<{ subject: string; body: string } | null>(null);
-  const [templatesOpen, setTemplatesOpen] = useState(true);
-  const [calcOpen, setCalcOpen] = useState(true);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // VAT calculator inputs
   const [pricePerTonNet, setPricePerTonNet] = useState<string>("");
@@ -116,6 +117,7 @@ export function LeadDetailDrawer({
     pooling_enabled: false,
     has_unloading_equipment: false,
     quantity: "" as string,
+    product: "" as string,
   });
 
   useEffect(() => {
@@ -133,10 +135,12 @@ export function LeadDetailDrawer({
       pooling_enabled: !!lead.pooling_enabled,
       has_unloading_equipment: !!lead.has_unloading_equipment,
       quantity: lead.quantity != null ? String(lead.quantity) : "",
+      product: lead.product ?? "",
     });
     setRendered(null);
-    setTemplatesOpen(true);
-    setCalcOpen(true);
+    setTemplatesOpen(false);
+    setCalcOpen(false);
+    setPreviewOpen(false);
     setPricePerTonNet("");
     setTransportNet("");
     setVatRate("23");
@@ -194,33 +198,40 @@ export function LeadDetailDrawer({
       }
       const oldQty = lead?.quantity != null ? Number(lead.quantity) : null;
       const qtyChanged = (newQty ?? null) !== (oldQty ?? null);
+      const newProduct = (form.product || null) as "pellet_paleta" | "pellet_bigbag" | "inne" | null;
+      const oldProduct = (lead?.product ?? null) as string | null;
+      const productChanged = (newProduct ?? null) !== (oldProduct ?? null);
 
-      const { quantity: _q, ...rest } = form;
-      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty } });
+      const { quantity: _q, product: _p, ...rest } = form;
+      await updateLeadFn({ data: { id: lead!.id, ...rest, quantity: newQty, product: newProduct } });
 
-      // If lead had an active reservation and quantity changed, resize it:
-      // release the old net reservation, then reserve the new quantity.
+      // If lead had an active reservation and product/quantity changed, resize/switch it:
+      // release the old net reservation, then reserve the new quantity under the new product.
       if (
-        qtyChanged &&
+        (qtyChanged || productChanged) &&
         lead?.reservation_status === "zarezerwowany" &&
         newQty !== null &&
         (newQty as number) > 0 &&
-        lead.product
+        newProduct
       ) {
         try {
           await releaseFn({ data: { lead_id: lead!.id } });
           await reserveFn({ data: { lead_id: lead!.id } });
         } catch (e) {
           throw new Error(
-            `Zapisano tonaż, ale nie udało się przeliczyć rezerwacji: ${(e as Error).message}`,
+            `Zapisano dane, ale nie udało się przeliczyć rezerwacji: ${(e as Error).message}`,
           );
         }
       }
-      return { qtyChanged };
+      return { qtyChanged, productChanged };
     },
-    onSuccess: ({ qtyChanged }) => {
+    onSuccess: ({ qtyChanged, productChanged }) => {
       invalidateLeads();
-      toast.success(qtyChanged ? "Zapisano — rezerwacja zaktualizowana" : "Zapisano zmiany");
+      toast.success(
+        qtyChanged || productChanged
+          ? "Zapisano — rezerwacja zaktualizowana"
+          : "Zapisano zmiany",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -594,7 +605,29 @@ export function LeadDetailDrawer({
                   Przypisz do mnie
                 </Button>
 
-                <div className="ml-auto flex flex-wrap gap-2">
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Produkt:</span>
+                    <Select
+                      value={form.product || ""}
+                      onValueChange={(v) => setForm({ ...form, product: v })}
+                    >
+                      <SelectTrigger className="h-7 w-[150px] border-0 bg-transparent px-1 text-sm focus:ring-0">
+                        <SelectValue placeholder="Wybierz…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pellet_paleta">Pellet — Paleta</SelectItem>
+                        <SelectItem value="pellet_bigbag">Pellet — Big Bag</SelectItem>
+                        <SelectItem value="inne">Inne</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.product !== (lead.product ?? "") && (
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => saveM.mutate()} disabled={saveM.isPending}>
+                        {saveM.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Zastosuj"}
+                      </Button>
+                    )}
+                  </div>
+
                   {lead.reservation_status !== "zarezerwowany" && lead.reservation_status !== "wydany" && (
                     <Button size="sm" onClick={() => reserveM.mutate()} disabled={reserveM.isPending || !lead.product || !lead.quantity}>
                       {reserveM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageCheck className="h-4 w-4 mr-2" />}
