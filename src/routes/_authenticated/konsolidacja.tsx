@@ -135,6 +135,23 @@ function Konsolidacja() {
   const activePools = pools.filter((p: any) => p.status !== "anulowany");
   const draftPools = activePools.filter((p: any) => p.status === "draft");
 
+  // Auto-geocode any pending leads (by postal_code / city) once on mount / when new items appear.
+  const autoGeoRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const pendingIds = (waitlist as any[])
+      .filter((l) => l.pooling_lat == null && (l.postal_code || l.city))
+      .map((l) => l.id)
+      .sort()
+      .join(",");
+    if (!pendingIds) return;
+    if (autoGeoRef.current.has(pendingIds)) return;
+    if (geocode.isPending) return;
+    autoGeoRef.current.add(pendingIds);
+    geocode.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitlist]);
+  const draftPools = activePools.filter((p: any) => p.status === "draft");
+
   const mapPoints = useMemo(() => {
     const pts: any[] = [];
     const assignedIds = new Set<string>();
