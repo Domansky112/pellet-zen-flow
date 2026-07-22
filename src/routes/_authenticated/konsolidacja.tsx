@@ -150,7 +150,6 @@ function Konsolidacja() {
     geocode.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [waitlist]);
-  const draftPools = activePools.filter((p: any) => p.status === "draft");
 
   const mapPoints = useMemo(() => {
     const pts: any[] = [];
