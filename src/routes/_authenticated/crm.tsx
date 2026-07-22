@@ -473,6 +473,16 @@ function LeadList({
                 </div>
                 <div className="min-w-0">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                    {(l as any).lead_number && (
+                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                        {(l as any).lead_number}
+                      </span>
+                    )}
+                    {(l as any).urgent_no_fuel && (
+                      <Badge className="bg-destructive text-destructive-foreground animate-pulse" variant="default">
+                        🚨 PILNE
+                      </Badge>
+                    )}
                     <span className="truncate">{l.name}</span>
                     {highPriority && (
                       <Badge className="bg-primary/15 text-primary border-primary/30" variant="outline">
