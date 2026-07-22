@@ -324,6 +324,7 @@ export type Database = {
           assigned_to: string | null
           city: string | null
           created_at: string
+          cycle_days: number | null
           deleted_at: string | null
           deleted_by: string | null
           deleted_reason: string | null
@@ -339,6 +340,7 @@ export type Database = {
           invoice_company: string | null
           invoice_nip: string | null
           invoice_number: string | null
+          is_b2b_kurnik: boolean
           last_name: string | null
           lead_number: string | null
           name: string
@@ -373,6 +375,7 @@ export type Database = {
           assigned_to?: string | null
           city?: string | null
           created_at?: string
+          cycle_days?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deleted_reason?: string | null
@@ -388,6 +391,7 @@ export type Database = {
           invoice_company?: string | null
           invoice_nip?: string | null
           invoice_number?: string | null
+          is_b2b_kurnik?: boolean
           last_name?: string | null
           lead_number?: string | null
           name: string
@@ -422,6 +426,7 @@ export type Database = {
           assigned_to?: string | null
           city?: string | null
           created_at?: string
+          cycle_days?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
           deleted_reason?: string | null
@@ -437,6 +442,7 @@ export type Database = {
           invoice_company?: string | null
           invoice_nip?: string | null
           invoice_number?: string | null
+          is_b2b_kurnik?: boolean
           last_name?: string | null
           lead_number?: string | null
           name?: string
@@ -509,6 +515,63 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      poultry_reminders: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          farm_name: string
+          id: string
+          lead_id: string
+          new_lead_id: string | null
+          notes: string | null
+          reminder_date: string
+          status: string
+          tonnage: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          farm_name: string
+          id?: string
+          lead_id: string
+          new_lead_id?: string | null
+          notes?: string | null
+          reminder_date: string
+          status?: string
+          tonnage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          farm_name?: string
+          id?: string
+          lead_id?: string
+          new_lead_id?: string | null
+          notes?: string | null
+          reminder_date?: string
+          status?: string
+          tonnage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poultry_reminders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poultry_reminders_new_lead_id_fkey"
+            columns: ["new_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_definitions: {
         Row: {
@@ -1007,6 +1070,7 @@ export type Database = {
           assigned_to: string | null
           city: string | null
           created_at: string
+          cycle_days: number | null
           deleted_at: string | null
           deleted_by: string | null
           deleted_reason: string | null
@@ -1022,6 +1086,7 @@ export type Database = {
           invoice_company: string | null
           invoice_nip: string | null
           invoice_number: string | null
+          is_b2b_kurnik: boolean
           last_name: string | null
           lead_number: string | null
           name: string
