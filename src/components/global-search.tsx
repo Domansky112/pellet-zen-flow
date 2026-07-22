@@ -111,7 +111,7 @@ export function GlobalSearch({ className }: { className?: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && results[0]) goToLead(results[0].id);
           }}
-          placeholder="Szukaj (imię, telefon, e-mail, NIP)…  ⌘K"
+          placeholder="Szukaj (# numer, imię, telefon, e-mail, NIP)…  ⌘K"
           className="pl-8 pr-8 w-full md:w-80"
           aria-label="Wyszukiwarka globalna"
         />
