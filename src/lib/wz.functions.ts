@@ -196,6 +196,7 @@ async function prepareFromTransport(
         phone: null,
         email: null,
         hasUnloadingEquipment: false,
+        leadNumber: null,
       },
     ],
     items,
