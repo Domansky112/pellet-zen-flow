@@ -104,6 +104,13 @@ const CreateInput = z.object({
   pooling_enabled: z.boolean().default(false),
   pooling_wait_until: z.string().optional().nullable(),
   has_unloading_equipment: z.boolean().default(false),
+  delivery_window: z.string().trim().max(200).optional().or(z.literal("")),
+  access_tight: z.boolean().default(false),
+  access_tonnage_limit: z.string().trim().max(50).optional().or(z.literal("")),
+  access_unpaved: z.boolean().default(false),
+  payment_method: z.string().trim().max(50).optional().or(z.literal("")),
+  payment_status: z.string().trim().max(50).optional().or(z.literal("")),
+  urgent_no_fuel: z.boolean().default(false),
 });
 
 export const createLead = createServerFn({ method: "POST" })
