@@ -89,7 +89,7 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
     if (data.receipt_number !== undefined) patch.receipt_number = data.receipt_number;
     if (data.payment_amount_gross !== undefined) patch.payment_amount_gross = data.payment_amount_gross;
 
-    const { error } = await context.supabase.from("leads").update(patch).eq("id", data.leadId);
+    const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
