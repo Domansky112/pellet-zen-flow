@@ -606,9 +606,6 @@ function LeadList({
 }
 
 function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => void }) {
-  const qc = useQueryClient();
-  const wydFn = useServerFn(confirmWydanie);
-
   if (items.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
@@ -642,23 +639,8 @@ function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => v
             </div>
           </CardHeader>
           <CardContent className="pt-0 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              onClick={async () => {
-                if (!confirm(`Wydać ${l.quantity} t z magazynu dla ${l.name}? To zdejmie towar ze stanu i oznaczy lead jako wygrany.`)) return;
-                try {
-                  await wydFn({ data: { lead_id: l.id } });
-                  toast.success(`Wydano ${l.quantity} t`);
-                  qc.invalidateQueries({ queryKey: ["leads"] });
-                  qc.invalidateQueries({ queryKey: ["reserved-leads"] });
-                  qc.invalidateQueries({ queryKey: ["stock-balance"] });
-                  qc.invalidateQueries({ queryKey: ["stock-events"] });
-                } catch (e) {
-                  toast.error((e as Error).message);
-                }
-              }}
-            >
-              <PackageOpen className="h-4 w-4 mr-2" /> Wydaj z magazynu
+            <Button size="sm" onClick={() => onOpen(l)}>
+              <PackageOpen className="h-4 w-4 mr-2" /> Wydaj i rozlicz
             </Button>
             <Button size="sm" variant="ghost" onClick={() => onOpen(l)}>
               Otwórz szczegóły
