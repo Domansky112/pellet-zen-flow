@@ -1278,6 +1278,28 @@ export function LeadDetailDrawer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SettlementDialog
+        open={settleOpen}
+        onOpenChange={setSettleOpen}
+        leadName={lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name) : undefined}
+        quantity={lead?.quantity ?? null}
+        defaultAmount={
+          Number.isFinite(vatCalc.sumBr) && vatCalc.sumBr > 0
+            ? Number(vatCalc.sumBr.toFixed(2))
+            : (lead?.payment_amount_gross ?? null)
+        }
+        defaultMethod={(lead?.payment_method as any) ?? "gotowka"}
+        submitting={wydanieM.isPending}
+        onConfirm={(r) => wydanieM.mutate(r)}
+        title={settleMode === "wydanie" ? "Wydaj z magazynu i rozlicz" : "Zamknij lead jako Zrealizowany"}
+        description={
+          settleMode === "wydanie"
+            ? "Potwierdź ostateczną kwotę i formę płatności. Rezerwacja zostanie zamieniona na wydanie."
+            : "Zanim oznaczysz leada jako Zrealizowany, potwierdź kwotę i formę płatności — trafi to od razu do modułu Płatności."
+        }
+        confirmLabel={settleMode === "wydanie" ? "Wydaj i zapisz rozliczenie" : "Zatwierdź i oznacz Zrealizowany"}
+      />
     </Dialog>
   );
 }
