@@ -1287,9 +1287,9 @@ export function LeadDetailDrawer({
         defaultAmount={
           Number.isFinite(vatCalc.sumBr) && vatCalc.sumBr > 0
             ? Number(vatCalc.sumBr.toFixed(2))
-            : (lead?.payment_amount_gross ?? null)
+            : ((lead as any)?.payment_amount_gross ?? null)
         }
-        defaultMethod={(lead?.payment_method as any) ?? "gotowka"}
+        defaultMethod={((lead as any)?.payment_method as any) ?? "gotowka"}
         submitting={wydanieM.isPending}
         onConfirm={(r) => wydanieM.mutate(r)}
         title={settleMode === "wydanie" ? "Wydaj z magazynu i rozlicz" : "Zamknij lead jako Zrealizowany"}
