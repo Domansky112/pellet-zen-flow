@@ -709,7 +709,7 @@ export function LeadDetailDrawer({
                   )}
                   {lead.reservation_status === "zarezerwowany" && (
                     <>
-                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                      <Button size="sm" onClick={() => { setSettleMode("wydanie"); setPendingStatusKey(null); setSettleOpen(true); }} disabled={wydanieM.isPending}>
                         {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
                         Wydaj z magazynu
                       </Button>
