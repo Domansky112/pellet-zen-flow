@@ -517,6 +517,12 @@ function LeadList({
                 <Select
                   value={currentKey}
                   onValueChange={async (v) => {
+                    // Zamykanie leada na "Zrealizowany" wymaga potwierdzenia kwoty → otwórz kartę leada
+                    if (v === "wygrany" && currentKey !== "wygrany") {
+                      onOpen(l);
+                      toast.message("Potwierdź kwotę rozliczenia w karcie leada");
+                      return;
+                    }
                     try {
                       await setStatusFn({ data: { id: l.id, status_key: v } });
                       qc.invalidateQueries({ queryKey: ["leads"] });
