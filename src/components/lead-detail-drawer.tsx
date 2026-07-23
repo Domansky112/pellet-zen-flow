@@ -24,7 +24,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.functions";
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
-import { reserveLead, confirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
+import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
+import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -93,8 +94,14 @@ export function LeadDetailDrawer({
   const delFn = useServerFn(deleteNote);
   const reserveFn = useServerFn(reserveLead);
   const wydanieFn = useServerFn(confirmWydanie);
+  const settleFn = useServerFn(settleAndConfirmWydanie);
   const updateLeadFn = useServerFn(updateLead);
   const releaseFn = useServerFn(releaseReservation);
+
+  // Settlement dialog state (used when marking lead as "Zrealizowany" or issuing WZ)
+  const [settleOpen, setSettleOpen] = useState(false);
+  const [settleMode, setSettleMode] = useState<"wydanie" | "status">("wydanie");
+  const [pendingStatusKey, setPendingStatusKey] = useState<string | null>(null);
 
   const statusesQuery = useQuery({
     queryKey: ["lead-statuses"],
@@ -198,8 +205,38 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
   const wydanieM = useMutation({
-    mutationFn: () => wydanieFn({ data: { lead_id: lead!.id } }),
-    onSuccess: () => { invalidateLeads(); onOpenChange(false); toast.success("Wydano z magazynu"); },
+    mutationFn: (r: SettlementResult) =>
+      settleFn({
+        data: {
+          lead_id: lead!.id,
+          payment_amount_gross: r.payment_amount_gross,
+          payment_method: r.payment_method,
+          collected_on_site: r.collected_on_site,
+          skip_wydanie: settleMode === "status",
+        },
+      }),
+    onSuccess: async () => {
+      // If triggered from a status change, also persist the status flip.
+      if (settleMode === "status" && pendingStatusKey) {
+        try {
+          await setStatusFn({ data: { id: lead!.id, status_key: pendingStatusKey } });
+        } catch (e) {
+          toast.error(`Rozliczenie zapisane, ale nie udało się zmienić statusu: ${(e as Error).message}`);
+        }
+      }
+      setSettleOpen(false);
+      setPendingStatusKey(null);
+      invalidateLeads();
+      qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["payments-delivered-no-transport"] });
+      if (settleMode === "wydanie") {
+        onOpenChange(false);
+        toast.success("Wydano z magazynu — rozliczenie zapisane");
+      } else {
+        toast.success("Lead oznaczony jako Zrealizowany — rozliczenie zapisane");
+      }
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const releaseM = useMutation({
@@ -584,6 +621,13 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
+                  // Intercept "wygrany" (Zrealizowany) — open settlement dialog first
+                  if (v === "wygrany" && (lead.status_key ?? lead.status) !== "wygrany") {
+                    setSettleMode("status");
+                    setPendingStatusKey(v);
+                    setSettleOpen(true);
+                    return;
+                  }
                   try {
                     await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
@@ -672,7 +716,7 @@ export function LeadDetailDrawer({
                   )}
                   {lead.reservation_status === "zarezerwowany" && (
                     <>
-                      <Button size="sm" onClick={() => wydanieM.mutate()} disabled={wydanieM.isPending}>
+                      <Button size="sm" onClick={() => { setSettleMode("wydanie"); setPendingStatusKey(null); setSettleOpen(true); }} disabled={wydanieM.isPending}>
                         {wydanieM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <PackageOpen className="h-4 w-4 mr-2" />}
                         Wydaj z magazynu
                       </Button>
@@ -1234,6 +1278,28 @@ export function LeadDetailDrawer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SettlementDialog
+        open={settleOpen}
+        onOpenChange={setSettleOpen}
+        leadName={lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name) : undefined}
+        quantity={lead?.quantity ?? null}
+        defaultAmount={
+          Number.isFinite(vatCalc.sumBr) && vatCalc.sumBr > 0
+            ? Number(vatCalc.sumBr.toFixed(2))
+            : ((lead as any)?.payment_amount_gross ?? null)
+        }
+        defaultMethod={((lead as any)?.payment_method as any) ?? "gotowka"}
+        submitting={wydanieM.isPending}
+        onConfirm={(r) => wydanieM.mutate(r)}
+        title={settleMode === "wydanie" ? "Wydaj z magazynu i rozlicz" : "Zamknij lead jako Zrealizowany"}
+        description={
+          settleMode === "wydanie"
+            ? "Potwierdź ostateczną kwotę i formę płatności. Rezerwacja zostanie zamieniona na wydanie."
+            : "Zanim oznaczysz leada jako Zrealizowany, potwierdź kwotę i formę płatności — trafi to od razu do modułu Płatności."
+        }
+        confirmLabel={settleMode === "wydanie" ? "Wydaj i zapisz rozliczenie" : "Zatwierdź i oznacz Zrealizowany"}
+      />
     </Dialog>
   );
 }

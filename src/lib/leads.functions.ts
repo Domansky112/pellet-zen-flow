@@ -191,6 +191,64 @@ export const confirmWydanie = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const SettleAndWydanieInput = z.object({
+  lead_id: z.string().uuid(),
+  payment_amount_gross: z.number().nonnegative().max(10_000_000),
+  payment_method: z.enum(["gotowka", "karta_blik", "przelew"]),
+  collected_on_site: z.boolean(),
+  skip_wydanie: z.boolean().optional().default(false),
+});
+
+// Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu.
+// Wywoływane z modala potwierdzającego zmianę statusu leada na "Zrealizowany".
+export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => SettleAndWydanieInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const payment_status =
+      data.payment_method === "przelew"
+        ? data.collected_on_site
+          ? "oplacone_przelew"
+          : "czeka_przelew"
+        : data.collected_on_site
+          ? "oplacone_gotowka"
+          : "nieoplacone";
+
+    const { error: upErr } = await context.supabase
+      .from("leads")
+      .update({
+        payment_amount_gross: data.payment_amount_gross,
+        payment_method: data.payment_method,
+        payment_status,
+      } as any)
+      .eq("id", data.lead_id);
+    if (upErr) throw new Error(upErr.message);
+
+    if (!data.skip_wydanie) {
+      const { error } = await context.supabase.rpc("release_reservation_as_wydanie", {
+        _lead_id: data.lead_id,
+      });
+      if (error) throw new Error(error.message);
+    }
+
+    // audit note
+    const methodLabel =
+      data.payment_method === "gotowka"
+        ? "Gotówka u kierowcy"
+        : data.payment_method === "karta_blik"
+          ? "Karta / BLIK u kierowcy"
+          : "Przelew bankowy";
+    await context.supabase.from("lead_notes").insert({
+      lead_id: data.lead_id,
+      author_id: context.userId,
+      body: `💰 Rozliczenie: ${data.payment_amount_gross.toFixed(2)} zł brutto · ${methodLabel} · ${
+        data.collected_on_site ? "pobrane na miejscu" : "oczekuje na przelew"
+      }`,
+    });
+
+    return { ok: true, payment_status };
+  });
+
 const UpdateLeadInput = z.object({
   id: z.string().uuid(),
   first_name: z.string().trim().max(120).nullable().optional(),
