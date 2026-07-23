@@ -621,6 +621,13 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
+                  // Intercept "wygrany" (Zrealizowany) — open settlement dialog first
+                  if (v === "wygrany" && (lead.status_key ?? lead.status) !== "wygrany") {
+                    setSettleMode("status");
+                    setPendingStatusKey(v);
+                    setSettleOpen(true);
+                    return;
+                  }
                   try {
                     await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
