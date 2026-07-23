@@ -94,8 +94,14 @@ export function LeadDetailDrawer({
   const delFn = useServerFn(deleteNote);
   const reserveFn = useServerFn(reserveLead);
   const wydanieFn = useServerFn(confirmWydanie);
+  const settleFn = useServerFn(settleAndConfirmWydanie);
   const updateLeadFn = useServerFn(updateLead);
   const releaseFn = useServerFn(releaseReservation);
+
+  // Settlement dialog state (used when marking lead as "Zrealizowany" or issuing WZ)
+  const [settleOpen, setSettleOpen] = useState(false);
+  const [settleMode, setSettleMode] = useState<"wydanie" | "status">("wydanie");
+  const [pendingStatusKey, setPendingStatusKey] = useState<string | null>(null);
 
   const statusesQuery = useQuery({
     queryKey: ["lead-statuses"],
