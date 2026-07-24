@@ -214,6 +214,25 @@ export function PoultryCalendar() {
                         </Button>
                       )}
 
+                      {lead?.id && !r.new_lead_id && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={generateOrder.isPending}
+                          onClick={() => generateOrder.mutate({ reminderId: r.id, leadId: lead.id })}
+                        >
+                          <PlusCircle className="h-3 w-3 mr-1" />
+                          {generateOrder.isPending ? "Generuję…" : "Generuj nowe zamówienie"}
+                        </Button>
+                      )}
+                      {r.new_lead_id && (
+                        <Button asChild size="sm" variant="secondary">
+                          <a href={`/crm?lead=${r.new_lead_id}`}>
+                            <ArrowRight className="h-3 w-3 mr-1" /> Otwórz nowe zamówienie
+                          </a>
+                        </Button>
+                      )}
+
                       <Button
                         size="sm"
                         variant="ghost"
