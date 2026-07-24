@@ -10,11 +10,23 @@ export const listTransports = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transports")
       .select(
-        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name, is_b2b_kurnik, cycle_days))",
+        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name, is_b2b_kurnik, cycle_days, deleted_at, status))",
       )
       .order("scheduled_date", { ascending: true });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Hide transport_items whose lead was cancelled (soft-deleted or status=przegrany).
+    // Items with no lead_id (ad-hoc transports) are kept.
+    return (data ?? []).map((t: any) => ({
+      ...t,
+      transport_items: (t.transport_items ?? []).filter((it: any) => {
+        if (!it.lead_id) return true;
+        const l = it.leads;
+        if (!l) return true;
+        if (l.deleted_at) return false;
+        if (l.status === "przegrany") return false;
+        return true;
+      }),
+    }));
   });
 
 export const createTransport = createServerFn({ method: "POST" })
