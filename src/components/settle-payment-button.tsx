@@ -49,6 +49,7 @@ export function SettlePaymentButton({
           collected_on_site: r.collected_on_site,
           skip_wydanie: true,
           new_status_key: null,
+          delivered_at: r.delivered_at,
         },
       }),
     onSuccess: () => {

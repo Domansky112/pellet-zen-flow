@@ -11,6 +11,7 @@ export type SettlementResult = {
   payment_amount_gross: number;
   payment_method: "gotowka" | "karta_blik" | "przelew";
   collected_on_site: boolean;
+  delivered_at: string; // ISO date yyyy-mm-dd
 };
 
 const methodLabel: Record<SettlementResult["payment_method"], string> = {
@@ -44,9 +45,17 @@ export function SettlementDialog({
   description?: string;
   confirmLabel?: string;
 }) {
+  const todayIso = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<SettlementResult["payment_method"]>("gotowka");
   const [collected, setCollected] = useState<boolean>(true);
+  const [deliveredAt, setDeliveredAt] = useState<string>(todayIso());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,6 +63,7 @@ export function SettlementDialog({
       setAmount(defaultAmount != null && Number.isFinite(defaultAmount) ? String(defaultAmount) : "");
       setMethod(defaultMethod ?? "gotowka");
       setCollected(true);
+      setDeliveredAt(todayIso());
       setError(null);
     }
   }, [open, defaultAmount, defaultMethod]);
@@ -71,8 +81,12 @@ export function SettlementDialog({
       setError("Podaj poprawną kwotę (liczba ≥ 0).");
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveredAt)) {
+      setError("Podaj poprawną datę dostawy.");
+      return;
+    }
     setError(null);
-    await onConfirm({ payment_amount_gross: n, payment_method: method, collected_on_site: collected });
+    await onConfirm({ payment_amount_gross: n, payment_method: method, collected_on_site: collected, delivered_at: deliveredAt });
   };
 
   return (
@@ -112,6 +126,21 @@ export function SettlementDialog({
               </p>
             )}
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="settlement-delivered-at">Data dostawy / realizacji</Label>
+            <Input
+              id="settlement-delivered-at"
+              type="date"
+              value={deliveredAt}
+              max={todayIso()}
+              onChange={(e) => setDeliveredAt(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Trafi do Historii dostaw i do bilansu finansowego w tym dniu.
+            </p>
+          </div>
+
 
           <div className="space-y-1.5">
             <Label>Forma płatności</Label>

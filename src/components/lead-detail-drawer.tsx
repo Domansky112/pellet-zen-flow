@@ -216,6 +216,7 @@ export function LeadDetailDrawer({
           skip_wydanie: settleMode === "status",
           // When triggered from a status change → include the status flip in the same DB transaction.
           new_status_key: settleMode === "status" ? pendingStatusKey : null,
+          delivered_at: r.delivered_at,
         },
       }),
     onSuccess: async () => {
