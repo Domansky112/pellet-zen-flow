@@ -32,6 +32,9 @@ import {
   getFinancialSummary,
   listPaymentAuditLog,
 } from "@/lib/payments.functions";
+import { backfillMissingPayments } from "@/lib/leads.functions";
+import { useIsAdmin } from "@/hooks/use-is-admin";
+import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { getWzDocument } from "@/lib/wz.functions";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
@@ -138,11 +141,27 @@ function PaymentsPage() {
 
 // ─── Bilans (przychód − koszty) ──────────────────────────────
 function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void }) {
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const backfillFn = useServerFn(backfillMissingPayments);
   const q = useQuery({
     queryKey: ["financial-summary", from, to],
     queryFn: () => getFinancialSummary({ data: { from, to } }),
   });
   const s = q.data;
+
+  const backfillM = useMutation({
+    mutationFn: async () => backfillFn(),
+    onSuccess: (r: any) => {
+      toast.success(`Zsynchronizowano płatności (uzupełniono: ${r.backfilled ?? 0})`);
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+      qc.invalidateQueries({ queryKey: ["payments-orphans"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   return (
     <Card>
