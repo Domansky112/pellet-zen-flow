@@ -69,19 +69,39 @@ const PaymentStatusEnum = z.enum([
   "zaliczka",
 ]);
 
+const AmountLike = z.preprocess((v) => {
+  if (v === null || v === undefined) return v;
+  if (typeof v === "string") {
+    const cleaned = v.trim().replace(/\s+/g, "").replace(",", ".");
+    if (cleaned === "") return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : v;
+  }
+  return v;
+}, z.number().nonnegative().max(10_000_000).nullable());
+
 const UpdatePaymentInput = z.object({
   leadId: z.string().uuid(),
   payment_status: PaymentStatusEnum.optional(),
-  payment_method: z.string().optional(),
+  payment_method: z.string().max(50).optional(),
   invoice_number: z.string().max(64).nullable().optional(),
   receipt_number: z.string().max(64).nullable().optional(),
-  payment_amount_gross: z.number().nonnegative().nullable().optional(),
+  payment_amount_gross: AmountLike.optional(),
 });
+
+async function assertStaff(context: { supabase: any; userId: string }) {
+  const [{ data: isAdmin }, { data: isSales }] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "sales" }),
+  ]);
+  if (!isAdmin && !isSales) throw new Error("Brak uprawnień — wymagana rola admin/sales.");
+}
 
 export const updateLeadPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdatePaymentInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const patch: Record<string, unknown> = {};
     if (data.payment_status !== undefined) patch.payment_status = data.payment_status;
     if (data.payment_method !== undefined) patch.payment_method = data.payment_method;
@@ -90,7 +110,7 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
     if (data.payment_amount_gross !== undefined) patch.payment_amount_gross = data.payment_amount_gross;
 
     const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`Payment sync failed for Lead ${data.leadId.slice(0, 8)}: ${error.message}`);
 
     await context.supabase.from("audit_log").insert({
       entity_type: "payment",
@@ -102,6 +122,7 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
 
 // ─────────────────────────────────────────────────────────────
 // Rozliczenie trasy z kierowcą (oznacza gotówkowe płatności jako przyjęte do kasy)
