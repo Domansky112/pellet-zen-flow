@@ -622,8 +622,9 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
-                  // Intercept "wygrany" (Zrealizowany) — open settlement dialog first
-                  if (v === "wygrany" && (lead.status_key ?? lead.status) !== "wygrany") {
+                  // Intercept "wygrany" (Zrealizowany) — ALWAYS open settlement dialog,
+                  // even if the lead was already marked as realized (payment could be missing).
+                  if (v === "wygrany") {
                     setSettleMode("status");
                     setPendingStatusKey(v);
                     setSettleOpen(true);
