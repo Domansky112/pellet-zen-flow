@@ -627,6 +627,14 @@ function LeadPaymentRow({ lead }: { lead: any }) {
         <PaymentStatusBadge status={lead.payment_status} />
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {!lead.payment_amount_gross && (
+          <SettlePaymentButton
+            leadId={lead.id}
+            leadName={leadDisplayName(lead)}
+            quantity={lead.quantity ?? null}
+            label="Uzupełnij płatność"
+          />
+        )}
         {needsReminder && (
           <>
             <Button size="sm" variant="outline" onClick={() => sendReminder("email")} title="Wyślij e-mail"><MailIcon className="h-4 w-4" /></Button>
