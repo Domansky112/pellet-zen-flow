@@ -1,15 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck, ExternalLink } from "lucide-react";
-import { listDeliveryHistory } from "@/lib/leads.functions";
+import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck, ExternalLink, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { listDeliveryHistory, getDeliveryHistoryConsistency, syncDeliveryHistory } from "@/lib/leads.functions";
 import { TransportDetailDialog } from "@/components/transport-detail-dialog";
+import { useIsAdmin } from "@/hooks/use-is-admin";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -30,7 +33,8 @@ function HistoriaPage() {
   const [search, setSearch] = useState<string>("");
   const [poolingOnly, setPoolingOnly] = useState(false);
   const [openTransportId, setOpenTransportId] = useState<string | null>(null);
-
+  const isAdmin = useIsAdmin();
+  const qc = useQueryClient();
 
   const filters = useMemo(
     () => ({ from: from || null, to: to || null, search: search || null, pooling_only: poolingOnly }),
@@ -42,19 +46,83 @@ function HistoriaPage() {
     queryFn: () => listDeliveryHistory({ data: filters }),
   });
 
+  const consistencyFn = useServerFn(getDeliveryHistoryConsistency);
+  const consistency = useQuery({
+    queryKey: ["delivery-history-consistency"],
+    queryFn: () => consistencyFn(),
+  });
+
+  const syncFn = useServerFn(syncDeliveryHistory);
+  const syncM = useMutation({
+    mutationFn: () => syncFn(),
+    onSuccess: (r) => {
+      toast.success(`Zsynchronizowano historię dostaw (uzupełniono: ${r.fixed})`);
+      qc.invalidateQueries({ queryKey: ["delivery-history"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history-consistency"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const totalTons = (q.data ?? []).reduce((s, r) => s + Number(r.quantity ?? 0), 0);
 
   return (
     <>
       <PageHeader
         title="Historia transportów"
-        description="Zrealizowane dostawy — po wydaniu towaru z magazynu."
+        description="Zrealizowane dostawy — po wydaniu towaru z magazynu lub oznaczeniu leada jako Zrealizowany."
         actions={
-          <Button variant="outline" onClick={() => q.refetch()}>
+          <Button variant="outline" onClick={() => { q.refetch(); consistency.refetch(); }}>
             <RefreshCw className="mr-2 h-4 w-4" /> Odśwież
           </Button>
         }
       />
+      <div className="p-6 space-y-4">
+        {/* Consistency counter (X vs Y) */}
+        <Card
+          className={
+            consistency.data?.in_sync
+              ? "border-emerald-500/40 bg-emerald-500/5"
+              : "border-amber-500/50 bg-amber-500/5"
+          }
+        >
+          <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              {consistency.data?.in_sync ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              )}
+              <span>
+                Liczba zrealizowanych leadów:{" "}
+                <b className="text-foreground">{consistency.data?.realized ?? "…"}</b>
+              </span>
+              <span>·</span>
+              <span>
+                Liczba wpisów w historii:{" "}
+                <b className="text-foreground">{consistency.data?.history ?? "…"}</b>
+              </span>
+              {consistency.data && (
+                consistency.data.in_sync ? (
+                  <Badge className="bg-emerald-600 hover:bg-emerald-600">Spójność 100%</Badge>
+                ) : (
+                  <Badge variant="destructive">
+                    Rozbieżność: brakuje {consistency.data.missing} wpis(ów)
+                  </Badge>
+                )
+              )}
+            </div>
+            {consistency.data && !consistency.data.in_sync && isAdmin && (
+              <Button size="sm" onClick={() => syncM.mutate()} disabled={syncM.isPending}>
+                {syncM.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Synchronizuj Historię Dostaw
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       <div className="p-6 space-y-4">
         <Card>
           <CardContent className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
