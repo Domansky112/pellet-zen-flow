@@ -432,10 +432,13 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => HistoryFilterInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    // A Lead belongs to Delivery History when it is marked "Zrealizowany"
+    // (status_key = 'wygrany') OR when its warehouse reservation has been released
+    // as "wydany". Both paths share a 1:1 relation with a delivery history entry.
     let q = context.supabase
       .from("leads")
       .select("*")
-      .eq("reservation_status", "wydany")
+      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(500);
@@ -453,6 +456,7 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
     const { data: leads, error } = await q;
     if (error) throw new Error(error.message);
     const rows = leads ?? [];
+
 
     const ids = rows.map((r) => r.id);
     const itemsByLead = new Map<string, { transport_id: string }[]>();
