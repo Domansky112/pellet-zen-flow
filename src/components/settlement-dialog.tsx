@@ -128,6 +128,21 @@ export function SettlementDialog({
           </div>
 
           <div className="space-y-1.5">
+            <Label htmlFor="settlement-delivered-at">Data dostawy / realizacji</Label>
+            <Input
+              id="settlement-delivered-at"
+              type="date"
+              value={deliveredAt}
+              max={todayIso()}
+              onChange={(e) => setDeliveredAt(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Trafi do Historii dostaw i do bilansu finansowego w tym dniu.
+            </p>
+          </div>
+
+
+          <div className="space-y-1.5">
             <Label>Forma płatności</Label>
             <Select value={method} onValueChange={(v) => setMethod(v as SettlementResult["payment_method"])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
