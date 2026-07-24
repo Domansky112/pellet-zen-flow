@@ -246,6 +246,20 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
       }`,
     });
 
+    // financial audit log
+    await context.supabase.from("audit_log").insert({
+      entity_type: "payment",
+      entity_id: data.lead_id,
+      action: "settlement",
+      actor_id: context.userId,
+      details: {
+        amount: data.payment_amount_gross,
+        method: data.payment_method,
+        collected_on_site: data.collected_on_site,
+        payment_status,
+      },
+    } as any);
+
     return { ok: true, payment_status };
   });
 
