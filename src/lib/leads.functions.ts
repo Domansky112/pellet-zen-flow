@@ -208,6 +208,7 @@ const SettleAndWydanieInput = z.object({
   collected_on_site: z.boolean(),
   skip_wydanie: z.boolean().optional().default(false),
   new_status_key: z.string().trim().min(1).max(40).optional().nullable(),
+  delivered_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
 
 // Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu + (opcjonalnie) ustaw status.
@@ -227,6 +228,19 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
     if (error) {
       throw new Error(`Payment sync failed for Lead ${data.lead_id.slice(0, 8)}: ${error.message}`);
     }
+
+    // Nadpisz datę dostawy wg wyboru użytkownika (data z modala) —
+    // trigger mark_lead_delivered ustawia now() przy wydaniu, tu pozwalamy zmienić dzień.
+    if (data.delivered_at) {
+      const { error: upErr } = await context.supabase
+        .from("leads")
+        .update({ delivered_at: `${data.delivered_at}T12:00:00+00` } as any)
+        .eq("id", data.lead_id);
+      if (upErr) {
+        throw new Error(`Nie udało się zapisać daty dostawy: ${upErr.message}`);
+      }
+    }
+
     return (res as any) ?? { ok: true };
   });
 
