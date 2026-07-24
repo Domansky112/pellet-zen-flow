@@ -207,12 +207,11 @@ const SettleAndWydanieInput = z.object({
   payment_method: z.enum(["gotowka", "karta_blik", "przelew"]),
   collected_on_site: z.boolean(),
   skip_wydanie: z.boolean().optional().default(false),
+  new_status_key: z.string().trim().min(1).max(40).optional().nullable(),
 });
 
-// Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu.
-// Cała operacja (update leads + wydanie + notatka + audit_log) w jednej transakcji DB.
-// Idempotentne: kolejne wywołania po cofnięciu statusu aktualizują istniejący wpis (UPDATE leads),
-// zamiast rzucać błędem duplikatu.
+// Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu + (opcjonalnie) ustaw status.
+// Cała operacja w JEDNEJ transakcji DB (funkcja PL/pgSQL). Idempotentne — UPDATE, nie INSERT.
 export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SettleAndWydanieInput.parse(d))
@@ -223,13 +222,14 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
       _method: data.payment_method,
       _collected: data.collected_on_site,
       _skip_wydanie: data.skip_wydanie ?? false,
+      _new_status_key: data.new_status_key ?? null,
     });
     if (error) {
-      // Bubble up a clear, debuggable message — full transaction was rolled back.
       throw new Error(`Payment sync failed for Lead ${data.lead_id.slice(0, 8)}: ${error.message}`);
     }
     return (res as any) ?? { ok: true };
   });
+
 
 
 const UpdateLeadInput = z.object({
