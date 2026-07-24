@@ -69,19 +69,39 @@ const PaymentStatusEnum = z.enum([
   "zaliczka",
 ]);
 
+const AmountLike = z.preprocess((v) => {
+  if (v === null || v === undefined) return v;
+  if (typeof v === "string") {
+    const cleaned = v.trim().replace(/\s+/g, "").replace(",", ".");
+    if (cleaned === "") return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : v;
+  }
+  return v;
+}, z.number().nonnegative().max(10_000_000).nullable());
+
 const UpdatePaymentInput = z.object({
   leadId: z.string().uuid(),
   payment_status: PaymentStatusEnum.optional(),
-  payment_method: z.string().optional(),
+  payment_method: z.string().max(50).optional(),
   invoice_number: z.string().max(64).nullable().optional(),
   receipt_number: z.string().max(64).nullable().optional(),
-  payment_amount_gross: z.number().nonnegative().nullable().optional(),
+  payment_amount_gross: AmountLike.optional(),
 });
+
+async function assertStaff(context: { supabase: any; userId: string }) {
+  const [{ data: isAdmin }, { data: isSales }] = await Promise.all([
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" }),
+    context.supabase.rpc("has_role", { _user_id: context.userId, _role: "sales" }),
+  ]);
+  if (!isAdmin && !isSales) throw new Error("Brak uprawnień — wymagana rola admin/sales.");
+}
 
 export const updateLeadPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdatePaymentInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const patch: Record<string, unknown> = {};
     if (data.payment_status !== undefined) patch.payment_status = data.payment_status;
     if (data.payment_method !== undefined) patch.payment_method = data.payment_method;
@@ -90,7 +110,7 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
     if (data.payment_amount_gross !== undefined) patch.payment_amount_gross = data.payment_amount_gross;
 
     const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(`Payment sync failed for Lead ${data.leadId.slice(0, 8)}: ${error.message}`);
 
     await context.supabase.from("audit_log").insert({
       entity_type: "payment",
@@ -102,6 +122,7 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
 
 // ─────────────────────────────────────────────────────────────
 // Rozliczenie trasy z kierowcą (oznacza gotówkowe płatności jako przyjęte do kasy)
@@ -166,7 +187,7 @@ export const markPaymentReminderSent = createServerFn({ method: "POST" })
 // ─────────────────────────────────────────────────────────────
 const ExpenseInput = z.object({
   description: z.string().trim().min(1).max(500),
-  amount: z.number().nonnegative().max(10_000_000),
+  amount: AmountLike.transform((v) => (v ?? 0) as number).pipe(z.number().nonnegative().max(10_000_000)),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().trim().min(1).max(60).default("inne"),
   notes: z.string().trim().max(2000).optional().nullable(),
@@ -181,6 +202,7 @@ export const listExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => RangeInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     let q = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(500);
     if (data.from) q = q.gte("expense_date", data.from);
     if (data.to) q = q.lte("expense_date", data.to);
@@ -193,6 +215,7 @@ export const addExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ExpenseInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const { data: row, error } = await context.supabase
       .from("expenses")
       .insert({ ...data, created_by: context.userId } as any)
@@ -213,6 +236,7 @@ export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await context.supabase.from("audit_log").insert({
@@ -223,6 +247,7 @@ export const deleteExpense = createServerFn({ method: "POST" })
     } as any);
     return { ok: true };
   });
+
 
 // ─────────────────────────────────────────────────────────────
 // Podsumowanie finansowe w zakresie dat

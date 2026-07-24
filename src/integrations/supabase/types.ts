@@ -1157,6 +1157,28 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      settle_lead_payment:
+        | {
+            Args: {
+              _amount: number
+              _collected: boolean
+              _lead_id: string
+              _method: string
+              _skip_wydanie?: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _collected: boolean
+              _lead_id: string
+              _method: string
+              _new_status_key?: string
+              _skip_wydanie?: boolean
+            }
+            Returns: Json
+          }
     }
     Enums: {
       app_role: "admin" | "sales" | "warehouse" | "transport" | "logistyk"
