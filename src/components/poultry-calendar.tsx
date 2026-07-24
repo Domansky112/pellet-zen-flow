@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bird, Loader2, Phone, Trash2, ArrowRight } from "lucide-react";
+import { Bird, Loader2, Phone, Trash2, ArrowRight, PlusCircle } from "lucide-react";
 import {
   listPoultryReminders,
   updatePoultryReminder,
   deletePoultryReminder,
+  linkPoultryReminderNewLead,
 } from "@/lib/poultry.functions";
+import { duplicateLead } from "@/lib/leads.functions";
 
 const STATUS_LABELS: Record<string, string> = {
   do_zadzwonienia: "Do zadzwonienia",
