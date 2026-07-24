@@ -11,6 +11,7 @@ export type SettlementResult = {
   payment_amount_gross: number;
   payment_method: "gotowka" | "karta_blik" | "przelew";
   collected_on_site: boolean;
+  delivered_at: string; // ISO date yyyy-mm-dd
 };
 
 const methodLabel: Record<SettlementResult["payment_method"], string> = {
