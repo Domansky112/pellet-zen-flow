@@ -213,19 +213,14 @@ export function LeadDetailDrawer({
           payment_method: r.payment_method,
           collected_on_site: r.collected_on_site,
           skip_wydanie: settleMode === "status",
+          // When triggered from a status change → include the status flip in the same DB transaction.
+          new_status_key: settleMode === "status" ? pendingStatusKey : null,
         },
       }),
     onSuccess: async () => {
-      // If triggered from a status change, also persist the status flip.
-      if (settleMode === "status" && pendingStatusKey) {
-        try {
-          await setStatusFn({ data: { id: lead!.id, status_key: pendingStatusKey } });
-        } catch (e) {
-          toast.error(`Rozliczenie zapisane, ale nie udało się zmienić statusu: ${(e as Error).message}`);
-        }
-      }
       setSettleOpen(false);
       setPendingStatusKey(null);
+
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
       qc.invalidateQueries({ queryKey: ["payments-completed"] });
