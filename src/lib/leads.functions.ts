@@ -557,6 +557,52 @@ export const syncDeliveryHistory = createServerFn({ method: "POST" })
     return (data as { ok: boolean; fixed: number }) ?? { ok: true, fixed: 0 };
   });
 
+// Admin-only: mark realized leads that lack any payment record as "nieoplacone"
+// so they appear in Płatności / Historia with the "Uzupełnij płatność" button.
+// Amount is intentionally left NULL — admin will fill it via the settlement modal.
+export const backfillMissingPayments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin, error: rerr } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (rerr) throw new Error(rerr.message);
+    if (!isAdmin) throw new Error("Tylko administrator może uruchomić synchronizację płatności.");
+
+    const { data: rows, error: fe } = await context.supabase
+      .from("leads")
+      .select("id, payment_amount_gross, payment_status")
+      .is("deleted_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
+      .is("payment_amount_gross", null);
+    if (fe) throw new Error(fe.message);
+
+    const needing = (rows ?? []).filter((r: any) => !r.payment_status || r.payment_status === "");
+    if (needing.length === 0) return { ok: true, backfilled: 0 };
+
+    const ids = needing.map((r: any) => r.id);
+    const { error: ue } = await context.supabase
+      .from("leads")
+      .update({ payment_status: "nieoplacone" } as any)
+      .in("id", ids);
+    if (ue) throw new Error(ue.message);
+
+    await context.supabase.from("audit_log").insert(
+      ids.map((id: string) => ({
+        entity_type: "payment",
+        entity_id: id,
+        action: "backfill_missing",
+        actor_id: context.userId,
+        details: { note: "Backfill: brak wpisu płatności — oznaczono jako nieoplacone" } as any,
+      })) as any,
+    );
+
+    return { ok: true, backfilled: ids.length };
+  });
+
+
+
 
 const importOptionsSchema = z.object({
   defaultSource: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("inne"),
