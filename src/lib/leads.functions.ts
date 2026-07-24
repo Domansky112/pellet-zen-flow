@@ -432,10 +432,13 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => HistoryFilterInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    // A Lead belongs to Delivery History when it is marked "Zrealizowany"
+    // (status_key = 'wygrany') OR when its warehouse reservation has been released
+    // as "wydany". Both paths share a 1:1 relation with a delivery history entry.
     let q = context.supabase
       .from("leads")
       .select("*")
-      .eq("reservation_status", "wydany")
+      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(500);
@@ -453,6 +456,7 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
     const { data: leads, error } = await q;
     if (error) throw new Error(error.message);
     const rows = leads ?? [];
+
 
     const ids = rows.map((r) => r.id);
     const itemsByLead = new Map<string, { transport_id: string }[]>();
@@ -503,6 +507,50 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
     });
 
   });
+
+// Consistency: count Leads marked Zrealizowany vs. entries visible in Delivery History (1:1 goal).
+export const getDeliveryHistoryConsistency = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const realizedQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany");
+    if (realizedQ.error) throw new Error(realizedQ.error.message);
+
+    const historyQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
+      .not("delivered_at", "is", null);
+    if (historyQ.error) throw new Error(historyQ.error.message);
+
+    // Missing = realized leads without a delivered_at stamp (would not show in history).
+    const missingQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .is("delivered_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany");
+    if (missingQ.error) throw new Error(missingQ.error.message);
+
+    const realized = realizedQ.count ?? 0;
+    const history = historyQ.count ?? 0;
+    const missing = missingQ.count ?? 0;
+    return { realized, history, missing, in_sync: missing === 0 && realized <= history };
+  });
+
+// Admin-only repair: stamp delivered_at for any realized lead that lacks it.
+export const syncDeliveryHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("sync_delivery_history");
+    if (error) throw new Error(error.message);
+    return (data as { ok: boolean; fixed: number }) ?? { ok: true, fixed: 0 };
+  });
+
 
 const importOptionsSchema = z.object({
   defaultSource: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("inne"),
