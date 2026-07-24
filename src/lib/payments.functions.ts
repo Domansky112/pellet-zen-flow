@@ -315,11 +315,17 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const { data: leads, error: le } = await leadsQ;
     if (le) throw new Error(le.message);
 
-    let expQ = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(1000);
+    let expQ = context.supabase
+      .from("expenses")
+      .select("*")
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(1000);
     if (data.from) expQ = expQ.gte("expense_date", data.from);
     if (data.to) expQ = expQ.lte("expense_date", data.to);
     const { data: expenses, error: ee } = await expQ;
     if (ee) throw new Error(ee.message);
+
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
     for (const l of leads ?? []) {
