@@ -50,7 +50,7 @@ export const listDeliveredLeadsWithoutTransport = createServerFn({ method: "GET"
     const { data, error } = await context.supabase
       .from("leads")
       .select(LEAD_COLS)
-      .eq("reservation_status", "wydany")
+      .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false })
       .limit(200);
@@ -259,7 +259,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     let leadsQ = context.supabase
       .from("leads")
       .select("id, lead_number, name, first_name, last_name, invoice_company, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, reservation_status")
-      .eq("reservation_status", "wydany")
+      .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false })
       .limit(1000);
