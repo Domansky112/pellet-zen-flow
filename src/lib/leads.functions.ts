@@ -191,77 +191,46 @@ export const confirmWydanie = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const AmountLike = z.preprocess((v) => {
+  if (typeof v === "string") {
+    const cleaned = v.trim().replace(/\s+/g, "").replace(",", ".");
+    if (cleaned === "") return undefined;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : v;
+  }
+  return v;
+}, z.number().nonnegative().max(10_000_000));
+
 const SettleAndWydanieInput = z.object({
   lead_id: z.string().uuid(),
-  payment_amount_gross: z.number().nonnegative().max(10_000_000),
+  payment_amount_gross: AmountLike,
   payment_method: z.enum(["gotowka", "karta_blik", "przelew"]),
   collected_on_site: z.boolean(),
   skip_wydanie: z.boolean().optional().default(false),
 });
 
 // Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu.
-// Wywoływane z modala potwierdzającego zmianę statusu leada na "Zrealizowany".
+// Cała operacja (update leads + wydanie + notatka + audit_log) w jednej transakcji DB.
+// Idempotentne: kolejne wywołania po cofnięciu statusu aktualizują istniejący wpis (UPDATE leads),
+// zamiast rzucać błędem duplikatu.
 export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SettleAndWydanieInput.parse(d))
   .handler(async ({ data, context }) => {
-    const payment_status =
-      data.payment_method === "przelew"
-        ? data.collected_on_site
-          ? "oplacone_przelew"
-          : "czeka_przelew"
-        : data.collected_on_site
-          ? "oplacone_gotowka"
-          : "nieoplacone";
-
-    const { error: upErr } = await context.supabase
-      .from("leads")
-      .update({
-        payment_amount_gross: data.payment_amount_gross,
-        payment_method: data.payment_method,
-        payment_status,
-      } as any)
-      .eq("id", data.lead_id);
-    if (upErr) throw new Error(upErr.message);
-
-    if (!data.skip_wydanie) {
-      const { error } = await context.supabase.rpc("release_reservation_as_wydanie", {
-        _lead_id: data.lead_id,
-      });
-      if (error) throw new Error(error.message);
-    }
-
-    // audit note
-    const methodLabel =
-      data.payment_method === "gotowka"
-        ? "Gotówka u kierowcy"
-        : data.payment_method === "karta_blik"
-          ? "Karta / BLIK u kierowcy"
-          : "Przelew bankowy";
-    await context.supabase.from("lead_notes").insert({
-      lead_id: data.lead_id,
-      author_id: context.userId,
-      body: `💰 Rozliczenie: ${data.payment_amount_gross.toFixed(2)} zł brutto · ${methodLabel} · ${
-        data.collected_on_site ? "pobrane na miejscu" : "oczekuje na przelew"
-      }`,
+    const { data: res, error } = await context.supabase.rpc("settle_lead_payment", {
+      _lead_id: data.lead_id,
+      _amount: data.payment_amount_gross,
+      _method: data.payment_method,
+      _collected: data.collected_on_site,
+      _skip_wydanie: data.skip_wydanie ?? false,
     });
-
-    // financial audit log
-    await context.supabase.from("audit_log").insert({
-      entity_type: "payment",
-      entity_id: data.lead_id,
-      action: "settlement",
-      actor_id: context.userId,
-      details: {
-        amount: data.payment_amount_gross,
-        method: data.payment_method,
-        collected_on_site: data.collected_on_site,
-        payment_status,
-      },
-    } as any);
-
-    return { ok: true, payment_status };
+    if (error) {
+      // Bubble up a clear, debuggable message — full transaction was rolled back.
+      throw new Error(`Payment sync failed for Lead ${data.lead_id.slice(0, 8)}: ${error.message}`);
+    }
+    return (res as any) ?? { ok: true };
   });
+
 
 const UpdateLeadInput = z.object({
   id: z.string().uuid(),
