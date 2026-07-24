@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Search, PackageOpen, Users, MapPin, Calendar, RefreshCw, Truck, ExternalLink, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { listDeliveryHistory, getDeliveryHistoryConsistency, syncDeliveryHistory } from "@/lib/leads.functions";
 import { TransportDetailDialog } from "@/components/transport-detail-dialog";
+import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -244,6 +245,13 @@ function HistoriaPage() {
                     >
                       <Truck className="mr-2 h-4 w-4" /> Zobacz transport
                     </Button>
+                  )}
+                  {!(l as any).payment_amount_gross && (
+                    <SettlePaymentButton
+                      leadId={l.id}
+                      leadName={[l.first_name, l.last_name].filter(Boolean).join(" ") || l.name}
+                      quantity={l.quantity ?? null}
+                    />
                   )}
                 </div>
               </CardContent>

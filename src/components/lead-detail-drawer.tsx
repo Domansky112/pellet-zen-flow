@@ -26,6 +26,7 @@ import { listNotes, addNote, updateNote, deleteNote } from "@/lib/notes.function
 import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
+import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -622,8 +623,9 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
-                  // Intercept "wygrany" (Zrealizowany) — open settlement dialog first
-                  if (v === "wygrany" && (lead.status_key ?? lead.status) !== "wygrany") {
+                  // Intercept "wygrany" (Zrealizowany) — ALWAYS open settlement dialog,
+                  // even if the lead was already marked as realized (payment could be missing).
+                  if (v === "wygrany") {
                     setSettleMode("status");
                     setPendingStatusKey(v);
                     setSettleOpen(true);
@@ -726,6 +728,14 @@ export function LeadDetailDrawer({
                         Zwolnij rezerwację
                       </Button>
                     </>
+                  )}
+                  {((lead.status_key ?? lead.status) === "wygrany" || lead.reservation_status === "wydany")
+                    && !(lead as any).payment_amount_gross && (
+                    <SettlePaymentButton
+                      leadId={lead.id}
+                      leadName={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name}
+                      quantity={lead.quantity ?? null}
+                    />
                   )}
                   <Button size="sm" variant="outline"
                     onClick={() => setScheduleOpen(true)}

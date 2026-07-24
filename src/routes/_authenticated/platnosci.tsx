@@ -32,6 +32,9 @@ import {
   getFinancialSummary,
   listPaymentAuditLog,
 } from "@/lib/payments.functions";
+import { backfillMissingPayments } from "@/lib/leads.functions";
+import { useIsAdmin } from "@/hooks/use-is-admin";
+import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { getWzDocument } from "@/lib/wz.functions";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
@@ -138,11 +141,27 @@ function PaymentsPage() {
 
 // ─── Bilans (przychód − koszty) ──────────────────────────────
 function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string; setFrom: (v: string) => void; setTo: (v: string) => void }) {
+  const qc = useQueryClient();
+  const isAdmin = useIsAdmin();
+  const backfillFn = useServerFn(backfillMissingPayments);
   const q = useQuery({
     queryKey: ["financial-summary", from, to],
     queryFn: () => getFinancialSummary({ data: { from, to } }),
   });
   const s = q.data;
+
+  const backfillM = useMutation({
+    mutationFn: async () => backfillFn(),
+    onSuccess: (r: any) => {
+      toast.success(`Zsynchronizowano płatności (uzupełniono: ${r.backfilled ?? 0})`);
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+      qc.invalidateQueries({ queryKey: ["payments-orphans"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   return (
     <Card>
@@ -167,6 +186,11 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
               <Button variant="outline" size="sm" onClick={() => { setFrom(monthAgoIso()); setTo(todayIso()); }}>30 dni</Button>
               <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(`${d.getFullYear()}-01-01`); setTo(todayIso()); }}>Ten rok</Button>
             </div>
+            {isAdmin && (
+              <Button size="sm" variant="secondary" onClick={() => backfillM.mutate()} disabled={backfillM.isPending}>
+                {backfillM.isPending ? "Synchronizacja…" : "Uzupełnij zaległe płatności"}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -603,6 +627,14 @@ function LeadPaymentRow({ lead }: { lead: any }) {
         <PaymentStatusBadge status={lead.payment_status} />
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {!lead.payment_amount_gross && (
+          <SettlePaymentButton
+            leadId={lead.id}
+            leadName={leadDisplayName(lead)}
+            quantity={lead.quantity ?? null}
+            label="Uzupełnij płatność"
+          />
+        )}
         {needsReminder && (
           <>
             <Button size="sm" variant="outline" onClick={() => sendReminder("email")} title="Wyślij e-mail"><MailIcon className="h-4 w-4" /></Button>
