@@ -508,6 +508,50 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
 
   });
 
+// Consistency: count Leads marked Zrealizowany vs. entries visible in Delivery History (1:1 goal).
+export const getDeliveryHistoryConsistency = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const realizedQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany");
+    if (realizedQ.error) throw new Error(realizedQ.error.message);
+
+    const historyQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
+      .not("delivered_at", "is", null);
+    if (historyQ.error) throw new Error(historyQ.error.message);
+
+    // Missing = realized leads without a delivered_at stamp (would not show in history).
+    const missingQ = await context.supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .is("delivered_at", null)
+      .or("status_key.eq.wygrany,status.eq.wygrany");
+    if (missingQ.error) throw new Error(missingQ.error.message);
+
+    const realized = realizedQ.count ?? 0;
+    const history = historyQ.count ?? 0;
+    const missing = missingQ.count ?? 0;
+    return { realized, history, missing, in_sync: missing === 0 && realized <= history };
+  });
+
+// Admin-only repair: stamp delivered_at for any realized lead that lacks it.
+export const syncDeliveryHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("sync_delivery_history");
+    if (error) throw new Error(error.message);
+    return (data as { ok: boolean; fixed: number }) ?? { ok: true, fixed: 0 };
+  });
+
+
 const importOptionsSchema = z.object({
   defaultSource: z.enum(["www", "email", "telefon", "b2b", "inne"]).default("inne"),
   defaultProduct: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).nullable().default(null),
