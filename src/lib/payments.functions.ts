@@ -91,6 +91,15 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
     if (error) throw new Error(error.message);
+
+    await context.supabase.from("audit_log").insert({
+      entity_type: "payment",
+      entity_id: data.leadId,
+      action: "payment_update",
+      actor_id: context.userId,
+      details: patch as any,
+    } as any);
+
     return { ok: true };
   });
 
