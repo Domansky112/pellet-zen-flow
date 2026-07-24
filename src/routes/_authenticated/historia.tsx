@@ -123,8 +123,9 @@ function HistoriaPage() {
             )}
           </CardContent>
         </Card>
-      <div className="p-6 space-y-4">
+
         <Card>
+
           <CardContent className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
             <div className="space-y-1">
               <Label htmlFor="h-from">Od</Label>
