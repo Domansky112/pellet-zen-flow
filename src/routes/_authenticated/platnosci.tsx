@@ -186,6 +186,11 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
               <Button variant="outline" size="sm" onClick={() => { setFrom(monthAgoIso()); setTo(todayIso()); }}>30 dni</Button>
               <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(`${d.getFullYear()}-01-01`); setTo(todayIso()); }}>Ten rok</Button>
             </div>
+            {isAdmin && (
+              <Button size="sm" variant="secondary" onClick={() => backfillM.mutate()} disabled={backfillM.isPending}>
+                {backfillM.isPending ? "Synchronizacja…" : "Uzupełnij zaległe płatności"}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
