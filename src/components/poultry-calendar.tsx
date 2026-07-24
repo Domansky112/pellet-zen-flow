@@ -43,10 +43,27 @@ export function PoultryCalendar() {
   const listFn = useServerFn(listPoultryReminders);
   const updateFn = useServerFn(updatePoultryReminder);
   const deleteFn = useServerFn(deletePoultryReminder);
+  const dupFn = useServerFn(duplicateLead);
+  const linkFn = useServerFn(linkPoultryReminderNewLead);
 
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ["poultry_reminders"],
     queryFn: () => listFn(),
+  });
+
+  const generateOrder = useMutation({
+    mutationFn: async (v: { reminderId: string; leadId: string }) => {
+      const newLead: any = await dupFn({ data: { lead_id: v.leadId } });
+      await linkFn({ data: { id: v.reminderId, new_lead_id: newLead.id } });
+      return newLead;
+    },
+    onSuccess: (newLead: any) => {
+      toast.success(`Utworzono nowe zamówienie ${newLead?.lead_number ?? ""}`);
+      qc.invalidateQueries({ queryKey: ["poultry_reminders"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      if (newLead?.id) window.location.href = `/crm?lead=${newLead.id}`;
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const update = useMutation({
