@@ -1179,6 +1179,7 @@ export type Database = {
             }
             Returns: Json
           }
+      sync_delivery_history: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "sales" | "warehouse" | "transport" | "logistyk"
