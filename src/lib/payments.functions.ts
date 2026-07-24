@@ -50,7 +50,7 @@ export const listDeliveredLeadsWithoutTransport = createServerFn({ method: "GET"
     const { data, error } = await context.supabase
       .from("leads")
       .select(LEAD_COLS)
-      .eq("reservation_status", "wydany")
+      .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false })
       .limit(200);
