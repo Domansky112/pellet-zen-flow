@@ -102,6 +102,14 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => UpdatePaymentInput.parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
+
+    // pobierz stan przed edycją, żeby wykryć usunięcie płatności
+    const { data: prev } = await context.supabase
+      .from("leads")
+      .select("payment_status, payment_method, payment_amount_gross")
+      .eq("id", data.leadId)
+      .maybeSingle();
+
     const patch: Record<string, unknown> = {};
     if (data.payment_status !== undefined) patch.payment_status = data.payment_status;
     if (data.payment_method !== undefined) patch.payment_method = data.payment_method;
@@ -112,16 +120,30 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
     if (error) throw new Error(`Payment sync failed for Lead ${data.leadId.slice(0, 8)}: ${error.message}`);
 
+    // Wykryj usunięcie / wyzerowanie płatności → osobna akcja w dzienniku
+    const clearedStatus =
+      "payment_status" in patch && (patch.payment_status === null || patch.payment_status === "" || patch.payment_status === "nieoplacone");
+    const clearedAmount =
+      "payment_amount_gross" in patch && (patch.payment_amount_gross === null || Number(patch.payment_amount_gross ?? 0) === 0);
+    const wasPaid = prev && (prev as any).payment_status && (prev as any).payment_status !== "nieoplacone" && Number((prev as any).payment_amount_gross ?? 0) > 0;
+    const action = wasPaid && (clearedStatus || clearedAmount) ? "payment_removed" : "payment_update";
+
     await context.supabase.from("audit_log").insert({
       entity_type: "payment",
       entity_id: data.leadId,
-      action: "payment_update",
+      action,
       actor_id: context.userId,
-      details: patch as any,
+      details: {
+        ...patch,
+        prev_amount: prev ? (prev as any).payment_amount_gross : null,
+        prev_status: prev ? (prev as any).payment_status : null,
+        prev_method: prev ? (prev as any).payment_method : null,
+      } as any,
     } as any);
 
     return { ok: true };
   });
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -203,7 +225,12 @@ export const listExpenses = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => RangeInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
-    let q = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(500);
+    let q = context.supabase
+      .from("expenses")
+      .select("*")
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(500);
     if (data.from) q = q.gte("expense_date", data.from);
     if (data.to) q = q.lte("expense_date", data.to);
     const { data: rows, error } = await q;
@@ -234,19 +261,39 @@ export const addExpense = createServerFn({ method: "POST" })
 
 export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
-    const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
+    // pobierz stan przed (do audytu) — pozwala pokazać w dzienniku „co usunięto”
+    const { data: prev } = await context.supabase
+      .from("expenses")
+      .select("amount, description, category")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    // MIĘKKIE USUNIĘCIE — wiersz zostaje w bazie, ale znika z bilansu i z listy kosztów
+    const { error } = await context.supabase
+      .from("expenses")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: context.userId, deleted_reason: data.reason ?? null } as any)
+      .eq("id", data.id)
+      .is("deleted_at", null);
     if (error) throw new Error(error.message);
+
     await context.supabase.from("audit_log").insert({
       entity_type: "expense",
       entity_id: data.id,
       action: "expense_deleted",
       actor_id: context.userId,
+      details: {
+        amount: prev ? (prev as any).amount : null,
+        description: prev ? (prev as any).description : null,
+        category: prev ? (prev as any).category : null,
+        reason: data.reason ?? null,
+      } as any,
     } as any);
     return { ok: true };
   });
+
 
 
 // ─────────────────────────────────────────────────────────────
@@ -268,11 +315,17 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const { data: leads, error: le } = await leadsQ;
     if (le) throw new Error(le.message);
 
-    let expQ = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(1000);
+    let expQ = context.supabase
+      .from("expenses")
+      .select("*")
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(1000);
     if (data.from) expQ = expQ.gte("expense_date", data.from);
     if (data.to) expQ = expQ.lte("expense_date", data.to);
     const { data: expenses, error: ee } = await expQ;
     if (ee) throw new Error(ee.message);
+
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
     for (const l of leads ?? []) {
@@ -305,21 +358,78 @@ export const listPaymentAuditLog = createServerFn({ method: "GET" })
       .select("*")
       .in("entity_type", ["payment", "expense"])
       .order("created_at", { ascending: false })
-      .limit(300);
+      .limit(500);
     if (data.from) q = q.gte("created_at", `${data.from}T00:00:00`);
     if (data.to) q = q.lte("created_at", `${data.to}T23:59:59`);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    // enrich with lead numbers + names
-    const leadIds = Array.from(new Set((rows ?? []).filter((r: any) => r.entity_type === "payment" && r.entity_id).map((r: any) => r.entity_id)));
+    // 1) Zbierz identyfikatory leadów z realnych wpisów w audycie (dla wzbogacenia)
+    const paymentRows = (rows ?? []).filter((r: any) => r.entity_type === "payment" && r.entity_id);
+    const paymentLeadIds = new Set(paymentRows.map((r: any) => r.entity_id as string));
+
+    // 2) Pobierz zrealizowane leady w zakresie dat, dla których BRAK wpisu w audycie
+    //    → syntetyczne wiersze „Rozliczenie (auto)”, żeby dziennik nie gubił historii.
+    let backfillQ = context.supabase
+      .from("leads")
+      .select("id, lead_number, name, first_name, last_name, invoice_company, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at")
+      .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
+      .is("deleted_at", null)
+      .order("delivered_at", { ascending: false, nullsFirst: false })
+      .limit(500);
+    if (data.from) backfillQ = backfillQ.gte("delivered_at", `${data.from}T00:00:00`);
+    if (data.to) backfillQ = backfillQ.lte("delivered_at", `${data.to}T23:59:59`);
+    const { data: realized } = await backfillQ;
+
+    const missing = (realized ?? []).filter((l: any) => !paymentLeadIds.has(l.id));
+
+    // 3) Wzbogać wszystkie identyfikatory leadów (audyt + brakujące) o dane karty
+    const allLeadIds = new Set<string>([...paymentLeadIds]);
+    for (const l of realized ?? []) allLeadIds.add(l.id);
+
     let leadMap: Record<string, any> = {};
-    if (leadIds.length) {
+    if (allLeadIds.size) {
       const { data: leads } = await context.supabase
         .from("leads")
         .select("id, lead_number, name, first_name, last_name, invoice_company")
-        .in("id", leadIds);
+        .in("id", Array.from(allLeadIds));
       leadMap = Object.fromEntries((leads ?? []).map((l: any) => [l.id, l]));
     }
-    return (rows ?? []).map((r: any) => ({ ...r, lead: r.entity_type === "payment" ? leadMap[r.entity_id] ?? null : null }));
+
+    // 4) Wzbogać wpisy kosztów o info o miękkim usunięciu
+    const expenseIds = Array.from(new Set((rows ?? []).filter((r: any) => r.entity_type === "expense" && r.entity_id).map((r: any) => r.entity_id as string)));
+    let expenseMap: Record<string, any> = {};
+    if (expenseIds.length) {
+      const { data: exps } = await context.supabase
+        .from("expenses")
+        .select("id, deleted_at, deleted_reason")
+        .in("id", expenseIds);
+      expenseMap = Object.fromEntries((exps ?? []).map((e: any) => [e.id, e]));
+    }
+
+    const real = (rows ?? []).map((r: any) => ({
+      ...r,
+      lead: r.entity_type === "payment" ? leadMap[r.entity_id] ?? null : null,
+      expense_deleted: r.entity_type === "expense" && expenseMap[r.entity_id]?.deleted_at ? true : false,
+    }));
+
+    const synthetic = missing.map((l: any) => ({
+      id: `synthetic-${l.id}`,
+      created_at: l.delivered_at ?? l.updated_at,
+      action: "settlement",
+      entity_type: "payment",
+      entity_id: l.id,
+      actor_id: null,
+      details: {
+        amount: l.payment_amount_gross,
+        method: l.payment_method,
+        payment_status: l.payment_status,
+        synthetic: true,
+      },
+      lead: leadMap[l.id] ?? null,
+      expense_deleted: false,
+    }));
+
+    return [...real, ...synthetic].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   });
+

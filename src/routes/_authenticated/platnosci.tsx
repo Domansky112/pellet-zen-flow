@@ -426,24 +426,39 @@ function AuditTab({ from, to }: { from: string; to: string }) {
         <div className="divide-y divide-border/40">
           {(q.data ?? []).map((r: any) => {
             const details = (r.details ?? {}) as Record<string, any>;
-            const amt = details.amount ? fmtPLN(Number(details.amount)) : null;
+            const amt = details.amount != null ? fmtPLN(Number(details.amount)) : null;
+            const isDeletedExpense = r.action === "expense_deleted" || r.expense_deleted;
+            const isRemovedPayment = r.action === "payment_removed";
+            const strike = isDeletedExpense || isRemovedPayment;
             return (
-              <div key={r.id} className="py-2 text-sm">
+              <div key={r.id} className={`py-2 text-sm ${strike ? "opacity-70" : ""}`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-muted-foreground font-mono">{format(new Date(r.created_at), "yyyy-MM-dd HH:mm")}</span>
                   <ActionBadge action={r.action} />
+                  {details.synthetic && (
+                    <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">auto</Badge>
+                  )}
                   {r.lead && (
                     <LeadLink leadId={r.lead.id}>
                       <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-muted">{r.lead.lead_number ?? "—"}</span>
                       <span className="font-medium">{leadDisplayName(r.lead)}</span>
                     </LeadLink>
                   )}
-                  {amt && <span className="font-semibold">{amt}</span>}
+                  {amt && <span className={`font-semibold ${strike ? "line-through" : ""}`}>{amt}</span>}
                   {details.method && <span className="text-xs text-muted-foreground">{PAYMENT_METHOD_LABEL[details.method] ?? details.method}</span>}
-                  {details.description && <span className="text-muted-foreground truncate">— {details.description}</span>}
+                  {details.description && <span className={`text-muted-foreground truncate ${strike ? "line-through" : ""}`}>— {details.description}</span>}
                   {details.category && <Badge variant="outline">{details.category}</Badge>}
                   {details.payment_status && <PaymentStatusBadge status={details.payment_status} />}
+                  {isDeletedExpense && (
+                    <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30">Usunięte</Badge>
+                  )}
+                  {isRemovedPayment && (
+                    <Badge variant="outline" className="bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30">Wycofano</Badge>
+                  )}
                 </div>
+                {details.reason && (
+                  <div className="text-xs text-muted-foreground pl-1 pt-0.5">Powód: {details.reason}</div>
+                )}
               </div>
             );
           })}
@@ -457,12 +472,14 @@ function ActionBadge({ action }: { action: string }) {
   const map: Record<string, { label: string; className: string }> = {
     settlement:      { label: "Rozliczenie",        className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30" },
     payment_update:  { label: "Edycja płatności",   className: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30" },
+    payment_removed: { label: "Wycofanie płatności", className: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30" },
     expense_added:   { label: "+ Koszt",            className: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" },
-    expense_deleted: { label: "− Koszt (usunięty)", className: "bg-muted text-muted-foreground" },
+    expense_deleted: { label: "− Koszt (usunięty)", className: "bg-muted text-muted-foreground line-through" },
   };
   const s = map[action] ?? { label: action, className: "bg-muted text-muted-foreground" };
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
 }
+
 
 // ─── Karta transportu z leadami ──────────────────────────────
 function TransportPaymentCard({ transport, leads, mode }: { transport: any; leads: any[]; mode: "upcoming" | "completed" }) {

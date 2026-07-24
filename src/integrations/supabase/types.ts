@@ -50,6 +50,9 @@ export type Database = {
           category: string
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_reason: string | null
           description: string
           expense_date: string
           id: string
@@ -61,6 +64,9 @@ export type Database = {
           category?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           description: string
           expense_date?: string
           id?: string
@@ -72,6 +78,9 @@ export type Database = {
           category?: string
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_reason?: string | null
           description?: string
           expense_date?: string
           id?: string
