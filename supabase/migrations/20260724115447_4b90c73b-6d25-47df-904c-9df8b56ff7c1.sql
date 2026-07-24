@@ -1,0 +1,1 @@
+UPDATE public.leads SET delivered_at = COALESCE(updated_at, now()) WHERE deleted_at IS NULL AND delivered_at IS NULL AND (reservation_status='wydany' OR status_key='wygrany' OR status='wygrany');
