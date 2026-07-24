@@ -305,13 +305,14 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let leadsQ = context.supabase
       .from("leads")
-      .select("id, lead_number, name, first_name, last_name, invoice_company, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, reservation_status")
+      .select("id, lead_number, name, first_name, last_name, invoice_company, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status")
       .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
-      .order("delivered_at", { ascending: false })
+      .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(1000);
-    if (data.from) leadsQ = leadsQ.gte("delivered_at", `${data.from}T00:00:00`);
-    if (data.to) leadsQ = leadsQ.lte("delivered_at", `${data.to}T23:59:59`);
+    // Fallback: leady bez delivered_at wpadają w zakres wg updated_at, żeby nic nie ginęło w bilansie.
+    if (data.from) leadsQ = leadsQ.or(`delivered_at.gte.${data.from}T00:00:00,and(delivered_at.is.null,updated_at.gte.${data.from}T00:00:00)`);
+    if (data.to) leadsQ = leadsQ.or(`delivered_at.lte.${data.to}T23:59:59,and(delivered_at.is.null,updated_at.lte.${data.to}T23:59:59)`);
     const { data: leads, error: le } = await leadsQ;
     if (le) throw new Error(le.message);
 
