@@ -102,6 +102,14 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => UpdatePaymentInput.parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
+
+    // pobierz stan przed edycją, żeby wykryć usunięcie płatności
+    const { data: prev } = await context.supabase
+      .from("leads")
+      .select("payment_status, payment_method, payment_amount_gross")
+      .eq("id", data.leadId)
+      .maybeSingle();
+
     const patch: Record<string, unknown> = {};
     if (data.payment_status !== undefined) patch.payment_status = data.payment_status;
     if (data.payment_method !== undefined) patch.payment_method = data.payment_method;
@@ -112,16 +120,30 @@ export const updateLeadPayment = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("leads").update(patch as any).eq("id", data.leadId);
     if (error) throw new Error(`Payment sync failed for Lead ${data.leadId.slice(0, 8)}: ${error.message}`);
 
+    // Wykryj usunięcie / wyzerowanie płatności → osobna akcja w dzienniku
+    const clearedStatus =
+      "payment_status" in patch && (patch.payment_status === null || patch.payment_status === "" || patch.payment_status === "nieoplacone");
+    const clearedAmount =
+      "payment_amount_gross" in patch && (patch.payment_amount_gross === null || Number(patch.payment_amount_gross ?? 0) === 0);
+    const wasPaid = prev && (prev as any).payment_status && (prev as any).payment_status !== "nieoplacone" && Number((prev as any).payment_amount_gross ?? 0) > 0;
+    const action = wasPaid && (clearedStatus || clearedAmount) ? "payment_removed" : "payment_update";
+
     await context.supabase.from("audit_log").insert({
       entity_type: "payment",
       entity_id: data.leadId,
-      action: "payment_update",
+      action,
       actor_id: context.userId,
-      details: patch as any,
+      details: {
+        ...patch,
+        prev_amount: prev ? (prev as any).payment_amount_gross : null,
+        prev_status: prev ? (prev as any).payment_status : null,
+        prev_method: prev ? (prev as any).payment_method : null,
+      } as any,
     } as any);
 
     return { ok: true };
   });
+
 
 
 // ─────────────────────────────────────────────────────────────
