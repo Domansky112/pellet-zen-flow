@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bird, Loader2, Phone, Trash2, ArrowRight } from "lucide-react";
+import { Bird, Loader2, Phone, Trash2, ArrowRight, PlusCircle } from "lucide-react";
 import {
   listPoultryReminders,
   updatePoultryReminder,
   deletePoultryReminder,
+  linkPoultryReminderNewLead,
 } from "@/lib/poultry.functions";
+import { duplicateLead } from "@/lib/leads.functions";
 
 const STATUS_LABELS: Record<string, string> = {
   do_zadzwonienia: "Do zadzwonienia",
@@ -41,10 +43,27 @@ export function PoultryCalendar() {
   const listFn = useServerFn(listPoultryReminders);
   const updateFn = useServerFn(updatePoultryReminder);
   const deleteFn = useServerFn(deletePoultryReminder);
+  const dupFn = useServerFn(duplicateLead);
+  const linkFn = useServerFn(linkPoultryReminderNewLead);
 
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ["poultry_reminders"],
     queryFn: () => listFn(),
+  });
+
+  const generateOrder = useMutation({
+    mutationFn: async (v: { reminderId: string; leadId: string }) => {
+      const newLead: any = await dupFn({ data: { lead_id: v.leadId } });
+      await linkFn({ data: { id: v.reminderId, new_lead_id: newLead.id } });
+      return newLead;
+    },
+    onSuccess: (newLead: any) => {
+      toast.success(`Utworzono nowe zamówienie ${newLead?.lead_number ?? ""}`);
+      qc.invalidateQueries({ queryKey: ["poultry_reminders"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      if (newLead?.id) window.location.href = `/crm?lead=${newLead.id}`;
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const update = useMutation({
@@ -191,6 +210,25 @@ export function PoultryCalendar() {
                         <Button asChild size="sm" variant="outline">
                           <a href={`/crm?lead=${lead.id}`}>
                             <ArrowRight className="h-3 w-3 mr-1" /> Otwórz lead
+                          </a>
+                        </Button>
+                      )}
+
+                      {lead?.id && !r.new_lead_id && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          disabled={generateOrder.isPending}
+                          onClick={() => generateOrder.mutate({ reminderId: r.id, leadId: lead.id })}
+                        >
+                          <PlusCircle className="h-3 w-3 mr-1" />
+                          {generateOrder.isPending ? "Generuję…" : "Generuj nowe zamówienie"}
+                        </Button>
+                      )}
+                      {r.new_lead_id && (
+                        <Button asChild size="sm" variant="secondary">
+                          <a href={`/crm?lead=${r.new_lead_id}`}>
+                            <ArrowRight className="h-3 w-3 mr-1" /> Otwórz nowe zamówienie
                           </a>
                         </Button>
                       )}

@@ -387,7 +387,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: src, error: se } = await context.supabase
       .from("leads")
-      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment")
+      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment, is_b2b_kurnik, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved")
       .eq("id", data.lead_id)
       .single();
     if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
@@ -407,11 +407,17 @@ export const duplicateLead = createServerFn({ method: "POST" })
         invoice_address: src.invoice_address,
         source: src.source ?? "inne",
         has_unloading_equipment: !!src.has_unloading_equipment,
+        is_b2b_kurnik: !!(src as any).is_b2b_kurnik,
+        cycle_days: (src as any).cycle_days ?? null,
+        delivery_window: (src as any).delivery_window ?? null,
+        access_tight: !!(src as any).access_tight,
+        access_tonnage_limit: (src as any).access_tonnage_limit ?? null,
+        access_unpaved: !!(src as any).access_unpaved,
         status: "nowy",
         reservation_status: "brak",
         pooling_status: "brak",
         pooling_enabled: false,
-        product: null,
+        product: (src as any).product ?? null,
         quantity: null,
         notes: `Powtórne zamówienie (duplikat leada ${data.lead_id.slice(0, 8)})`,
       } as any)
