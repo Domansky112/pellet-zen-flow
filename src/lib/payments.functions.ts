@@ -225,7 +225,12 @@ export const listExpenses = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => RangeInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
-    let q = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(500);
+    let q = context.supabase
+      .from("expenses")
+      .select("*")
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .limit(500);
     if (data.from) q = q.gte("expense_date", data.from);
     if (data.to) q = q.lte("expense_date", data.to);
     const { data: rows, error } = await q;
@@ -256,19 +261,39 @@ export const addExpense = createServerFn({ method: "POST" })
 
 export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
-    const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
+    // pobierz stan przed (do audytu) — pozwala pokazać w dzienniku „co usunięto”
+    const { data: prev } = await context.supabase
+      .from("expenses")
+      .select("amount, description, category")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    // MIĘKKIE USUNIĘCIE — wiersz zostaje w bazie, ale znika z bilansu i z listy kosztów
+    const { error } = await context.supabase
+      .from("expenses")
+      .update({ deleted_at: new Date().toISOString(), deleted_by: context.userId, deleted_reason: data.reason ?? null } as any)
+      .eq("id", data.id)
+      .is("deleted_at", null);
     if (error) throw new Error(error.message);
+
     await context.supabase.from("audit_log").insert({
       entity_type: "expense",
       entity_id: data.id,
       action: "expense_deleted",
       actor_id: context.userId,
+      details: {
+        amount: prev ? (prev as any).amount : null,
+        description: prev ? (prev as any).description : null,
+        category: prev ? (prev as any).category : null,
+        reason: data.reason ?? null,
+      } as any,
     } as any);
     return { ok: true };
   });
+
 
 
 // ─────────────────────────────────────────────────────────────
