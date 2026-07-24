@@ -187,7 +187,7 @@ export const markPaymentReminderSent = createServerFn({ method: "POST" })
 // ─────────────────────────────────────────────────────────────
 const ExpenseInput = z.object({
   description: z.string().trim().min(1).max(500),
-  amount: z.number().nonnegative().max(10_000_000),
+  amount: AmountLike.transform((v) => (v ?? 0) as number).pipe(z.number().nonnegative().max(10_000_000)),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().trim().min(1).max(60).default("inne"),
   notes: z.string().trim().max(2000).optional().nullable(),
@@ -202,6 +202,7 @@ export const listExpenses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => RangeInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     let q = context.supabase.from("expenses").select("*").order("expense_date", { ascending: false }).limit(500);
     if (data.from) q = q.gte("expense_date", data.from);
     if (data.to) q = q.lte("expense_date", data.to);
@@ -214,6 +215,7 @@ export const addExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ExpenseInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const { data: row, error } = await context.supabase
       .from("expenses")
       .insert({ ...data, created_by: context.userId } as any)
@@ -234,6 +236,7 @@ export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    await assertStaff(context);
     const { error } = await context.supabase.from("expenses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await context.supabase.from("audit_log").insert({
@@ -244,6 +247,7 @@ export const deleteExpense = createServerFn({ method: "POST" })
     } as any);
     return { ok: true };
   });
+
 
 // ─────────────────────────────────────────────────────────────
 // Podsumowanie finansowe w zakresie dat
