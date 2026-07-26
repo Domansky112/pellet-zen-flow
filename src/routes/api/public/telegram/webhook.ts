@@ -7,19 +7,36 @@ function safeEqual(a: string, b: string) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-async function replyToChat(chatId: number | string, text: string, html = true) {
+type InlineKeyboard = { text: string; callback_data: string }[][];
+
+async function tg(method: string, body: Record<string, unknown>) {
   const lovable = process.env.LOVABLE_API_KEY;
   const telegram = process.env.TELEGRAM_API_KEY;
   if (!lovable || !telegram) return;
-  await fetch("https://connector-gateway.lovable.dev/telegram/sendMessage", {
+  await fetch(`https://connector-gateway.lovable.dev/telegram/${method}`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${lovable}`,
       "X-Connection-Api-Key": telegram,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: html ? "HTML" : undefined, disable_web_page_preview: true }),
+    body: JSON.stringify(body),
   });
+}
+
+async function replyToChat(chatId: number | string, text: string, opts?: { keyboard?: InlineKeyboard }) {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  };
+  if (opts?.keyboard) body.reply_markup = { inline_keyboard: opts.keyboard };
+  await tg("sendMessage", body);
+}
+
+async function answerCallback(id: string, text?: string) {
+  await tg("answerCallbackQuery", { callback_query_id: id, text: text ?? "" });
 }
 
 const PRODUCT_LABEL: Record<string, string> = {
@@ -28,17 +45,26 @@ const PRODUCT_LABEL: Record<string, string> = {
   inne: "Inne",
 };
 
-async function renderStockSummary(admin: any) {
-  const { data, error } = await admin.from("stock_balance").select("product, physical, reserved");
-  if (error) return `❌ Błąd magazynu: ${error.message}`;
-  if (!data || data.length === 0) return "📦 Magazyn pusty.";
-  const lines = ["📦 <b>Stan magazynu</b>"];
-  for (const r of data) {
+async function getBalance(admin: any) {
+  const { data } = await admin.from("stock_balance").select("product, physical, reserved");
+  const map: Record<string, { physical: number; reserved: number; available: number }> = {};
+  for (const r of data ?? []) {
     const physical = Number(r.physical ?? 0);
     const reserved = Number(r.reserved ?? 0);
-    const available = physical - reserved;
+    map[r.product] = { physical, reserved, available: physical - reserved };
+  }
+  return map;
+}
+
+async function renderStockSummary(admin: any) {
+  const bal = await getBalance(admin);
+  const products = Object.keys(bal);
+  if (products.length === 0) return "📦 Magazyn pusty.";
+  const lines = ["📦 <b>Stan magazynu</b>"];
+  for (const p of products) {
+    const b = bal[p];
     lines.push(
-      `• <b>${PRODUCT_LABEL[r.product] ?? r.product}</b>: ${available.toFixed(1)} t dost. (fiz. ${physical.toFixed(1)} / rez. ${reserved.toFixed(1)})`,
+      `• <b>${PRODUCT_LABEL[p] ?? p}</b>: ${b.available.toFixed(1)} t dost. (fiz. ${b.physical.toFixed(1)} / rez. ${b.reserved.toFixed(1)})`,
     );
   }
   return lines.join("\n");
@@ -65,6 +91,188 @@ async function renderUpcomingTransports(admin: any) {
   return lines.join("\n");
 }
 
+// ============ /dodaj_palete flow ============
+
+function ymd(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+async function getFlow(admin: any, chatId: string) {
+  const { data } = await admin
+    .from("telegram_flow_state")
+    .select("flow, step, payload")
+    .eq("chat_id", chatId)
+    .maybeSingle();
+  return data as { flow: string; step: string; payload: any } | null;
+}
+
+async function setFlow(admin: any, chatId: string, flow: string, step: string, payload: any) {
+  await admin.from("telegram_flow_state").upsert({
+    chat_id: chatId,
+    flow,
+    step,
+    payload,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function clearFlow(admin: any, chatId: string) {
+  await admin.from("telegram_flow_state").delete().eq("chat_id", chatId);
+}
+
+async function startDodajPalete(admin: any, chatId: string) {
+  await setFlow(admin, chatId, "dodaj_palete", "await_qty", {});
+  await replyToChat(
+    chatId,
+    "📦 <b>Dodawanie palet (przepakowanie z big bag)</b>\n\n" +
+      "Przelicznik: <b>1 paleta = 1 big bag = 1 t</b>.\n\n" +
+      "Podaj ilość palet dodanych/spakowanych na magazyn (np. <code>5</code>):",
+    { keyboard: [[{ text: "❌ Anuluj", callback_data: "dp:cancel" }]] },
+  );
+}
+
+async function askForDate(admin: any, chatId: string, qty: number) {
+  await setFlow(admin, chatId, "dodaj_palete", "await_date", { qty });
+  await replyToChat(chatId, `Ilość: <b>${qty}</b> palet.\n\nZ jakiego dnia jest to produkcja?`, {
+    keyboard: [
+      [
+        { text: "📅 Dzisiaj", callback_data: "dp:date:today" },
+        { text: "📅 Wczoraj", callback_data: "dp:date:yesterday" },
+      ],
+      [{ text: "✍️ Podaj datę (YYYY-MM-DD)", callback_data: "dp:date:custom" }],
+      [{ text: "❌ Anuluj", callback_data: "dp:cancel" }],
+    ],
+  });
+}
+
+async function executeRepack(admin: any, chatId: string, qty: number, dateIso: string) {
+  const createdAt = new Date(`${dateIso}T12:00:00Z`).toISOString();
+  const ref = `REPACK:${dateIso}`;
+  const note = `Przepakowanie ${qty} t: big bag → paleta (${dateIso})`;
+
+  const { error: e1 } = await admin.from("stock_events").insert({
+    product: "pellet_paleta",
+    txn_type: "przyjecie",
+    quantity: qty,
+    reference: ref,
+    note,
+    created_at: createdAt,
+  });
+  if (e1) {
+    await replyToChat(chatId, `❌ Błąd zapisu (paleta): ${e1.message}`);
+    return;
+  }
+  const { error: e2 } = await admin.from("stock_events").insert({
+    product: "pellet_bigbag",
+    txn_type: "wydanie",
+    quantity: qty,
+    reference: ref,
+    note,
+    created_at: createdAt,
+  });
+  if (e2) {
+    // rollback the first insert
+    await admin.from("stock_events").delete().eq("reference", ref).eq("product", "pellet_paleta");
+    await replyToChat(chatId, `❌ Błąd zapisu (big bag), operacja wycofana: ${e2.message}`);
+    return;
+  }
+
+  const bal = await getBalance(admin);
+  const p = bal["pellet_paleta"] ?? { physical: 0, reserved: 0, available: 0 };
+  const bb = bal["pellet_bigbag"] ?? { physical: 0, reserved: 0, available: 0 };
+  await replyToChat(
+    chatId,
+    `✅ <b>Przepakowanie zapisane</b>\n` +
+      `Data: <b>${dateIso}</b> · Ilość: <b>${qty} t</b>\n\n` +
+      `📦 <b>Nowy stan magazynu:</b>\n` +
+      `• Palety: <b>${p.available.toFixed(1)} t</b> dost. (fiz. ${p.physical.toFixed(1)})\n` +
+      `• Big bagi: <b>${bb.available.toFixed(1)} t</b> dost. (fiz. ${bb.physical.toFixed(1)})`,
+  );
+}
+
+async function handleDodajPaleteText(admin: any, chatId: string, text: string, flow: { step: string; payload: any }) {
+  if (flow.step === "await_qty") {
+    const n = Number(text.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      await replyToChat(chatId, "❌ Podaj poprawną liczbę palet (np. <code>5</code>).");
+      return;
+    }
+    const bal = await getBalance(admin);
+    const bb = bal["pellet_bigbag"]?.available ?? 0;
+    if (n > bb) {
+      await setFlow(admin, chatId, "dodaj_palete", "await_negative_confirm", { qty: n });
+      await replyToChat(
+        chatId,
+        `⚠️ <b>Ostrzeżenie:</b> dodajesz <b>${n}</b> palet, ale w stanie big bagów jest tylko <b>${bb.toFixed(1)} t</b>. Stan big bagów spadnie poniżej zera.\n\nCzy na pewno kontynuować?`,
+        {
+          keyboard: [[
+            { text: "✅ Tak, zatwierdź", callback_data: "dp:neg:yes" },
+            { text: "❌ Anuluj", callback_data: "dp:cancel" },
+          ]],
+        },
+      );
+      return;
+    }
+    await askForDate(admin, chatId, n);
+    return;
+  }
+  if (flow.step === "await_date_custom") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      await replyToChat(chatId, "❌ Zły format. Podaj datę jako <code>YYYY-MM-DD</code> (np. <code>2026-07-20</code>).");
+      return;
+    }
+    const qty = Number(flow.payload?.qty);
+    await clearFlow(admin, chatId);
+    await executeRepack(admin, chatId, qty, text);
+    return;
+  }
+}
+
+async function handleDodajPaleteCallback(admin: any, chatId: string, data: string, callbackId: string, flow: { step: string; payload: any } | null) {
+  if (data === "dp:cancel") {
+    await clearFlow(admin, chatId);
+    await answerCallback(callbackId, "Anulowano");
+    await replyToChat(chatId, "❌ Anulowano dodawanie palet.");
+    return;
+  }
+  if (!flow) {
+    await answerCallback(callbackId, "Sesja wygasła");
+    return;
+  }
+  if (data === "dp:neg:yes" && flow.step === "await_negative_confirm") {
+    await answerCallback(callbackId, "OK");
+    await askForDate(admin, chatId, Number(flow.payload?.qty));
+    return;
+  }
+  if (data.startsWith("dp:date:") && flow.step === "await_date") {
+    const which = data.slice("dp:date:".length);
+    const qty = Number(flow.payload?.qty);
+    if (which === "today") {
+      await clearFlow(admin, chatId);
+      await answerCallback(callbackId, "Dzisiaj");
+      await executeRepack(admin, chatId, qty, ymd(new Date()));
+      return;
+    }
+    if (which === "yesterday") {
+      const d = new Date(); d.setDate(d.getDate() - 1);
+      await clearFlow(admin, chatId);
+      await answerCallback(callbackId, "Wczoraj");
+      await executeRepack(admin, chatId, qty, ymd(d));
+      return;
+    }
+    if (which === "custom") {
+      await setFlow(admin, chatId, "dodaj_palete", "await_date_custom", { qty });
+      await answerCallback(callbackId, "Podaj datę");
+      await replyToChat(chatId, "✍️ Wpisz datę produkcji w formacie <code>YYYY-MM-DD</code>:");
+      return;
+    }
+  }
+  await answerCallback(callbackId);
+}
+
 export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
@@ -79,6 +287,21 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         const update = await request.json().catch(() => null) as any;
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        // Callback query (inline keyboard button)
+        const cb = update?.callback_query;
+        if (cb?.message?.chat?.id && typeof cb.data === "string") {
+          const chatIdStr = String(cb.message.chat.id);
+          const flow = await getFlow(supabaseAdmin, chatIdStr);
+          if (cb.data.startsWith("dp:")) {
+            await handleDodajPaleteCallback(supabaseAdmin, chatIdStr, cb.data, String(cb.id), flow);
+          } else {
+            await answerCallback(String(cb.id));
+          }
+          return Response.json({ ok: true });
+        }
+
         const message = update?.message ?? update?.edited_message;
         const chat = message?.chat;
         if (!chat?.id) return Response.json({ ok: true, ignored: true });
@@ -88,9 +311,6 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           .filter(Boolean)[0] ?? `chat ${chatIdStr}`;
         const text: string = (message.text ?? "").trim();
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-        // Upsert chat; /start auto-whitelists, /stop removes whitelist.
         const isStart = /^\/start\b/i.test(text);
         const isStop = /^\/stop\b/i.test(text);
 
@@ -113,22 +333,40 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         const whitelisted = isStart || (existing?.is_whitelisted && !isStop);
-        const cmd = text.match(/^\/([a-z]+)/i)?.[1]?.toLowerCase();
+        const cmd = text.match(/^\/([a-z_]+)/i)?.[1]?.toLowerCase();
+
+        // Multi-step flow input (non-command text while flow is active)
+        const flow = await getFlow(supabaseAdmin, chatIdStr);
+        if (flow?.flow === "dodaj_palete" && !cmd) {
+          if (!whitelisted) {
+            await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+            return Response.json({ ok: true });
+          }
+          await handleDodajPaleteText(supabaseAdmin, chatIdStr, text, flow);
+          return Response.json({ ok: true });
+        }
 
         if (isStart) {
-          await replyToChat(chat.id, "✅ Pellet OS: czat aktywny.\n\nKomendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/id — pokaż chat_id\n/stop — wypisz się");
+          await replyToChat(chatIdStr, "✅ Pellet OS: czat aktywny.\n\nKomendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/dodaj_palete — przepakowanie big bag → paleta\n/id — pokaż chat_id\n/stop — wypisz się");
         } else if (isStop) {
-          await replyToChat(chat.id, "🔕 Wypisano. Wpisz /start żeby wrócić.");
+          await clearFlow(supabaseAdmin, chatIdStr);
+          await replyToChat(chatIdStr, "🔕 Wypisano. Wpisz /start żeby wrócić.");
         } else if (cmd === "id") {
-          await replyToChat(chat.id, `chat_id: <code>${chatIdStr}</code>`);
+          await replyToChat(chatIdStr, `chat_id: <code>${chatIdStr}</code>`);
         } else if (cmd === "help" || cmd === "menu") {
-          await replyToChat(chat.id, "Komendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/id — chat_id\n/start /stop — alerty");
+          await replyToChat(chatIdStr, "Komendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/dodaj_palete — przepakowanie big bag → paleta\n/id — chat_id\n/start /stop — alerty");
         } else if (cmd === "stan" || cmd === "magazyn") {
-          if (!whitelisted) await replyToChat(chat.id, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
-          else await replyToChat(chat.id, await renderStockSummary(supabaseAdmin));
+          if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chatIdStr, await renderStockSummary(supabaseAdmin));
         } else if (cmd === "transport" || cmd === "transporty") {
-          if (!whitelisted) await replyToChat(chat.id, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
-          else await replyToChat(chat.id, await renderUpcomingTransports(supabaseAdmin));
+          if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chatIdStr, await renderUpcomingTransports(supabaseAdmin));
+        } else if (cmd === "dodaj_palete" || cmd === "dodajpalete") {
+          if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await startDodajPalete(supabaseAdmin, chatIdStr);
+        } else if (cmd === "anuluj" || cmd === "cancel") {
+          await clearFlow(supabaseAdmin, chatIdStr);
+          await replyToChat(chatIdStr, "❌ Anulowano bieżącą operację.");
         }
 
         return Response.json({ ok: true });
