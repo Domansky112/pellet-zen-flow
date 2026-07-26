@@ -854,15 +854,19 @@ function ConfigTab() {
 
   const fuel = (data as any[]).find((s) => s.key === "fuel_price_correction");
   const wz = (data as any[]).find((s) => s.key === "wz_number_format");
+  const unitCost = (data as any[]).find((s) => s.key === "pellet_unit_cost_pln");
 
   const [fuelValue, setFuelValue] = useState<string>("");
   const [wzValue, setWzValue] = useState<string>("");
+  const [unitCostValue, setUnitCostValue] = useState<string>("");
 
   // hydrate once
   useState(() => {
     if (fuel && fuelValue === "") setFuelValue(String(fuel.value?.pln_per_liter ?? -0.1));
     if (wz && wzValue === "") setWzValue(String(wz.value?.pattern ?? "WZ/{YYYY}/{MM}/{SEQ:0000}"));
+    if (unitCost && unitCostValue === "") setUnitCostValue(String(unitCost.value?.pln_per_ton ?? 0));
   });
+
 
   const save = useMutation({
     mutationFn: (p: any) => upsertFn({ data: p }),
