@@ -922,9 +922,34 @@ function ConfigTab() {
           >Zapisz</Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" /> Koszt jednostkowy pelletu</CardTitle>
+          <CardDescription>Cena kosztowa 1 tony pelletu (PLN). Używana do wyceny wartości towaru w magazynie w module Płatności.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-end gap-3">
+          <div className="flex-1 max-w-xs">
+            <Label>Cena [PLN / tona]</Label>
+            <Input
+              type="number" step="1" min="0"
+              defaultValue={String(unitCost?.value?.pln_per_ton ?? 0)}
+              onChange={(e) => setUnitCostValue(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={() => save.mutate({
+              key: "pellet_unit_cost_pln",
+              value: { pln_per_ton: Number(unitCostValue || unitCost?.value?.pln_per_ton || 0) },
+              description: "Koszt jednostkowy 1 tony pelletu w PLN (do wyceny magazynu).",
+            })}
+          >Zapisz</Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
 
 // ============================================================
 // Small helpers
