@@ -434,3 +434,33 @@ export const listPaymentAuditLog = createServerFn({ method: "GET" })
     return [...real, ...synthetic].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   });
 
+// ─────────────────────────────────────────────────────────────
+// Wartość magazynu (tonaż dostępny × koszt jednostkowy z ustawień)
+// ─────────────────────────────────────────────────────────────
+export const getWarehouseValue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: bal, error: be } = await context.supabase
+      .from("stock_balance")
+      .select("product, physical, reserved");
+    if (be) throw new Error(be.message);
+
+    const { data: setting } = await context.supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "pellet_unit_cost_pln")
+      .maybeSingle();
+    const unitCost = Number((setting?.value as any)?.pln_per_ton ?? 0);
+
+    const perProduct = (bal ?? []).map((r: any) => {
+      const physical = Number(r.physical ?? 0);
+      const reserved = Number(r.reserved ?? 0);
+      const available = physical - reserved;
+      return { product: r.product as string, physical, reserved, available };
+    });
+    const totalTons = perProduct.reduce((s, r) => s + r.available, 0);
+    const totalValue = totalTons * unitCost;
+    return { unitCost, totalTons, totalValue, perProduct };
+  });
+
+

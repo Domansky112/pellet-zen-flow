@@ -37,8 +37,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy,
+  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet,
 } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import {
   isCurrentUserAdmin,
@@ -854,15 +855,19 @@ function ConfigTab() {
 
   const fuel = (data as any[]).find((s) => s.key === "fuel_price_correction");
   const wz = (data as any[]).find((s) => s.key === "wz_number_format");
+  const unitCost = (data as any[]).find((s) => s.key === "pellet_unit_cost_pln");
 
   const [fuelValue, setFuelValue] = useState<string>("");
   const [wzValue, setWzValue] = useState<string>("");
+  const [unitCostValue, setUnitCostValue] = useState<string>("");
 
   // hydrate once
   useState(() => {
     if (fuel && fuelValue === "") setFuelValue(String(fuel.value?.pln_per_liter ?? -0.1));
     if (wz && wzValue === "") setWzValue(String(wz.value?.pattern ?? "WZ/{YYYY}/{MM}/{SEQ:0000}"));
+    if (unitCost && unitCostValue === "") setUnitCostValue(String(unitCost.value?.pln_per_ton ?? 0));
   });
+
 
   const save = useMutation({
     mutationFn: (p: any) => upsertFn({ data: p }),
@@ -918,9 +923,34 @@ function ConfigTab() {
           >Zapisz</Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" /> Koszt jednostkowy pelletu</CardTitle>
+          <CardDescription>Cena kosztowa 1 tony pelletu (PLN). Używana do wyceny wartości towaru w magazynie w module Płatności.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-end gap-3">
+          <div className="flex-1 max-w-xs">
+            <Label>Cena [PLN / tona]</Label>
+            <Input
+              type="number" step="1" min="0"
+              defaultValue={String(unitCost?.value?.pln_per_ton ?? 0)}
+              onChange={(e) => setUnitCostValue(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={() => save.mutate({
+              key: "pellet_unit_cost_pln",
+              value: { pln_per_ton: Number(unitCostValue || unitCost?.value?.pln_per_ton || 0) },
+              description: "Koszt jednostkowy 1 tony pelletu w PLN (do wyceny magazynu).",
+            })}
+          >Zapisz</Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
 
 // ============================================================
 // Small helpers
