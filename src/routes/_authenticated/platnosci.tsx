@@ -151,6 +151,14 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
     queryFn: () => getFinancialSummary({ data: { from, to } }),
   });
   const s = q.data;
+  const wv = useQuery({
+    queryKey: ["warehouse-value"],
+    queryFn: () => getWarehouseValue(),
+  });
+  const wh = wv.data;
+  const warehouseValue = wh?.totalValue ?? 0;
+  const netBalance = s?.balance ?? 0;
+  const totalAssets = netBalance + warehouseValue;
 
   const backfillM = useMutation({
     mutationFn: async () => backfillFn(),
@@ -196,18 +204,44 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard title="Przychód (wydane)" value={fmtPLN(s?.income ?? 0)} tone="emerald" />
           <StatCard title="Koszty" value={fmtPLN(s?.totalCosts ?? 0)} tone="amber" />
-          <StatCard title="Saldo" value={fmtPLN(s?.balance ?? 0)} tone={(s?.balance ?? 0) >= 0 ? "emerald" : "amber"} />
+          <StatCard title="Saldo" value={fmtPLN(netBalance)} tone={netBalance >= 0 ? "emerald" : "amber"} />
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-muted-foreground">Wartość towaru w magazynie</div>
+              <Wallet className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-2xl font-semibold">{fmtPLN(warehouseValue)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {(wh?.totalTons ?? 0).toFixed(1)} t × {fmtPLN(wh?.unitCost ?? 0)}/t
+              {(wh?.unitCost ?? 0) === 0 && (
+                <> · <Link to="/ustawienia" search={{ section: "config" } as any} className="text-primary underline">ustaw koszt jednostkowy</Link></>
+              )}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-muted-foreground">Całkowity bilans majątkowy</div>
+              <Wallet className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className={`text-2xl font-semibold ${totalAssets >= 0 ? "text-emerald-700" : "text-amber-700"}`}>{fmtPLN(totalAssets)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Saldo ({fmtPLN(netBalance)}) + magazyn ({fmtPLN(warehouseValue)})
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
+
 
 // ─── Nadchodzące ─────────────────────────────────────────────
 function UpcomingTab() {
