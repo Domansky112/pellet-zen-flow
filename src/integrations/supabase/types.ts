@@ -746,6 +746,30 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_flow_state: {
+        Row: {
+          chat_id: string
+          flow: string
+          payload: Json
+          step: string
+          updated_at: string
+        }
+        Insert: {
+          chat_id: string
+          flow: string
+          payload?: Json
+          step: string
+          updated_at?: string
+        }
+        Update: {
+          chat_id?: string
+          flow?: string
+          payload?: Json
+          step?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transport_items: {
         Row: {
           address: string | null
