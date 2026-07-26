@@ -330,6 +330,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
     let tonsTotal = 0, tonsPaleta = 0, tonsBigbag = 0, tonsInne = 0;
+    let incomePaleta = 0, incomeBigbag = 0, incomeInne = 0;
     for (const l of leads ?? []) {
       const amt = Number(l.payment_amount_gross ?? 0);
       income += amt;
@@ -339,20 +340,24 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       const qty = Number((l as any).quantity ?? 0);
       if (qty > 0) {
         tonsTotal += qty;
-        if ((l as any).product === "pellet_paleta") tonsPaleta += qty;
-        else if ((l as any).product === "pellet_bigbag") tonsBigbag += qty;
-        else tonsInne += qty;
+        if ((l as any).product === "pellet_paleta") { tonsPaleta += qty; incomePaleta += amt; }
+        else if ((l as any).product === "pellet_bigbag") { tonsBigbag += qty; incomeBigbag += amt; }
+        else { tonsInne += qty; incomeInne += amt; }
       }
     }
     const totalCosts = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
+    const avgPricePaleta = tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0;
+    const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
+    const avgPriceInne = tonsInne > 0 ? incomeInne / tonsInne : 0;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       balance: income - totalCosts,
       tonsTotal, tonsPaleta, tonsBigbag, tonsInne,
-      avgPricePerTon,
+      incomePaleta, incomeBigbag, incomeInne,
+      avgPricePerTon, avgPricePaleta, avgPriceBigbag, avgPriceInne,
       leads: leads ?? [],
       expenses: expenses ?? [],
     };
