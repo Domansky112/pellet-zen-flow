@@ -305,7 +305,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let leadsQ = context.supabase
       .from("leads")
-      .select("id, lead_number, name, first_name, last_name, invoice_company, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status")
+      .select("id, lead_number, name, first_name, last_name, invoice_company, product, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status")
       .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
@@ -329,19 +329,30 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
+    let tonsTotal = 0, tonsPaleta = 0, tonsBigbag = 0, tonsInne = 0;
     for (const l of leads ?? []) {
       const amt = Number(l.payment_amount_gross ?? 0);
       income += amt;
       if (l.payment_status === "oplacone_gotowka") cash += amt;
       else if (l.payment_status === "oplacone_przelew") transfer += amt;
       else pending += amt;
+      const qty = Number((l as any).quantity ?? 0);
+      if (qty > 0) {
+        tonsTotal += qty;
+        if ((l as any).product === "pellet_paleta") tonsPaleta += qty;
+        else if ((l as any).product === "pellet_bigbag") tonsBigbag += qty;
+        else tonsInne += qty;
+      }
     }
     const totalCosts = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+    const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       balance: income - totalCosts,
+      tonsTotal, tonsPaleta, tonsBigbag, tonsInne,
+      avgPricePerTon,
       leads: leads ?? [],
       expenses: expenses ?? [],
     };
