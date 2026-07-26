@@ -212,7 +212,21 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-muted-foreground">Sprzedany tonaż (wybrany okres)</div>
+              <Truck className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-2xl font-semibold">{(s?.tonsTotal ?? 0).toFixed(1)} t</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Palety: {(s?.tonsPaleta ?? 0).toFixed(1)} t · Big Bagi: {(s?.tonsBigbag ?? 0).toFixed(1)} t
+              {(s?.tonsInne ?? 0) > 0 && <> · Inne: {(s?.tonsInne ?? 0).toFixed(1)} t</>}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Śr. cena: <span className="font-medium text-foreground">{fmtPLN(s?.avgPricePerTon ?? 0)}/t</span>
+            </div>
+          </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium text-muted-foreground">Wartość towaru w magazynie</div>
