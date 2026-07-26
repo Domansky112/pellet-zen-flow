@@ -223,8 +223,13 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
               Palety: {(s?.tonsPaleta ?? 0).toFixed(1)} t · Big Bagi: {(s?.tonsBigbag ?? 0).toFixed(1)} t
               {(s?.tonsInne ?? 0) > 0 && <> · Inne: {(s?.tonsInne ?? 0).toFixed(1)} t</>}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Śr. cena: <span className="font-medium text-foreground">{fmtPLN(s?.avgPricePerTon ?? 0)}/t</span>
+            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+              <div>Śr. cena Palety: <span className="font-medium text-foreground">{fmtPLN(s?.avgPricePaleta ?? 0)}/t</span></div>
+              <div>Śr. cena Big Bag: <span className="font-medium text-foreground">{fmtPLN(s?.avgPriceBigbag ?? 0)}/t</span></div>
+              {(s?.tonsInne ?? 0) > 0 && (
+                <div>Śr. cena Inne: <span className="font-medium text-foreground">{fmtPLN(s?.avgPriceInne ?? 0)}/t</span></div>
+              )}
+              <div className="opacity-70">Śr. łącznie: {fmtPLN(s?.avgPricePerTon ?? 0)}/t</div>
             </div>
           </div>
           <div className="rounded-lg border bg-card p-4">
