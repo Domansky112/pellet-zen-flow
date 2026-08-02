@@ -253,14 +253,27 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-muted-foreground">Wartość środków trwałych</div>
+              <Wrench className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-2xl font-semibold">{fmtPLN(assetsValue)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {activeAssets.length} poz. na stanie
+              {" · "}
+              <Link to="/ustawienia" search={{ section: "assets" } as any} className="text-primary underline">zarządzaj</Link>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium text-muted-foreground">Całkowity bilans majątkowy</div>
               <Wallet className="h-4 w-4 text-emerald-600" />
             </div>
             <div className={`text-2xl font-semibold ${totalAssets >= 0 ? "text-emerald-700" : "text-amber-700"}`}>{fmtPLN(totalAssets)}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              Saldo ({fmtPLN(netBalance)}) + magazyn ({fmtPLN(warehouseValue)})
+              Saldo ({fmtPLN(netBalance)}) + magazyn ({fmtPLN(warehouseValue)}) + środki trwałe ({fmtPLN(assetsValue)})
             </div>
           </div>
+
         </div>
       </CardContent>
     </Card>
