@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wallet, Truck, MailIcon, MessageSquare, CheckCircle2, FileText, Plus, Trash2, Receipt, History, ExternalLink } from "lucide-react";
+import { Wallet, Truck, MailIcon, MessageSquare, CheckCircle2, FileText, Plus, Trash2, Receipt, History, ExternalLink, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import {
   listUpcomingPayments,
