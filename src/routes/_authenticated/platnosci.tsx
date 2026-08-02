@@ -462,8 +462,12 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2">
                       <span>{format(new Date(e.expense_date), "yyyy-MM-dd")}</span>
                       <span>· <Badge variant="outline" className="ml-0">{cat}</Badge></span>
+                      {e.fixed_asset_id && (
+                        <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
+                      )}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>
+
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">−{fmtPLN(Number(e.amount))}</div>
