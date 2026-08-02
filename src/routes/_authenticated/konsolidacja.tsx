@@ -195,6 +195,21 @@ function Konsolidacja() {
     return pts;
   }, [waitlist, activePools, selectedDraftId]);
 
+  const leadsById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const l of waitlist as any[]) m.set(l.id, l);
+    for (const p of activePools) {
+      for (const it of (p as any).transport_pool_items ?? []) {
+        if (it.leads) m.set(it.leads.id, { ...it.leads, quantity: it.tons });
+      }
+    }
+    return m;
+  }, [waitlist, activePools]);
+
+  const [infoLead, setInfoLead] = useState<any | null>(null);
+
+
+
 
   return (
     <>
@@ -420,7 +435,11 @@ function Konsolidacja() {
                 <PoolingMap
                   points={mapPoints}
                   selectedPoolId={selectedDraftId}
-                  onOpenLead={(id) => navigate({ to: "/crm", search: { lead: id } as any })}
+                  onOpenLead={(id) =>
+                    setInfoLead(
+                      leadsById.get(id) ?? mapPoints.find((p: any) => p.id === id) ?? null,
+                    )
+                  }
                   onAssignToPool={(id) => assignMut.mutate(id)}
                 />
               </Suspense>
@@ -526,6 +545,58 @@ function Konsolidacja() {
         poolName={cancelTarget?.name}
         onClose={() => setCancelTarget(null)}
       />
+
+      <Dialog open={!!infoLead} onOpenChange={(o) => !o && setInfoLead(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {infoLead?.name ?? "Lead"}
+              {infoLead?.lead_number ? (
+                <Badge variant="outline">#{infoLead.lead_number}</Badge>
+              ) : null}
+            </DialogTitle>
+            <DialogDescription>Podstawowe informacje o leadzie</DialogDescription>
+          </DialogHeader>
+          {infoLead ? (
+            <div className="space-y-2 text-sm">
+              <InfoRow label="Adres" value={[infoLead.postal_code, infoLead.city].filter(Boolean).join(" ") || "—"} />
+              <InfoRow label="Telefon" value={infoLead.phone ?? "—"} />
+              <InfoRow label="E-mail" value={infoLead.email ?? "—"} />
+              <InfoRow label="Produkt" value={PRODUCT_LABEL[infoLead.product ?? ""] ?? infoLead.product ?? "—"} />
+              <InfoRow label="Ilość" value={`${infoLead.quantity ?? "—"} t`} />
+              <InfoRow label="Status" value={infoLead.status ?? "—"} />
+              <InfoRow label="Priorytet" value={infoLead.priority ?? "—"} />
+              <InfoRow
+                label="Rozładunek własny"
+                value={infoLead.has_unloading_equipment ? "TAK" : "NIE"}
+              />
+              {infoLead.notes ? <InfoRow label="Notatki" value={infoLead.notes} /> : null}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInfoLead(null)}>
+              Zamknij
+            </Button>
+            <Button
+              onClick={() =>
+                navigate({ to: "/crm", search: { lead: infoLead.id } as any })
+              }
+            >
+              Otwórz w CRM
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium break-words">{value}</span>
+    </div>
   );
 }
