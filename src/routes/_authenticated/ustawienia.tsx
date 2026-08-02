@@ -54,9 +54,13 @@ import {
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 import { listLeadStatuses, upsertLeadStatus, deleteLeadStatus } from "@/lib/lead-statuses.functions";
+import {
+  listFixedAssets, listAssetExpenses, upsertFixedAsset, archiveFixedAsset, deleteFixedAsset,
+  ASSET_CATEGORIES, ASSET_STATUSES,
+} from "@/lib/assets.functions";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
