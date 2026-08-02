@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2, Wallet } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2, Wallet, Wrench } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -42,6 +42,7 @@ const SETTINGS_SECTIONS = [
   { value: "config", label: "Konfiguracja", icon: Settings2 },
   { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
   { value: "statuses", label: "Statusy leadów", icon: Settings2 },
+  { value: "assets", label: "Środki trwałe", icon: Wrench },
 ] as const;
 
 export function AppSidebar() {

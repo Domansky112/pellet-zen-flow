@@ -213,6 +213,7 @@ const ExpenseInput = z.object({
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().trim().min(1).max(60).default("inne"),
   notes: z.string().trim().max(2000).optional().nullable(),
+  fixed_asset_id: z.string().uuid().nullable().optional(),
 });
 
 const RangeInput = z.object({

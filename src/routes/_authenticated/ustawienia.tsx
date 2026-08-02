@@ -37,7 +37,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet,
+  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -54,9 +54,13 @@ import {
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 import { listLeadStatuses, upsertLeadStatus, deleteLeadStatus } from "@/lib/lead-statuses.functions";
+import {
+  listFixedAssets, listAssetExpenses, upsertFixedAsset, archiveFixedAsset, deleteFixedAsset,
+  ASSET_CATEGORIES, ASSET_STATUSES,
+} from "@/lib/assets.functions";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
@@ -110,6 +114,7 @@ function UstawieniaPage() {
     { value: "config", label: "Konfiguracja", Icon: Settings2 },
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
     { value: "statuses", label: "Statusy leadów", Icon: Settings2 },
+    { value: "assets", label: "Środki trwałe", Icon: Wrench },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
@@ -128,6 +133,7 @@ function UstawieniaPage() {
         {section === "config" && <ConfigTab />}
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
+        {section === "assets" && <AssetsTab />}
       </div>
     </div>
   );
@@ -1417,5 +1423,214 @@ function StatusesTab() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// ============================================================
+// ŚRODKI TRWAŁE
+// ============================================================
+const fmtPLNa = (n: number) =>
+  new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 2 }).format(n || 0);
+
+function AssetsTab() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listFixedAssets);
+  const upsertFn = useServerFn(upsertFixedAsset);
+  const archiveFn = useServerFn(archiveFixedAsset);
+  const delFn = useServerFn(deleteFixedAsset);
+
+  const [showArchived, setShowArchived] = useState(false);
+  const { data = [] } = useQuery({
+    queryKey: ["fixed-assets", showArchived],
+    queryFn: () => listFn({ data: { includeArchived: showArchived } }),
+  });
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [detail, setDetail] = useState<any | null>(null);
+
+  const save = useMutation({
+    mutationFn: (p: any) => upsertFn({ data: p }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fixed-assets"] }); toast.success("Zapisano środek trwały"); setOpen(false); setEditing(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const archive = useMutation({
+    mutationFn: (p: { id: string; restore?: boolean }) => archiveFn({ data: p }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fixed-assets"] }); toast.success("Zaktualizowano"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["fixed-assets"] }); toast.success("Usunięto"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const totalValue = data.reduce((s: number, a: any) => s + Number(a.purchase_value ?? 0), 0);
+  const totalCosts = data.reduce((s: number, a: any) => s + Number(a.expenses_total ?? 0), 0);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2"><Wrench className="h-5 w-5" /> Środki trwałe</CardTitle>
+          <CardDescription>
+            Pojazdy, maszyny i sprzęt magazynowy. Wartość początkowa: {fmtPLNa(totalValue)} · koszty eksploatacji: {fmtPLNa(totalCosts)}
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch checked={showArchived} onCheckedChange={setShowArchived} /> Pokaż zarchiwizowane
+          </label>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
+            <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj środek trwały</Button></DialogTrigger>
+            <AssetDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nazwa</TableHead>
+              <TableHead>Kategoria</TableHead>
+              <TableHead>Nr rej. / seryjny</TableHead>
+              <TableHead>Wartość zakupu</TableHead>
+              <TableHead>Następny przegląd</TableHead>
+              <TableHead>Koszty</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-36" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Brak środków trwałych</TableCell></TableRow>}
+            {data.map((a: any) => {
+              const soon = a.next_service_date && new Date(a.next_service_date).getTime() < Date.now() + 30 * 864e5;
+              return (
+                <TableRow key={a.id} className={a.archived_at ? "opacity-50" : ""}>
+                  <TableCell className="font-medium">
+                    <button className="hover:underline text-left" onClick={() => setDetail(a)}>{a.name}</button>
+                  </TableCell>
+                  <TableCell>{ASSET_CATEGORIES.find((c) => c.value === a.category)?.label ?? a.category}</TableCell>
+                  <TableCell className="font-mono text-xs">{a.identifier || "—"}</TableCell>
+                  <TableCell>{a.purchase_value != null ? fmtPLNa(Number(a.purchase_value)) : "—"}</TableCell>
+                  <TableCell className={soon ? "text-destructive font-medium" : ""}>{a.next_service_date || "—"}</TableCell>
+                  <TableCell className="text-amber-600 dark:text-amber-400">{fmtPLNa(Number(a.expenses_total ?? 0))}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{ASSET_STATUSES.find((s) => s.value === a.status)?.label ?? a.status}</Badge>
+                  </TableCell>
+                  <TableCell className="flex gap-1">
+                    <Button size="icon" variant="ghost" onClick={() => { setEditing(a); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title={a.archived_at ? "Przywróć" : "Archiwizuj"} onClick={() => archive.mutate({ id: a.id, restore: !!a.archived_at })}><Archive className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Usunąć trwale „${a.name}”?`)) del.mutate(a.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+      <Dialog open={!!detail} onOpenChange={(v) => { if (!v) setDetail(null); }}>
+        {detail && <AssetDetailDialog asset={detail} />}
+      </Dialog>
+    </Card>
+  );
+}
+
+function AssetDialog({ editing, onSave, pending }: { editing: any | null; onSave: (p: any) => void; pending: boolean }) {
+  const [f, setF] = useState({
+    id: editing?.id,
+    name: editing?.name ?? "",
+    category: editing?.category ?? "inne",
+    identifier: editing?.identifier ?? "",
+    purchase_value: editing?.purchase_value ?? "",
+    purchase_date: editing?.purchase_date ?? "",
+    next_service_date: editing?.next_service_date ?? "",
+    status: editing?.status ?? "sprawny",
+    notes: editing?.notes ?? "",
+  });
+  return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader><DialogTitle>{editing ? "Edytuj środek trwały" : "Nowy środek trwały"}</DialogTitle></DialogHeader>
+      <div className="grid gap-3">
+        <div><Label>Nazwa *</Label><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="np. Ciężarówka dostawcza MAN" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Kategoria</Label>
+            <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{ASSET_CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label>Nr rejestracyjny / seryjny</Label><Input value={f.identifier ?? ""} onChange={(e) => setF({ ...f, identifier: e.target.value })} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>Wartość zakupu [PLN]</Label><Input inputMode="decimal" value={f.purchase_value ?? ""} onChange={(e) => setF({ ...f, purchase_value: e.target.value })} /></div>
+          <div><Label>Data zakupu</Label><Input type="date" value={f.purchase_date ?? ""} onChange={(e) => setF({ ...f, purchase_date: e.target.value })} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label>Następny przegląd / OC-AC</Label><Input type="date" value={f.next_service_date ?? ""} onChange={(e) => setF({ ...f, next_service_date: e.target.value })} /></div>
+          <div>
+            <Label>Status</Label>
+            <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{ASSET_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div><Label>Uwagi / opis techniczny</Label><Textarea rows={3} value={f.notes ?? ""} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+      </div>
+      <DialogFooter>
+        <Button
+          disabled={pending || !f.name.trim()}
+          onClick={() => onSave({
+            ...f,
+            identifier: f.identifier || null,
+            purchase_value: f.purchase_value === "" ? null : f.purchase_value,
+            purchase_date: f.purchase_date || null,
+            next_service_date: f.next_service_date || null,
+            notes: f.notes || null,
+          })}
+        >
+          {pending ? "Zapisywanie…" : "Zapisz"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+function AssetDetailDialog({ asset }: { asset: any }) {
+  const listFn = useServerFn(listAssetExpenses);
+  const { data = [] } = useQuery({ queryKey: ["asset-expenses", asset.id], queryFn: () => listFn({ data: { assetId: asset.id } }) });
+  const total = data.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  return (
+    <DialogContent className="max-w-2xl">
+      <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-4 w-4" /> {asset.name}</DialogTitle></DialogHeader>
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div><span className="text-muted-foreground">Kategoria: </span>{ASSET_CATEGORIES.find((c) => c.value === asset.category)?.label ?? asset.category}</div>
+        <div><span className="text-muted-foreground">Nr: </span>{asset.identifier || "—"}</div>
+        <div><span className="text-muted-foreground">Wartość zakupu: </span>{asset.purchase_value != null ? fmtPLNa(Number(asset.purchase_value)) : "—"}</div>
+        <div><span className="text-muted-foreground">Data zakupu: </span>{asset.purchase_date || "—"}</div>
+        <div><span className="text-muted-foreground">Następny przegląd: </span>{asset.next_service_date || "—"}</div>
+        <div><span className="text-muted-foreground">Status: </span>{ASSET_STATUSES.find((s) => s.value === asset.status)?.label ?? asset.status}</div>
+      </div>
+      {asset.notes && <p className="text-sm text-muted-foreground whitespace-pre-wrap border-t pt-3">{asset.notes}</p>}
+      <div className="border-t pt-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-medium text-sm">Koszty eksploatacji i serwisu</div>
+          <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">{fmtPLNa(total)}</div>
+        </div>
+        {data.length === 0 && <div className="text-sm text-muted-foreground py-4 text-center">Brak przypisanych kosztów.</div>}
+        <div className="divide-y divide-border/40 max-h-72 overflow-y-auto">
+          {data.map((e: any) => (
+            <div key={e.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <div className="min-w-0">
+                <div className="truncate">{e.description}</div>
+                <div className="text-xs text-muted-foreground">{e.expense_date} · {e.category}</div>
+              </div>
+              <div className="font-medium text-amber-600 dark:text-amber-400">−{fmtPLNa(Number(e.amount))}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DialogContent>
   );
 }

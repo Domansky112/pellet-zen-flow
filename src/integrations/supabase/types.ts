@@ -55,6 +55,7 @@ export type Database = {
           deleted_reason: string | null
           description: string
           expense_date: string
+          fixed_asset_id: string | null
           id: string
           notes: string | null
           updated_at: string
@@ -69,6 +70,7 @@ export type Database = {
           deleted_reason?: string | null
           description: string
           expense_date?: string
+          fixed_asset_id?: string | null
           id?: string
           notes?: string | null
           updated_at?: string
@@ -83,11 +85,20 @@ export type Database = {
           deleted_reason?: string | null
           description?: string
           expense_date?: string
+          fixed_asset_id?: string | null
           id?: string
           notes?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_fixed_asset_id_fkey"
+            columns: ["fixed_asset_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_assets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       external_carriers: {
         Row: {
@@ -126,6 +137,54 @@ export type Database = {
           nip?: string | null
           notes?: string | null
           phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fixed_assets: {
+        Row: {
+          archived_at: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          identifier: string | null
+          name: string
+          next_service_date: string | null
+          notes: string | null
+          purchase_date: string | null
+          purchase_value: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          identifier?: string | null
+          name: string
+          next_service_date?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_value?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          identifier?: string | null
+          name?: string
+          next_service_date?: string | null
+          notes?: string | null
+          purchase_date?: string | null
+          purchase_value?: number | null
           status?: string
           updated_at?: string
         }

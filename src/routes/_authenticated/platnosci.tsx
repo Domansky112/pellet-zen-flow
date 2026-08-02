@@ -33,6 +33,7 @@ import {
   listPaymentAuditLog,
   getWarehouseValue,
 } from "@/lib/payments.functions";
+import { listFixedAssets } from "@/lib/assets.functions";
 
 import { backfillMissingPayments } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -346,18 +347,22 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const [date, setDate] = useState(todayIso());
   const [category, setCategory] = useState("inne");
   const [notes, setNotes] = useState("");
+  const [assetId, setAssetId] = useState("none");
+
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["expenses"] });
     qc.invalidateQueries({ queryKey: ["financial-summary"] });
     qc.invalidateQueries({ queryKey: ["payment-audit"] });
+    qc.invalidateQueries({ queryKey: ["fixed-assets"] });
   };
 
   const addM = useMutation({
-    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, notes: notes || null } }),
+    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
     onSuccess: () => {
       toast.success("Dodano koszt");
-      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setDate(todayIso());
+      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setDate(todayIso()); setAssetId("none");
       invalidateAll();
     },
     onError: (e: any) => toast.error(e.message),
@@ -416,9 +421,22 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       </Select>
                     </div>
                     <div className="space-y-1">
+                      <Label>Przypisz koszt do środka trwałego</Label>
+                      <Select value={assetId} onValueChange={setAssetId}>
+                        <SelectTrigger><SelectValue placeholder="— brak —" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— brak —</SelectItem>
+                          {(assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany").map((a: any) => (
+                            <SelectItem key={a.id} value={a.id}>{a.name}{a.identifier ? ` (${a.identifier})` : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <Label>Notatka</Label>
                       <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
                     </div>
+
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>Anuluj</Button>
@@ -444,8 +462,12 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2">
                       <span>{format(new Date(e.expense_date), "yyyy-MM-dd")}</span>
                       <span>· <Badge variant="outline" className="ml-0">{cat}</Badge></span>
+                      {e.fixed_asset_id && (
+                        <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
+                      )}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>
+
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">−{fmtPLN(Number(e.amount))}</div>
