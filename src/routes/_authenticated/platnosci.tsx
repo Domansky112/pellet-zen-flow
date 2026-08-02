@@ -421,9 +421,22 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       </Select>
                     </div>
                     <div className="space-y-1">
+                      <Label>Przypisz koszt do środka trwałego</Label>
+                      <Select value={assetId} onValueChange={setAssetId}>
+                        <SelectTrigger><SelectValue placeholder="— brak —" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— brak —</SelectItem>
+                          {(assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany").map((a: any) => (
+                            <SelectItem key={a.id} value={a.id}>{a.name}{a.identifier ? ` (${a.identifier})` : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <Label>Notatka</Label>
                       <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
                     </div>
+
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setOpen(false)}>Anuluj</Button>
