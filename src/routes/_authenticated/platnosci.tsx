@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Wallet, Truck, MailIcon, MessageSquare, CheckCircle2, FileText, Plus, Trash2, Receipt, History, ExternalLink } from "lucide-react";
+import { Wallet, Truck, MailIcon, MessageSquare, CheckCircle2, FileText, Plus, Trash2, Receipt, History, ExternalLink, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import {
   listUpcomingPayments,
@@ -158,8 +158,12 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   });
   const wh = wv.data;
   const warehouseValue = wh?.totalValue ?? 0;
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const activeAssets = (assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany");
+  const assetsValue = activeAssets.reduce((s: number, a: any) => s + Number(a.purchase_value ?? 0), 0);
   const netBalance = s?.balance ?? 0;
-  const totalAssets = netBalance + warehouseValue;
+  const totalAssets = netBalance + warehouseValue + assetsValue;
+
 
   const backfillM = useMutation({
     mutationFn: async () => backfillFn(),
@@ -213,7 +217,8 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium text-muted-foreground">Sprzedany tonaż (wybrany okres)</div>
@@ -248,14 +253,27 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-muted-foreground">Wartość środków trwałych</div>
+              <Wrench className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-2xl font-semibold">{fmtPLN(assetsValue)}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {activeAssets.length} poz. na stanie
+              {" · "}
+              <Link to="/ustawienia" search={{ section: "assets" } as any} className="text-primary underline">zarządzaj</Link>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium text-muted-foreground">Całkowity bilans majątkowy</div>
               <Wallet className="h-4 w-4 text-emerald-600" />
             </div>
             <div className={`text-2xl font-semibold ${totalAssets >= 0 ? "text-emerald-700" : "text-amber-700"}`}>{fmtPLN(totalAssets)}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              Saldo ({fmtPLN(netBalance)}) + magazyn ({fmtPLN(warehouseValue)})
+              Saldo ({fmtPLN(netBalance)}) + magazyn ({fmtPLN(warehouseValue)}) + środki trwałe ({fmtPLN(assetsValue)})
             </div>
           </div>
+
         </div>
       </CardContent>
     </Card>
