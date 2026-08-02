@@ -435,7 +435,11 @@ function Konsolidacja() {
                 <PoolingMap
                   points={mapPoints}
                   selectedPoolId={selectedDraftId}
-                  onOpenLead={(id) => navigate({ to: "/crm", search: { lead: id } as any })}
+                  onOpenLead={(id) =>
+                    setInfoLead(
+                      leadsById.get(id) ?? mapPoints.find((p: any) => p.id === id) ?? null,
+                    )
+                  }
                   onAssignToPool={(id) => assignMut.mutate(id)}
                 />
               </Suspense>
