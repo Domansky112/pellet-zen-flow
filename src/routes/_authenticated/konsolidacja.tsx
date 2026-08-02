@@ -547,7 +547,7 @@ function Konsolidacja() {
       />
 
       <Dialog open={!!infoLead} onOpenChange={(o) => !o && setInfoLead(null)}>
-        <DialogContent className="max-w-md z-[10000]" overlayClassName="z-[9999]">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {infoLead?.name ?? "Lead"}
