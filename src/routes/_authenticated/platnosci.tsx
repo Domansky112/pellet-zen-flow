@@ -158,8 +158,12 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   });
   const wh = wv.data;
   const warehouseValue = wh?.totalValue ?? 0;
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const activeAssets = (assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany");
+  const assetsValue = activeAssets.reduce((s: number, a: any) => s + Number(a.purchase_value ?? 0), 0);
   const netBalance = s?.balance ?? 0;
-  const totalAssets = netBalance + warehouseValue;
+  const totalAssets = netBalance + warehouseValue + assetsValue;
+
 
   const backfillM = useMutation({
     mutationFn: async () => backfillFn(),
