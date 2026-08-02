@@ -379,7 +379,8 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const addM = useMutation({
     mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
     onSuccess: () => {
-      toast.success("Dodano koszt");
+      if (date < from || date > to) toast.warning(`Koszt zapisany z datą ${date} — poza aktywnym filtrem (${from} → ${to}). Zmień zakres dat, aby go zobaczyć.`);
+      else toast.success("Dodano koszt");
       setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setDate(todayIso()); setAssetId("none");
       invalidateAll();
     },
