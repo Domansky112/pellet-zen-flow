@@ -545,6 +545,49 @@ function Konsolidacja() {
         poolName={cancelTarget?.name}
         onClose={() => setCancelTarget(null)}
       />
+
+      <Dialog open={!!infoLead} onOpenChange={(o) => !o && setInfoLead(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {infoLead?.name ?? "Lead"}
+              {infoLead?.lead_number ? (
+                <Badge variant="outline">#{infoLead.lead_number}</Badge>
+              ) : null}
+            </DialogTitle>
+            <DialogDescription>Podstawowe informacje o leadzie</DialogDescription>
+          </DialogHeader>
+          {infoLead ? (
+            <div className="space-y-2 text-sm">
+              <InfoRow label="Adres" value={[infoLead.postal_code, infoLead.city].filter(Boolean).join(" ") || "—"} />
+              <InfoRow label="Telefon" value={infoLead.phone ?? "—"} />
+              <InfoRow label="E-mail" value={infoLead.email ?? "—"} />
+              <InfoRow label="Produkt" value={PRODUCT_LABEL[infoLead.product ?? ""] ?? infoLead.product ?? "—"} />
+              <InfoRow label="Ilość" value={`${infoLead.quantity ?? "—"} t`} />
+              <InfoRow label="Status" value={infoLead.status ?? "—"} />
+              <InfoRow label="Priorytet" value={infoLead.priority ?? "—"} />
+              <InfoRow
+                label="Rozładunek własny"
+                value={infoLead.has_unloading_equipment ? "TAK" : "NIE"}
+              />
+              {infoLead.notes ? <InfoRow label="Notatki" value={infoLead.notes} /> : null}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInfoLead(null)}>
+              Zamknij
+            </Button>
+            <Button
+              onClick={() =>
+                navigate({ to: "/crm", search: { lead: infoLead.id } as any })
+              }
+            >
+              Otwórz w CRM
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 }
