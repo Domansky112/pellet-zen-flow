@@ -133,6 +133,7 @@ function UstawieniaPage() {
         {section === "config" && <ConfigTab />}
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
+        {section === "assets" && <AssetsTab />}
       </div>
     </div>
   );
