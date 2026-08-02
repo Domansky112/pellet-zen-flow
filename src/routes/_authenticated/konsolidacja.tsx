@@ -195,6 +195,21 @@ function Konsolidacja() {
     return pts;
   }, [waitlist, activePools, selectedDraftId]);
 
+  const leadsById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const l of waitlist as any[]) m.set(l.id, l);
+    for (const p of activePools) {
+      for (const it of (p as any).transport_pool_items ?? []) {
+        if (it.leads) m.set(it.leads.id, { ...it.leads, quantity: it.tons });
+      }
+    }
+    return m;
+  }, [waitlist, activePools]);
+
+  const [infoLead, setInfoLead] = useState<any | null>(null);
+
+
+
 
   return (
     <>
