@@ -33,6 +33,7 @@ import {
   listPaymentAuditLog,
   getWarehouseValue,
 } from "@/lib/payments.functions";
+import { listFixedAssets } from "@/lib/assets.functions";
 
 import { backfillMissingPayments } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
