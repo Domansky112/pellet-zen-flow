@@ -429,6 +429,11 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                         <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                       </div>
                     </div>
+                    {(date < from || date > to) && (
+                      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+                        Uwaga: data {date} jest poza aktywnym filtrem ({from} → {to}), więc koszt nie pojawi się na liście ani w bilansie, dopóki nie rozszerzysz zakresu dat u góry strony.
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <Label>Kategoria</Label>
                       <Select value={category} onValueChange={setCategory}>
