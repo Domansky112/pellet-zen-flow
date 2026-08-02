@@ -217,7 +217,8 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
               <div className="text-sm font-medium text-muted-foreground">Sprzedany tonaż (wybrany okres)</div>
