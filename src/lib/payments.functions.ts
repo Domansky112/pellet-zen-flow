@@ -352,10 +352,23 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
     const avgPriceInne = tonsInne > 0 ? incomeInne / tonsInne : 0;
 
+    // Zysk Brutto / Netto — wyjaśnienia wyświetlane są w UI jako podpisy pod kafelkami.
+    const grossProfit = income - totalCosts;
+    // Domyślna stawka VAT z kalkulatora ofert wynosi 23%. Przychód netto = brutto / 1,23.
+    // Koszty traktujemy jako wartości netto (moduł kosztów nie zawiera VAT).
+    const defaultVatRate = 23;
+    const incomeNet = income / (1 + defaultVatRate / 100);
+    const totalCostsNet = totalCosts;
+    const netProfit = incomeNet - totalCostsNet;
+
     return {
       income, cash, transfer, pending,
       totalCosts,
       balance: income - totalCosts,
+      grossProfit,
+      netProfit,
+      incomeNet,
+      totalCostsNet,
       tonsTotal, tonsPaleta, tonsBigbag, tonsInne,
       incomePaleta, incomeBigbag, incomeInne,
       avgPricePerTon, avgPricePaleta, avgPriceBigbag, avgPriceInne,
