@@ -212,23 +212,34 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <StatCard title="Przychód (wydane)" value={fmtPLN(s?.income ?? 0)} tone="emerald" />
-          <StatCard title="Koszty" value={fmtPLN(s?.totalCosts ?? 0)} tone="amber" />
+          <StatCard
+            title="Koszty całkowite"
+            value={fmtPLN(s?.totalCosts ?? 0)}
+            tone="amber"
+            hint={`Koszt surowca (COGS) ${fmtPLN((s as any)?.cogs ?? 0)} + koszty dodatkowe ${fmtPLN((s as any)?.manualCosts ?? 0)}`}
+          />
           <StatCard title="Saldo" value={fmtPLN(netBalance)} tone={netBalance >= 0 ? "emerald" : "amber"} />
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <StatCard
+            title="Koszt surowca (COGS)"
+            value={fmtPLN((s as any)?.cogs ?? 0)}
+            tone="amber"
+            hint={`Automatyczny koszt surowca (COGS): ${((s as any)?.cogsTons ?? 0).toFixed(2)} t × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogs ?? 0)}`}
+          />
           <StatCard
             title="Zysk Brutto w okresie"
             value={fmtPLN(s?.grossProfit ?? 0)}
             tone={(s?.grossProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód brutto ze zrealizowanych dostaw − Koszty brutto w wybranym okresie"
+            hint="Liczony jako: Przychód ze sprzedaży − (Sprzedane tony × Cena jednostkowa towaru z Ustawień + Koszty dodatkowe)"
           />
           <StatCard
             title="Zysk Netto w okresie"
             value={fmtPLN(s?.netProfit ?? 0)}
             tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód netto − Koszty netto (z uwzględnieniem domyślnej stawki VAT 23% z kalkulatora ofert)"
+            hint="Liczony jako: Przychód netto (brutto / 1,23) − Koszty całkowite (COGS + koszty dodatkowe)"
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
