@@ -805,14 +805,17 @@ function LeadPaymentRow({ lead }: { lead: any }) {
 }
 
 // ─── Helpers UI ──────────────────────────────────────────────
-function StatCard({ title, value, tone }: { title: string; value: string; tone?: "emerald" | "amber" }) {
+function StatCard({ title, value, tone, hint }: { title: string; value: string; tone?: "emerald" | "amber"; hint?: string }) {
   const cls = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
             : tone === "amber"   ? "text-amber-600 dark:text-amber-400"
             : "text-foreground";
   return (
     <Card>
       <CardHeader className="pb-2"><CardDescription>{title}</CardDescription></CardHeader>
-      <CardContent><div className={`text-2xl font-semibold ${cls}`}>{value}</div></CardContent>
+      <CardContent>
+        <div className={`text-2xl font-semibold ${cls}`}>{value}</div>
+        {hint && <div className="text-xs text-muted-foreground mt-2 leading-snug">{hint}</div>}
+      </CardContent>
     </Card>
   );
 }
