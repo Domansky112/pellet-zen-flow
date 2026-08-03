@@ -866,6 +866,7 @@ function ConfigTab() {
   const [fuelValue, setFuelValue] = useState<string>("");
   const [wzValue, setWzValue] = useState<string>("");
   const [unitCostValue, setUnitCostValue] = useState<string>("");
+  const [unitCostVat, setUnitCostVat] = useState<string>(String(unitCost?.value?.vat_rate ?? 8));
 
   // hydrate once
   useState(() => {
