@@ -240,7 +240,7 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             title="Zysk Netto w okresie"
             value={fmtPLN(s?.netProfit ?? 0)}
             tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód netto (brutto / 1,23) − Koszty całkowite (COGS + koszty dodatkowe)"
+            hint={`Liczony jako: Przychód netto − Koszty całkowite netto (z uwzględnieniem stawek 8% i 23% VAT). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − koszty netto ${fmtPLN((s as any)?.totalCostsNet ?? 0)} (COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} przy VAT ${(s as any)?.cogsVatRate ?? 8}% + koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)})`}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -390,6 +390,7 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayIso());
   const [category, setCategory] = useState("inne");
+  const [vatRate, setVatRate] = useState("23");
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState("none");
 
@@ -402,12 +403,15 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     qc.invalidateQueries({ queryKey: ["fixed-assets"] });
   };
 
+  const amountNum = Number((amount || "0").replace(",", ".")) || 0;
+  const netPreview = amountNum / (1 + Number(vatRate) / 100);
+
   const addM = useMutation({
-    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
+    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, vat_rate: Number(vatRate), notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
     onSuccess: () => {
       if (date < from || date > to) toast.warning(`Koszt zapisany z datą ${date} — poza aktywnym filtrem (${from} → ${to}). Zmień zakres dat, aby go zobaczyć.`);
       else toast.success("Dodano koszt");
-      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setDate(todayIso()); setAssetId("none");
+      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setVatRate("23"); setDate(todayIso()); setAssetId("none");
       invalidateAll();
     },
     onError: (e: any) => toast.error(e.message),
@@ -481,6 +485,21 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       </Select>
                     </div>
                     <div className="space-y-1">
+                      <Label>Stawka VAT *</Label>
+                      <Select value={vatRate} onValueChange={setVatRate}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="8">8% — produkty rolne / biomasa / opał</SelectItem>
+                          <SelectItem value="23">23% — usługi, paliwo, części, transport</SelectItem>
+                          <SelectItem value="0">zw / 0% — zwolniony, brak VAT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Netto: <span className="font-medium text-foreground">{fmtPLN(netPreview)}</span>
+                        {" "}(brutto {fmtPLN(amountNum)} ÷ {(1 + Number(vatRate) / 100).toFixed(2)})
+                      </p>
+                    </div>
+                    <div className="space-y-1">
                       <Label>Przypisz koszt do środka trwałego</Label>
                       <Select value={assetId} onValueChange={setAssetId}>
                         <SelectTrigger><SelectValue placeholder="— brak —" /></SelectTrigger>
@@ -536,6 +555,7 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       {e.fixed_asset_id && (
                         <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
                       )}
+                      <span>· VAT {Number(e.vat_rate ?? 23)}% · netto {fmtPLN(Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100))}</span>
                       {isCapex(e) && <span>· <Badge variant="outline" className="border-sky-500/40 text-sky-600 dark:text-sky-400">inwestycja — poza kosztami</Badge></span>}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>

@@ -212,9 +212,11 @@ const ExpenseInput = z.object({
   amount: AmountLike.transform((v) => (v ?? 0) as number).pipe(z.number().nonnegative().max(10_000_000)),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().trim().min(1).max(60).default("inne"),
+  vat_rate: z.coerce.number().refine((v) => [0, 8, 23].includes(v), "Dozwolone stawki VAT: 0, 8, 23").default(23),
   notes: z.string().trim().max(2000).optional().nullable(),
   fixed_asset_id: z.string().uuid().nullable().optional(),
 });
+
 
 const RangeInput = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -255,7 +257,13 @@ export const addExpense = createServerFn({ method: "POST" })
       entity_id: row.id,
       action: "expense_added",
       actor_id: context.userId,
-      details: { amount: data.amount, description: data.description, category: data.category } as any,
+      details: {
+        amount: data.amount,
+        description: data.description,
+        category: data.category,
+        vat_rate: data.vat_rate,
+        amount_net: Number((data.amount / (1 + data.vat_rate / 100)).toFixed(2)),
+      } as any,
     } as any);
     return row;
   });
@@ -351,6 +359,10 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
     const manualCosts = (expenses ?? []).filter((e: any) => !isCapex(e)).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
     const capexCosts = (expenses ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+    // Koszty dodatkowe netto — każdy koszt przeliczany indywidualnie wg własnej stawki VAT (0 / 8 / 23%).
+    const manualCostsNet = (expenses ?? [])
+      .filter((e: any) => !isCapex(e))
+      .reduce((s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
     // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
@@ -360,8 +372,10 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .eq("key", "pellet_unit_cost_pln")
       .maybeSingle();
     const unitCost = Number((costSetting?.value as any)?.pln_per_ton ?? 0);
+    const cogsVatRate = Number((costSetting?.value as any)?.vat_rate ?? 8);
     const cogsTons = tonsPaleta + tonsBigbag + tonsInne;
     const cogs = cogsTons * unitCost;
+    const cogsNet = cogs / (1 + cogsVatRate / 100);
 
     const totalCosts = manualCosts + cogs;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
@@ -371,20 +385,24 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
     // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
     const grossProfit = income - totalCosts;
-    // Domyślna stawka VAT z kalkulatora ofert wynosi 23%. Przychód netto = brutto / 1,23.
-    const defaultVatRate = 23;
-    const incomeNet = income / (1 + defaultVatRate / 100);
-    const totalCostsNet = totalCosts;
+    // Przychód netto — wg stawki VAT kalkulatora ofert (23%).
+    const salesVatRate = 23;
+    const incomeNet = income / (1 + salesVatRate / 100);
+    const totalCostsNet = cogsNet + manualCostsNet;
     const netProfit = incomeNet - totalCostsNet;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       manualCosts,
+      manualCostsNet,
       capexCosts,
       cogs,
+      cogsNet,
+      cogsVatRate,
       cogsTons,
       cogsUnitCost: unitCost,
+      salesVatRate,
       balance: income - totalCosts,
       grossProfit,
       netProfit,
