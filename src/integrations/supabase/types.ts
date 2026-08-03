@@ -59,6 +59,7 @@ export type Database = {
           id: string
           notes: string | null
           updated_at: string
+          vat_rate: number
         }
         Insert: {
           amount: number
@@ -74,6 +75,7 @@ export type Database = {
           id?: string
           notes?: string | null
           updated_at?: string
+          vat_rate?: number
         }
         Update: {
           amount?: number
@@ -89,6 +91,7 @@ export type Database = {
           id?: string
           notes?: string | null
           updated_at?: string
+          vat_rate?: number
         }
         Relationships: [
           {
