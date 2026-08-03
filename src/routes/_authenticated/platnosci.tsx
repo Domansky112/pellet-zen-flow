@@ -555,6 +555,7 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       {e.fixed_asset_id && (
                         <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
                       )}
+                      <span>· VAT {Number(e.vat_rate ?? 23)}% · netto {fmtPLN(Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100))}</span>
                       {isCapex(e) && <span>· <Badge variant="outline" className="border-sky-500/40 text-sky-600 dark:text-sky-400">inwestycja — poza kosztami</Badge></span>}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>
