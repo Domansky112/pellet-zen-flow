@@ -359,6 +359,10 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
     const manualCosts = (expenses ?? []).filter((e: any) => !isCapex(e)).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
     const capexCosts = (expenses ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+    // Koszty dodatkowe netto — każdy koszt przeliczany indywidualnie wg własnej stawki VAT (0 / 8 / 23%).
+    const manualCostsNet = (expenses ?? [])
+      .filter((e: any) => !isCapex(e))
+      .reduce((s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
     // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
@@ -368,8 +372,10 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .eq("key", "pellet_unit_cost_pln")
       .maybeSingle();
     const unitCost = Number((costSetting?.value as any)?.pln_per_ton ?? 0);
+    const cogsVatRate = Number((costSetting?.value as any)?.vat_rate ?? 8);
     const cogsTons = tonsPaleta + tonsBigbag + tonsInne;
     const cogs = cogsTons * unitCost;
+    const cogsNet = cogs / (1 + cogsVatRate / 100);
 
     const totalCosts = manualCosts + cogs;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
@@ -379,20 +385,24 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
     // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
     const grossProfit = income - totalCosts;
-    // Domyślna stawka VAT z kalkulatora ofert wynosi 23%. Przychód netto = brutto / 1,23.
-    const defaultVatRate = 23;
-    const incomeNet = income / (1 + defaultVatRate / 100);
-    const totalCostsNet = totalCosts;
+    // Przychód netto — wg stawki VAT kalkulatora ofert (23%).
+    const salesVatRate = 23;
+    const incomeNet = income / (1 + salesVatRate / 100);
+    const totalCostsNet = cogsNet + manualCostsNet;
     const netProfit = incomeNet - totalCostsNet;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       manualCosts,
+      manualCostsNet,
       capexCosts,
       cogs,
+      cogsNet,
+      cogsVatRate,
       cogsTons,
       cogsUnitCost: unitCost,
+      salesVatRate,
       balance: income - totalCosts,
       grossProfit,
       netProfit,
