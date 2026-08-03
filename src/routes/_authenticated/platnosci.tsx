@@ -75,6 +75,7 @@ const EXPENSE_CATEGORIES = [
   { value: "biuro", label: "Biuro / administracja" },
   { value: "marketing", label: "Marketing" },
   { value: "podatki", label: "Podatki / opłaty" },
+  { value: "zakup_srodka_trwalego", label: "Zakup środka trwałego (inwestycja — poza kosztami)" },
   { value: "inne", label: "Inne" },
 ];
 
@@ -418,7 +419,9 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const manualTotal = (q.data ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+  const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
+  const manualTotal = (q.data ?? []).filter((e: any) => !isCapex(e)).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const capexTotal = (q.data ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => getFinancialSummary({ data: { from, to } }) });
   const cogs = Number((sumQ.data as any)?.cogs ?? 0);
   const cogsTons = Number((sumQ.data as any)?.cogsTons ?? 0);
@@ -432,12 +435,15 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Koszty w zakresie</CardTitle>
-              <CardDescription>Koszty całkowite = automatyczny koszt surowca (COGS) + koszty dodatkowe. Zakres z filtra na górze strony.</CardDescription>
+              <CardDescription>Koszty całkowite = automatyczny koszt surowca (COGS) + koszty dodatkowe. Zakupy środków trwałych (ciężarówka, owijarka itp.) to inwestycje — nie wchodzą do kosztów ani zysku.</CardDescription>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-xs text-muted-foreground">Razem</div>
+                <div className="text-xs text-muted-foreground">Razem (koszty)</div>
                 <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">{fmtPLN(total)}</div>
+                {capexTotal > 0 && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">+ inwestycje w środki trwałe: {fmtPLN(capexTotal)} (poza kosztami)</div>
+                )}
               </div>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
@@ -530,12 +536,13 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       {e.fixed_asset_id && (
                         <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
                       )}
+                      {isCapex(e) && <span>· <Badge variant="outline" className="border-sky-500/40 text-sky-600 dark:text-sky-400">inwestycja — poza kosztami</Badge></span>}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>
 
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">−{fmtPLN(Number(e.amount))}</div>
+                    <div className={`text-sm font-semibold ${isCapex(e) ? "text-sky-600 dark:text-sky-400" : "text-amber-600 dark:text-amber-400"}`}>−{fmtPLN(Number(e.amount))}</div>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => { if (confirm("Usunąć koszt?")) delM.mutate(e.id); }}>
                     <Trash2 className="h-4 w-4" />
