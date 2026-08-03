@@ -485,6 +485,21 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       </Select>
                     </div>
                     <div className="space-y-1">
+                      <Label>Stawka VAT *</Label>
+                      <Select value={vatRate} onValueChange={setVatRate}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="8">8% — produkty rolne / biomasa / opał</SelectItem>
+                          <SelectItem value="23">23% — usługi, paliwo, części, transport</SelectItem>
+                          <SelectItem value="0">zw / 0% — zwolniony, brak VAT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Netto: <span className="font-medium text-foreground">{fmtPLN(netPreview)}</span>
+                        {" "}(brutto {fmtPLN(amountNum)} ÷ {(1 + Number(vatRate) / 100).toFixed(2)})
+                      </p>
+                    </div>
+                    <div className="space-y-1">
                       <Label>Przypisz koszt do środka trwałego</Label>
                       <Select value={assetId} onValueChange={setAssetId}>
                         <SelectTrigger><SelectValue placeholder="— brak —" /></SelectTrigger>
