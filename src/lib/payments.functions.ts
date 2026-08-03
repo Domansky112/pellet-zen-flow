@@ -346,16 +346,28 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
         else { tonsInne += qty; incomeInne += amt; }
       }
     }
-    const totalCosts = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+    const manualCosts = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+
+    // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
+    // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
+    const { data: costSetting } = await context.supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "pellet_unit_cost_pln")
+      .maybeSingle();
+    const unitCost = Number((costSetting?.value as any)?.pln_per_ton ?? 0);
+    const cogsTons = tonsPaleta + tonsBigbag + tonsInne;
+    const cogs = cogsTons * unitCost;
+
+    const totalCosts = manualCosts + cogs;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
     const avgPricePaleta = tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0;
     const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
     const avgPriceInne = tonsInne > 0 ? incomeInne / tonsInne : 0;
 
-    // Zysk Brutto / Netto — wyjaśnienia wyświetlane są w UI jako podpisy pod kafelkami.
+    // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
     const grossProfit = income - totalCosts;
     // Domyślna stawka VAT z kalkulatora ofert wynosi 23%. Przychód netto = brutto / 1,23.
-    // Koszty traktujemy jako wartości netto (moduł kosztów nie zawiera VAT).
     const defaultVatRate = 23;
     const incomeNet = income / (1 + defaultVatRate / 100);
     const totalCostsNet = totalCosts;
@@ -364,6 +376,10 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     return {
       income, cash, transfer, pending,
       totalCosts,
+      manualCosts,
+      cogs,
+      cogsTons,
+      cogsUnitCost: unitCost,
       balance: income - totalCosts,
       grossProfit,
       netProfit,
