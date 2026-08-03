@@ -875,6 +875,10 @@ function ConfigTab() {
     if (unitCost && unitCostValue === "") setUnitCostValue(String(unitCost.value?.pln_per_ton ?? 0));
   });
 
+  useEffect(() => {
+    if (unitCost?.value?.vat_rate != null) setUnitCostVat(String(unitCost.value.vat_rate));
+  }, [unitCost?.value?.vat_rate]);
+
 
   const save = useMutation({
     mutationFn: (p: any) => upsertFn({ data: p }),
