@@ -536,12 +536,13 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
                       {e.fixed_asset_id && (
                         <span>· 🔧 {(assetsQ.data ?? []).find((a: any) => a.id === e.fixed_asset_id)?.name ?? "środek trwały"}</span>
                       )}
+                      {isCapex(e) && <span>· <Badge variant="outline" className="border-sky-500/40 text-sky-600 dark:text-sky-400">inwestycja — poza kosztami</Badge></span>}
                       {e.notes && <span className="truncate">· {e.notes}</span>}
                     </div>
 
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-semibold text-amber-600 dark:text-amber-400">−{fmtPLN(Number(e.amount))}</div>
+                    <div className={`text-sm font-semibold ${isCapex(e) ? "text-sky-600 dark:text-sky-400" : "text-amber-600 dark:text-amber-400"}`}>−{fmtPLN(Number(e.amount))}</div>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => { if (confirm("Usunąć koszt?")) delM.mutate(e.id); }}>
                     <Trash2 className="h-4 w-4" />
