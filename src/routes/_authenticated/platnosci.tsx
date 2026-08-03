@@ -75,6 +75,7 @@ const EXPENSE_CATEGORIES = [
   { value: "biuro", label: "Biuro / administracja" },
   { value: "marketing", label: "Marketing" },
   { value: "podatki", label: "Podatki / opłaty" },
+  { value: "zakup_srodka_trwalego", label: "Zakup środka trwałego (inwestycja — poza kosztami)" },
   { value: "inne", label: "Inne" },
 ];
 
