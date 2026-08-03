@@ -217,6 +217,20 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <StatCard
+            title="Zysk Brutto w okresie"
+            value={fmtPLN(s?.grossProfit ?? 0)}
+            tone={(s?.grossProfit ?? 0) >= 0 ? "emerald" : "amber"}
+            hint="Liczony jako: Przychód brutto ze zrealizowanych dostaw − Koszty brutto w wybranym okresie"
+          />
+          <StatCard
+            title="Zysk Netto w okresie"
+            value={fmtPLN(s?.netProfit ?? 0)}
+            tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
+            hint="Liczony jako: Przychód netto − Koszty netto (z uwzględnieniem domyślnej stawki VAT 23% z kalkulatora ofert)"
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 
           <div className="rounded-lg border bg-card p-4">
@@ -805,14 +819,17 @@ function LeadPaymentRow({ lead }: { lead: any }) {
 }
 
 // ─── Helpers UI ──────────────────────────────────────────────
-function StatCard({ title, value, tone }: { title: string; value: string; tone?: "emerald" | "amber" }) {
+function StatCard({ title, value, tone, hint }: { title: string; value: string; tone?: "emerald" | "amber"; hint?: string }) {
   const cls = tone === "emerald" ? "text-emerald-600 dark:text-emerald-400"
             : tone === "amber"   ? "text-amber-600 dark:text-amber-400"
             : "text-foreground";
   return (
     <Card>
       <CardHeader className="pb-2"><CardDescription>{title}</CardDescription></CardHeader>
-      <CardContent><div className={`text-2xl font-semibold ${cls}`}>{value}</div></CardContent>
+      <CardContent>
+        <div className={`text-2xl font-semibold ${cls}`}>{value}</div>
+        {hint && <div className="text-xs text-muted-foreground mt-2 leading-snug">{hint}</div>}
+      </CardContent>
     </Card>
   );
 }
