@@ -418,7 +418,12 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const total = (q.data ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+  const manualTotal = (q.data ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+  const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => getFinancialSummary({ data: { from, to } }) });
+  const cogs = Number((sumQ.data as any)?.cogs ?? 0);
+  const cogsTons = Number((sumQ.data as any)?.cogsTons ?? 0);
+  const cogsUnit = Number((sumQ.data as any)?.cogsUnitCost ?? 0);
+  const total = manualTotal + cogs;
 
   return (
     <div className="space-y-4">
@@ -427,7 +432,7 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Koszty w zakresie</CardTitle>
-              <CardDescription>Zakres pobierany z filtra na górze strony — suma odejmowana od przychodu w bilansie.</CardDescription>
+              <CardDescription>Koszty całkowite = automatyczny koszt surowca (COGS) + koszty dodatkowe. Zakres z filtra na górze strony.</CardDescription>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
