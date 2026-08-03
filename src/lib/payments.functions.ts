@@ -381,6 +381,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       income, cash, transfer, pending,
       totalCosts,
       manualCosts,
+      capexCosts,
       cogs,
       cogsTons,
       cogsUnitCost: unitCost,
