@@ -257,7 +257,13 @@ export const addExpense = createServerFn({ method: "POST" })
       entity_id: row.id,
       action: "expense_added",
       actor_id: context.userId,
-      details: { amount: data.amount, description: data.description, category: data.category } as any,
+      details: {
+        amount: data.amount,
+        description: data.description,
+        category: data.category,
+        vat_rate: data.vat_rate,
+        amount_net: Number((data.amount / (1 + data.vat_rate / 100)).toFixed(2)),
+      } as any,
     } as any);
     return row;
   });
