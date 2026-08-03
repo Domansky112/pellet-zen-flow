@@ -240,7 +240,7 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             title="Zysk Netto w okresie"
             value={fmtPLN(s?.netProfit ?? 0)}
             tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód netto (brutto / 1,23) − Koszty całkowite (COGS + koszty dodatkowe)"
+            hint={`Liczony jako: Przychód netto − Koszty całkowite netto (z uwzględnieniem stawek 8% i 23% VAT). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − koszty netto ${fmtPLN((s as any)?.totalCostsNet ?? 0)} (COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} przy VAT ${(s as any)?.cogsVatRate ?? 8}% + koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)})`}
           />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
