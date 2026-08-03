@@ -390,6 +390,7 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayIso());
   const [category, setCategory] = useState("inne");
+  const [vatRate, setVatRate] = useState("23");
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState("none");
 
@@ -402,12 +403,15 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     qc.invalidateQueries({ queryKey: ["fixed-assets"] });
   };
 
+  const amountNum = Number((amount || "0").replace(",", ".")) || 0;
+  const netPreview = amountNum / (1 + Number(vatRate) / 100);
+
   const addM = useMutation({
-    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
+    mutationFn: async () => addFn({ data: { description: desc.trim(), amount: Number(amount.replace(",", ".")), expense_date: date, category, vat_rate: Number(vatRate), notes: notes || null, fixed_asset_id: assetId === "none" ? null : assetId } }),
     onSuccess: () => {
       if (date < from || date > to) toast.warning(`Koszt zapisany z datą ${date} — poza aktywnym filtrem (${from} → ${to}). Zmień zakres dat, aby go zobaczyć.`);
       else toast.success("Dodano koszt");
-      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setDate(todayIso()); setAssetId("none");
+      setOpen(false); setDesc(""); setAmount(""); setNotes(""); setCategory("inne"); setVatRate("23"); setDate(todayIso()); setAssetId("none");
       invalidateAll();
     },
     onError: (e: any) => toast.error(e.message),
