@@ -419,7 +419,9 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const manualTotal = (q.data ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+  const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
+  const manualTotal = (q.data ?? []).filter((e: any) => !isCapex(e)).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const capexTotal = (q.data ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => getFinancialSummary({ data: { from, to } }) });
   const cogs = Number((sumQ.data as any)?.cogs ?? 0);
   const cogsTons = Number((sumQ.data as any)?.cogsTons ?? 0);
@@ -433,12 +435,15 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-4 w-4 text-primary" />Koszty w zakresie</CardTitle>
-              <CardDescription>Koszty całkowite = automatyczny koszt surowca (COGS) + koszty dodatkowe. Zakres z filtra na górze strony.</CardDescription>
+              <CardDescription>Koszty całkowite = automatyczny koszt surowca (COGS) + koszty dodatkowe. Zakupy środków trwałych (ciężarówka, owijarka itp.) to inwestycje — nie wchodzą do kosztów ani zysku.</CardDescription>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <div className="text-xs text-muted-foreground">Razem</div>
+                <div className="text-xs text-muted-foreground">Razem (koszty)</div>
                 <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">{fmtPLN(total)}</div>
+                {capexTotal > 0 && (
+                  <div className="text-[11px] text-muted-foreground mt-0.5">+ inwestycje w środki trwałe: {fmtPLN(capexTotal)} (poza kosztami)</div>
+                )}
               </div>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
