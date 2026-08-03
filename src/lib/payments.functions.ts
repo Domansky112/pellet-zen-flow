@@ -212,9 +212,11 @@ const ExpenseInput = z.object({
   amount: AmountLike.transform((v) => (v ?? 0) as number).pipe(z.number().nonnegative().max(10_000_000)),
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   category: z.string().trim().min(1).max(60).default("inne"),
+  vat_rate: z.coerce.number().refine((v) => [0, 8, 23].includes(v), "Dozwolone stawki VAT: 0, 8, 23").default(23),
   notes: z.string().trim().max(2000).optional().nullable(),
   fixed_asset_id: z.string().uuid().nullable().optional(),
 });
+
 
 const RangeInput = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
