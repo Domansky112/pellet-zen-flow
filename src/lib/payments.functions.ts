@@ -346,7 +346,11 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
         else { tonsInne += qty; incomeInne += amt; }
       }
     }
-    const manualCosts = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+    // Zakupy środków trwałych (inwestycje: ciężarówka, owijarka itp.) NIE są kosztem operacyjnym —
+    // ich wartość ujmujemy w majątku (środki trwałe), nie w kosztach/zysku okresu.
+    const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
+    const manualCosts = (expenses ?? []).filter((e: any) => !isCapex(e)).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+    const capexCosts = (expenses ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
     // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
