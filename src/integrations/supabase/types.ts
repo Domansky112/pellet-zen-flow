@@ -832,6 +832,113 @@ export type Database = {
         }
         Relationships: []
       }
+      transport_draft_items: {
+        Row: {
+          created_at: string
+          draft_id: string
+          id: string
+          lead_id: string
+          stop_order: number
+          tons: number
+        }
+        Insert: {
+          created_at?: string
+          draft_id: string
+          id?: string
+          lead_id: string
+          stop_order?: number
+          tons?: number
+        }
+        Update: {
+          created_at?: string
+          draft_id?: string
+          id?: string
+          lead_id?: string
+          stop_order?: number
+          tons?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_draft_items_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "transport_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transport_draft_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transport_drafts: {
+        Row: {
+          capacity_tons: number
+          cost_per_km: number | null
+          created_at: string
+          created_by: string | null
+          delivery_window: string | null
+          id: string
+          name: string
+          notes: string | null
+          route_cost: number | null
+          route_km: number | null
+          route_minutes: number | null
+          scheduled_date: string | null
+          status: string
+          transport_id: string | null
+          updated_at: string
+          vehicle_class: string
+        }
+        Insert: {
+          capacity_tons?: number
+          cost_per_km?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivery_window?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          route_cost?: number | null
+          route_km?: number | null
+          route_minutes?: number | null
+          scheduled_date?: string | null
+          status?: string
+          transport_id?: string | null
+          updated_at?: string
+          vehicle_class?: string
+        }
+        Update: {
+          capacity_tons?: number
+          cost_per_km?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivery_window?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          route_cost?: number | null
+          route_km?: number | null
+          route_minutes?: number | null
+          scheduled_date?: string | null
+          status?: string
+          transport_id?: string | null
+          updated_at?: string
+          vehicle_class?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transport_drafts_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "transports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transport_items: {
         Row: {
           address: string | null
