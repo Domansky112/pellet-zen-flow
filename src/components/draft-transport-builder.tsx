@@ -67,7 +67,7 @@ export function DraftTransportBuilder() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [confirmFor, setConfirmFor] = useState<string | null>(null);
   const [date, setDate] = useState("");
-  const [window, setWindow] = useState("");
+  const [deliveryWindow, setDeliveryWindow] = useState("");
   const [driver, setDriver] = useState("");
 
   const invalidate = () => {
@@ -155,7 +155,7 @@ export function DraftTransportBuilder() {
         data: {
           draft_id: id,
           scheduled_date: date,
-          delivery_window: window || null,
+          delivery_window: deliveryWindow || null,
           driver: driver || null,
         },
       }),
@@ -163,7 +163,7 @@ export function DraftTransportBuilder() {
       toast.success(`Transport ${r.transport_no} utworzony w Kalendarzu (${r.total_tons} t)`);
       setConfirmFor(null);
       setDate("");
-      setWindow("");
+      setDeliveryWindow("");
       setDriver("");
       invalidate();
     },
@@ -266,8 +266,6 @@ export function DraftTransportBuilder() {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (window === undefined) return;
-                          if (confirm.isPending) return;
                           if (globalThis.confirm(`Usunąć wersję roboczą „${active.name}”?`))
                             removeDraft.mutate(active.id);
                         }}
@@ -488,8 +486,8 @@ export function DraftTransportBuilder() {
               <Label htmlFor="draft-window">Okno dostawy (opcjonalnie)</Label>
               <Input
                 id="draft-window"
-                value={window}
-                onChange={(e) => setWindow(e.target.value)}
+                value={deliveryWindow}
+                onChange={(e) => setDeliveryWindow(e.target.value)}
                 placeholder="np. 8:00–12:00"
               />
             </div>

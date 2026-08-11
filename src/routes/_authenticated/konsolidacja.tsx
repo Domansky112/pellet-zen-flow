@@ -38,6 +38,7 @@ import { format } from "date-fns";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { PoolManifestDialog } from "@/components/pool-manifest-dialog";
 import { CancelPoolDialog } from "@/components/cancel-pool-dialog";
+import { DraftTransportBuilder } from "@/components/draft-transport-builder";
 import { pl } from "date-fns/locale";
 
 const PoolingMap = lazy(() => import("@/components/pooling-map"));
