@@ -236,7 +236,10 @@ function Konsolidacja() {
       />
 
       <div className="p-6 space-y-6">
+        <DraftTransportBuilder />
+
         {/* Parametry */}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Parametry algorytmu</CardTitle>
