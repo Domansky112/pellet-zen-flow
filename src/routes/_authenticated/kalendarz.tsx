@@ -184,8 +184,12 @@ function TransportRow({
   muted?: boolean;
 }) {
   const daysLeft = differenceInCalendarDays(parseISO(t.scheduled_date), new Date());
-  const item = t.transport_items?.[0];
+  const items = t.transport_items ?? [];
+  const item = items[0];
   const leadHref = item?.lead_id ? `/crm?leadId=${item.lead_id}` : null;
+  const totalTons = items.reduce((s: number, i: any) => s + Number(i.quantity ?? 0), 0);
+  const transportNo = (t.notes ?? "").match(/#T-\d{4}\/\d{2}\/\d{3}/)?.[0] ?? null;
+  const [expanded, setExpanded] = useState(false);
   return (
     <div
       className={`flex items-start justify-between gap-3 rounded-lg border border-border p-3 ${
@@ -215,8 +219,16 @@ function TransportRow({
               {daysLeft === 0 ? "dziś" : `T-${daysLeft}`}
             </Badge>
           )}
+          {transportNo && (
+            <Badge className="bg-primary/15 text-primary border-primary/30">{transportNo}</Badge>
+          )}
           <Badge variant="secondary">{t.city}</Badge>
-          {item && (
+          {items.length > 1 && (
+            <Badge variant="outline">
+              {items.length} leadów · {totalTons.toLocaleString("pl-PL")} t
+            </Badge>
+          )}
+          {items.length === 1 && item && (
             <Badge variant="outline">
               {Number(item.quantity)} t · {productLabel[item.product] ?? item.product}
             </Badge>
@@ -251,6 +263,53 @@ function TransportRow({
           )}
         </div>
         {t.notes && <div className="text-xs text-muted-foreground">📝 {t.notes}</div>}
+        {items.length > 1 && (
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              {expanded ? "Ukryj listę leadów" : `Pokaż ${items.length} leadów w transporcie`}
+            </button>
+            {expanded && (
+              <div className="mt-2 space-y-1 rounded-md border border-border p-2">
+                {items.map((it: any, idx: number) => (
+                  <div key={it.id} className="flex flex-wrap items-center gap-2 text-xs">
+                    <Badge variant="outline">{idx + 1}</Badge>
+                    {it.lead_id ? (
+                      <a
+                        href={`/crm?leadId=${it.lead_id}`}
+                        className="font-medium underline hover:text-primary"
+                      >
+                        {it.leads?.name ?? "Lead"}
+                      </a>
+                    ) : (
+                      <span className="font-medium">{it.leads?.name ?? "—"}</span>
+                    )}
+                    <Badge variant="secondary">{Number(it.quantity)} t</Badge>
+                    <Badge variant="outline">{productLabel[it.product] ?? it.product}</Badge>
+                    <span className="text-muted-foreground truncate">📍 {it.address ?? "—"}</span>
+                    {it.leads?.payment_status && (
+                      <Badge variant="outline">{it.leads.payment_status}</Badge>
+                    )}
+                  </div>
+                ))}
+                <a
+                  className="mt-1 inline-block text-xs text-primary underline"
+                  href={`https://www.google.com/maps/dir/${encodeURIComponent("Witoroża, 21-570 Drelów")}/${items
+                    .map((i: any) => encodeURIComponent(i.address ?? ""))
+                    .filter(Boolean)
+                    .join("/")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Zobacz trasę na mapie ↗
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <WzDownloadButton transportId={t.id} />
