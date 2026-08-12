@@ -271,11 +271,12 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             </div>
             <div className="text-2xl font-semibold">{fmtPLN(warehouseValue)}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              {(wh?.totalTons ?? 0).toFixed(1)} t × {fmtPLN(wh?.unitCost ?? 0)}/t
+              Wycena FIFO: suma (pozostały tonaż partii × cena zakupu partii) · {(wh?.lotTons ?? 0).toFixed(1)} t w partiach
               {(wh?.unitCost ?? 0) === 0 && (
                 <> · <Link to="/ustawienia" search={{ section: "config" } as any} className="text-primary underline">ustaw koszt jednostkowy</Link></>
               )}
             </div>
+
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
