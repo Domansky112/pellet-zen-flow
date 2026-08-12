@@ -139,6 +139,10 @@ function WarehousePage() {
           })}
         </div>
 
+        <LotsCard />
+
+
+
         <Card>
           <CardHeader>
             <CardTitle>Historia zdarzeń</CardTitle>
