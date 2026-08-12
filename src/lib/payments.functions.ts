@@ -433,6 +433,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       cogsVatRate,
       cogsTons,
       cogsUnitCost: unitCost,
+      cogsFifo, cogsFifoTons, cogsFallback, cogsFallbackTons,
+
       salesVatRate,
       balance: income - totalCosts,
       grossProfit,
