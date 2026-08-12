@@ -537,7 +537,8 @@ export const listPaymentAuditLog = createServerFn({ method: "GET" })
   });
 
 // ─────────────────────────────────────────────────────────────
-// Wartość magazynu (tonaż dostępny × koszt jednostkowy z ustawień)
+// Wartość magazynu — sztywna wycena FIFO:
+// SUMA(pozostały tonaż partii × cena zakupu partii)
 // ─────────────────────────────────────────────────────────────
 export const getWarehouseValue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -554,15 +555,36 @@ export const getWarehouseValue = createServerFn({ method: "GET" })
       .maybeSingle();
     const unitCost = Number((setting?.value as any)?.pln_per_ton ?? 0);
 
+    const { data: lots } = await context.supabase
+      .from("stock_lots")
+      .select("product, remaining_quantity, unit_price")
+      .gt("remaining_quantity", 0);
+
+    const lotByProduct = new Map<string, { tons: number; value: number }>();
+    for (const l of lots ?? []) {
+      const p = (l as any).product as string;
+      const prev = lotByProduct.get(p) ?? { tons: 0, value: 0 };
+      const q = Number((l as any).remaining_quantity ?? 0);
+      prev.tons += q;
+      prev.value += q * Number((l as any).unit_price ?? 0);
+      lotByProduct.set(p, prev);
+    }
+
     const perProduct = (bal ?? []).map((r: any) => {
       const physical = Number(r.physical ?? 0);
       const reserved = Number(r.reserved ?? 0);
       const available = physical - reserved;
-      return { product: r.product as string, physical, reserved, available };
+      const lot = lotByProduct.get(r.product as string);
+      // Towar bez partii FIFO (historyczny) wyceniany stawką z Ustawień.
+      const uncoveredTons = Math.max(0, physical - (lot?.tons ?? 0));
+      const value = (lot?.value ?? 0) + uncoveredTons * unitCost;
+      return { product: r.product as string, physical, reserved, available, lotTons: lot?.tons ?? 0, value };
     });
     const totalTons = perProduct.reduce((s, r) => s + r.available, 0);
-    const totalValue = totalTons * unitCost;
-    return { unitCost, totalTons, totalValue, perProduct };
+    const fifoValue = perProduct.reduce((s, r) => s + r.value, 0);
+    const lotTons = perProduct.reduce((s, r) => s + r.lotTons, 0);
+    return { unitCost, totalTons, lotTons, totalValue: fifoValue, fifoValue, perProduct };
   });
+
 
 
