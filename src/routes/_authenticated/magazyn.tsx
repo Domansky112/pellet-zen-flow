@@ -560,3 +560,63 @@ function ReleaseDialog({
     </Dialog>
   );
 }
+
+function LotsCard() {
+  const { data: lots } = useSuspenseQuery(lotsQuery);
+  const totalValue = lots.reduce((s: number, l: any) => s + Number(l.remaining_quantity) * Number(l.unit_price), 0);
+  const totalTons = lots.reduce((s: number, l: any) => s + Number(l.remaining_quantity), 0);
+  const money = (n: number) => n.toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " zł";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Historia przyjęć (partie FIFO)</CardTitle>
+        <CardDescription>
+          Wydania zdejmują towar z najstarszych partii. Wartość placu ={" "}
+          <b className="text-foreground">{money(totalValue)}</b> ({totalTons.toFixed(2)} t na stanie w partiach).
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Data przyjęcia</TableHead>
+              <TableHead>Produkt</TableHead>
+              <TableHead className="text-right">Przyjęto</TableHead>
+              <TableHead className="text-right">Pozostało</TableHead>
+              <TableHead className="text-right">Cena zakupu / t</TableHead>
+              <TableHead className="text-right">Wartość pozostałą</TableHead>
+              <TableHead>Dostawca / faktura</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lots.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Brak partii — dodaj przyjęcie (PZ) powyżej.</TableCell></TableRow>
+            )}
+            {lots.map((l: any) => {
+              const remaining = Number(l.remaining_quantity);
+              const active = remaining > 0;
+              return (
+                <TableRow key={l.id} className={active ? "" : "opacity-60"}>
+                  <TableCell className="text-xs text-muted-foreground">{format(new Date(l.created_at), "d MMM yyyy, HH:mm", { locale: pl })}</TableCell>
+                  <TableCell>{PRODUCTS.find((p) => p.key === l.product)?.label ?? l.product}</TableCell>
+                  <TableCell className="text-right">{Number(l.quantity).toFixed(2)} t</TableCell>
+                  <TableCell className="text-right font-medium">{remaining.toFixed(2)} t</TableCell>
+                  <TableCell className="text-right">{money(Number(l.unit_price))} <span className="text-xs text-muted-foreground">({Number(l.vat_rate)}%)</span></TableCell>
+                  <TableCell className="text-right font-medium">{money(remaining * Number(l.unit_price))}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {[l.supplier, l.invoice_number].filter(Boolean).join(" · ") || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={active ? "default" : "outline"}>{active ? "Aktywna" : "Wyczerpana"}</Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
