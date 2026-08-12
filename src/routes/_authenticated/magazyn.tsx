@@ -23,20 +23,24 @@ import {
   releaseReservation,
   listOpenLeads,
   deleteStockEvent,
+  listStockLots,
+  getDefaultPurchasePrice,
 } from "@/lib/stock.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { pl } from "date-fns/locale";
 
 const balanceQuery = queryOptions({ queryKey: ["stock", "balance"], queryFn: () => listStockBalance() });
 const eventsQuery = queryOptions({ queryKey: ["stock", "events"], queryFn: () => listStockEvents() });
 const openLeadsQuery = queryOptions({ queryKey: ["leads", "open"], queryFn: () => listOpenLeads() });
+const lotsQuery = queryOptions({ queryKey: ["stock", "lots"], queryFn: () => listStockLots() });
+const defaultPriceQuery = queryOptions({ queryKey: ["stock", "default-price"], queryFn: () => getDefaultPurchasePrice() });
 
 export const Route = createFileRoute("/_authenticated/magazyn")({
   head: () => ({
     meta: [
       { title: "Magazyn — Słoneczny Pellet OS" },
-      { name: "description", content: "Silnik magazynowy: zdarzenia → saldo, rezerwacje pod lead." },
+      { name: "description", content: "Silnik magazynowy: zdarzenia → saldo, partie FIFO, rezerwacje pod lead." },
     ],
   }),
   loader: async ({ context }) => {
@@ -44,8 +48,11 @@ export const Route = createFileRoute("/_authenticated/magazyn")({
       context.queryClient.ensureQueryData(balanceQuery),
       context.queryClient.ensureQueryData(eventsQuery),
       context.queryClient.ensureQueryData(openLeadsQuery),
+      context.queryClient.ensureQueryData(lotsQuery),
+      context.queryClient.ensureQueryData(defaultPriceQuery),
     ]);
   },
+
   component: WarehousePage,
 });
 
