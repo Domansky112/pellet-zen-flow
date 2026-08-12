@@ -274,3 +274,18 @@ export const deleteStockEvent = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// Domyślna cena zakupu podpowiadana w formularzu PZ (z Ustawień)
+export const getDefaultPurchasePrice = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "pellet_unit_cost_pln")
+      .maybeSingle();
+    return {
+      pln_per_ton: Number((data?.value as any)?.pln_per_ton ?? 0),
+      vat_rate: Number((data?.value as any)?.vat_rate ?? 8),
+    };
+  });
