@@ -531,11 +531,12 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
           {q.isLoading && <div className="text-sm text-muted-foreground">Ładowanie…</div>}
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium">Automatyczny koszt surowca (COGS)</div>
+              <div className="text-sm font-medium">Koszt surowca (COGS) — FIFO</div>
               <div className="text-xs text-muted-foreground">
-                {cogsTons.toFixed(2)} ton × {fmtPLN(cogsUnit)}/t = {fmtPLN(cogs)}
-                {cogsUnit === 0 && " — ustaw stawkę za 1 t w Ustawieniach (koszt jednostkowy pelletu)"}
+                {cogsTons.toFixed(2)} ton wydanych · rzeczywisty koszt zakupu z partii = {fmtPLN(cogs)}
+                {cogsUnit === 0 && " — brak partii z ceną? ustaw stawkę zapasową w Ustawieniach"}
               </div>
+
             </div>
             <div className="text-sm font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">−{fmtPLN(cogs)}</div>
           </div>
