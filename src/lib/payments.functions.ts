@@ -365,7 +365,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .reduce((s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
-    // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
+    // Priorytet: rzeczywisty koszt zakupu z partii FIFO zdjętych pod dany lead.
+    // Fallback (leady bez rozchodu z partii): tonaż × stawka jednostkowa z Ustawień.
     const { data: costSetting } = await context.supabase
       .from("system_settings")
       .select("value")
@@ -373,9 +374,39 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .maybeSingle();
     const unitCost = Number((costSetting?.value as any)?.pln_per_ton ?? 0);
     const cogsVatRate = Number((costSetting?.value as any)?.vat_rate ?? 8);
-    const cogsTons = tonsPaleta + tonsBigbag + tonsInne;
-    const cogs = cogsTons * unitCost;
+
+    const leadIds = (leads ?? []).map((l: any) => l.id);
+    const fifoByLead = new Map<string, { cost: number; tons: number }>();
+    if (leadIds.length) {
+      const { data: cons } = await context.supabase
+        .from("stock_lot_consumptions")
+        .select("lead_id, quantity, cost")
+        .in("lead_id", leadIds);
+      for (const c of cons ?? []) {
+        const key = (c as any).lead_id as string;
+        const prev = fifoByLead.get(key) ?? { cost: 0, tons: 0 };
+        prev.cost += Number((c as any).cost ?? 0);
+        prev.tons += Number((c as any).quantity ?? 0);
+        fifoByLead.set(key, prev);
+      }
+    }
+
+    let cogsFifo = 0, cogsFifoTons = 0, cogsFallback = 0, cogsFallbackTons = 0;
+    for (const l of leads ?? []) {
+      const qty = Number((l as any).quantity ?? 0);
+      const f = fifoByLead.get((l as any).id);
+      if (f && f.tons > 0) {
+        cogsFifo += f.cost;
+        cogsFifoTons += f.tons;
+      } else if (qty > 0) {
+        cogsFallback += qty * unitCost;
+        cogsFallbackTons += qty;
+      }
+    }
+    const cogsTons = cogsFifoTons + cogsFallbackTons;
+    const cogs = cogsFifo + cogsFallback;
     const cogsNet = cogs / (1 + cogsVatRate / 100);
+
 
     const totalCosts = manualCosts + cogs;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
