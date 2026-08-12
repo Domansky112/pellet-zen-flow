@@ -228,7 +228,7 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             title="Koszt surowca (COGS)"
             value={fmtPLN((s as any)?.cogs ?? 0)}
             tone="amber"
-            hint={`Automatyczny koszt surowca (COGS): ${((s as any)?.cogsTons ?? 0).toFixed(2)} t × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogs ?? 0)}`}
+            hint={`Rzeczywisty koszt zakupu wydanego surowca metodą FIFO: ${((s as any)?.cogsFifoTons ?? 0).toFixed(2)} t z partii = ${fmtPLN((s as any)?.cogsFifo ?? 0)}${((s as any)?.cogsFallbackTons ?? 0) > 0 ? ` + ${((s as any)?.cogsFallbackTons ?? 0).toFixed(2)} t bez partii × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogsFallback ?? 0)}` : ""} → razem ${fmtPLN((s as any)?.cogs ?? 0)}`}
           />
           <StatCard
             title="Zysk Brutto w okresie"
@@ -271,11 +271,12 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             </div>
             <div className="text-2xl font-semibold">{fmtPLN(warehouseValue)}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              {(wh?.totalTons ?? 0).toFixed(1)} t × {fmtPLN(wh?.unitCost ?? 0)}/t
+              Wycena FIFO: suma (pozostały tonaż partii × cena zakupu partii) · {(wh?.lotTons ?? 0).toFixed(1)} t w partiach
               {(wh?.unitCost ?? 0) === 0 && (
                 <> · <Link to="/ustawienia" search={{ section: "config" } as any} className="text-primary underline">ustaw koszt jednostkowy</Link></>
               )}
             </div>
+
           </div>
           <div className="rounded-lg border bg-card p-4">
             <div className="flex items-center justify-between mb-1">
@@ -530,11 +531,12 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
           {q.isLoading && <div className="text-sm text-muted-foreground">Ładowanie…</div>}
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium">Automatyczny koszt surowca (COGS)</div>
+              <div className="text-sm font-medium">Koszt surowca (COGS) — FIFO</div>
               <div className="text-xs text-muted-foreground">
-                {cogsTons.toFixed(2)} ton × {fmtPLN(cogsUnit)}/t = {fmtPLN(cogs)}
-                {cogsUnit === 0 && " — ustaw stawkę za 1 t w Ustawieniach (koszt jednostkowy pelletu)"}
+                {cogsTons.toFixed(2)} ton wydanych · rzeczywisty koszt zakupu z partii = {fmtPLN(cogs)}
+                {cogsUnit === 0 && " — brak partii z ceną? ustaw stawkę zapasową w Ustawieniach"}
               </div>
+
             </div>
             <div className="text-sm font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">−{fmtPLN(cogs)}</div>
           </div>
