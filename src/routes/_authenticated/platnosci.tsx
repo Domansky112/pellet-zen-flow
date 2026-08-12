@@ -228,7 +228,7 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             title="Koszt surowca (COGS)"
             value={fmtPLN((s as any)?.cogs ?? 0)}
             tone="amber"
-            hint={`Automatyczny koszt surowca (COGS): ${((s as any)?.cogsTons ?? 0).toFixed(2)} t × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogs ?? 0)}`}
+            hint={`Rzeczywisty koszt zakupu wydanego surowca metodą FIFO: ${((s as any)?.cogsFifoTons ?? 0).toFixed(2)} t z partii = ${fmtPLN((s as any)?.cogsFifo ?? 0)}${((s as any)?.cogsFallbackTons ?? 0) > 0 ? ` + ${((s as any)?.cogsFallbackTons ?? 0).toFixed(2)} t bez partii × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogsFallback ?? 0)}` : ""} → razem ${fmtPLN((s as any)?.cogs ?? 0)}`}
           />
           <StatCard
             title="Zysk Brutto w okresie"
