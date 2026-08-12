@@ -27,6 +27,18 @@ export const listStockEvents = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+export const listStockLots = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("stock_lots")
+      .select("id, product, quantity, remaining_quantity, unit_price, vat_rate, supplier, invoice_number, note, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
 export const addStockEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -37,6 +49,11 @@ export const addStockEvent = createServerFn({ method: "POST" })
       reference: z.string().max(120).optional().nullable(),
       note: z.string().max(500).optional().nullable(),
       lead_id: z.string().uuid().optional().nullable(),
+      // PZ — partia magazynowa (tylko dla przyjęcia)
+      unit_price: z.number().min(0).max(100000).optional().nullable(),
+      vat_rate: z.union([z.literal(0), z.literal(8), z.literal(23)]).optional().nullable(),
+      supplier: z.string().max(200).optional().nullable(),
+      invoice_number: z.string().max(120).optional().nullable(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -54,8 +71,26 @@ export const addStockEvent = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Przyjęcie → utwórz partię FIFO z ceną zakupu
+    if (data.txn_type === "przyjecie") {
+      const { error: le } = await context.supabase.from("stock_lots").insert({
+        product: data.product,
+        quantity: data.quantity,
+        remaining_quantity: data.quantity,
+        unit_price: data.unit_price ?? 0,
+        vat_rate: data.vat_rate ?? 8,
+        supplier: data.supplier ?? null,
+        invoice_number: data.invoice_number ?? null,
+        note: data.note ?? null,
+        stock_event_id: row.id,
+        created_by: context.userId,
+      } as any);
+      if (le) throw new Error(le.message);
+    }
     return row;
   });
+
 
 export const reserveForLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -238,4 +273,19 @@ export const deleteStockEvent = createServerFn({ method: "POST" })
     }
 
     return { ok: true };
+  });
+
+// Domyślna cena zakupu podpowiadana w formularzu PZ (z Ustawień)
+export const getDefaultPurchasePrice = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", "pellet_unit_cost_pln")
+      .maybeSingle();
+    return {
+      pln_per_ton: Number((data?.value as any)?.pln_per_ton ?? 0),
+      vat_rate: Number((data?.value as any)?.vat_rate ?? 8),
+    };
   });

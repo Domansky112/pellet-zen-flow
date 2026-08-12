@@ -760,6 +760,120 @@ export type Database = {
           },
         ]
       }
+      stock_lot_consumptions: {
+        Row: {
+          cost: number
+          created_at: string
+          id: string
+          lead_id: string | null
+          lot_id: string
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          stock_event_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          lot_id: string
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          stock_event_id?: string | null
+          unit_price: number
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          lot_id?: string
+          product?: Database["public"]["Enums"]["product_type"]
+          quantity?: number
+          stock_event_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_lot_consumptions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lot_consumptions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lot_consumptions_stock_event_id_fkey"
+            columns: ["stock_event_id"]
+            isOneToOne: false
+            referencedRelation: "stock_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_lots: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_number: string | null
+          note: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          remaining_quantity: number
+          stock_event_id: string | null
+          supplier: string | null
+          unit_price: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number?: string | null
+          note?: string | null
+          product: Database["public"]["Enums"]["product_type"]
+          quantity: number
+          remaining_quantity?: number
+          stock_event_id?: string | null
+          supplier?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number?: string | null
+          note?: string | null
+          product?: Database["public"]["Enums"]["product_type"]
+          quantity?: number
+          remaining_quantity?: number
+          stock_event_id?: string | null
+          supplier?: string | null
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_lots_stock_event_id_fkey"
+            columns: ["stock_event_id"]
+            isOneToOne: false
+            referencedRelation: "stock_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           description: string | null

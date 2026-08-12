@@ -365,7 +365,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .reduce((s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
-    // Sprzedane tony (palety + big bagi + inne) × stawka jednostkowa z Ustawień.
+    // Priorytet: rzeczywisty koszt zakupu z partii FIFO zdjętych pod dany lead.
+    // Fallback (leady bez rozchodu z partii): tonaż × stawka jednostkowa z Ustawień.
     const { data: costSetting } = await context.supabase
       .from("system_settings")
       .select("value")
@@ -373,9 +374,39 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       .maybeSingle();
     const unitCost = Number((costSetting?.value as any)?.pln_per_ton ?? 0);
     const cogsVatRate = Number((costSetting?.value as any)?.vat_rate ?? 8);
-    const cogsTons = tonsPaleta + tonsBigbag + tonsInne;
-    const cogs = cogsTons * unitCost;
+
+    const leadIds = (leads ?? []).map((l: any) => l.id);
+    const fifoByLead = new Map<string, { cost: number; tons: number }>();
+    if (leadIds.length) {
+      const { data: cons } = await context.supabase
+        .from("stock_lot_consumptions")
+        .select("lead_id, quantity, cost")
+        .in("lead_id", leadIds);
+      for (const c of cons ?? []) {
+        const key = (c as any).lead_id as string;
+        const prev = fifoByLead.get(key) ?? { cost: 0, tons: 0 };
+        prev.cost += Number((c as any).cost ?? 0);
+        prev.tons += Number((c as any).quantity ?? 0);
+        fifoByLead.set(key, prev);
+      }
+    }
+
+    let cogsFifo = 0, cogsFifoTons = 0, cogsFallback = 0, cogsFallbackTons = 0;
+    for (const l of leads ?? []) {
+      const qty = Number((l as any).quantity ?? 0);
+      const f = fifoByLead.get((l as any).id);
+      if (f && f.tons > 0) {
+        cogsFifo += f.cost;
+        cogsFifoTons += f.tons;
+      } else if (qty > 0) {
+        cogsFallback += qty * unitCost;
+        cogsFallbackTons += qty;
+      }
+    }
+    const cogsTons = cogsFifoTons + cogsFallbackTons;
+    const cogs = cogsFifo + cogsFallback;
     const cogsNet = cogs / (1 + cogsVatRate / 100);
+
 
     const totalCosts = manualCosts + cogs;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
@@ -402,6 +433,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       cogsVatRate,
       cogsTons,
       cogsUnitCost: unitCost,
+      cogsFifo, cogsFifoTons, cogsFallback, cogsFallbackTons,
+
       salesVatRate,
       balance: income - totalCosts,
       grossProfit,
@@ -504,7 +537,8 @@ export const listPaymentAuditLog = createServerFn({ method: "GET" })
   });
 
 // ─────────────────────────────────────────────────────────────
-// Wartość magazynu (tonaż dostępny × koszt jednostkowy z ustawień)
+// Wartość magazynu — sztywna wycena FIFO:
+// SUMA(pozostały tonaż partii × cena zakupu partii)
 // ─────────────────────────────────────────────────────────────
 export const getWarehouseValue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -521,15 +555,36 @@ export const getWarehouseValue = createServerFn({ method: "GET" })
       .maybeSingle();
     const unitCost = Number((setting?.value as any)?.pln_per_ton ?? 0);
 
+    const { data: lots } = await context.supabase
+      .from("stock_lots")
+      .select("product, remaining_quantity, unit_price")
+      .gt("remaining_quantity", 0);
+
+    const lotByProduct = new Map<string, { tons: number; value: number }>();
+    for (const l of lots ?? []) {
+      const p = (l as any).product as string;
+      const prev = lotByProduct.get(p) ?? { tons: 0, value: 0 };
+      const q = Number((l as any).remaining_quantity ?? 0);
+      prev.tons += q;
+      prev.value += q * Number((l as any).unit_price ?? 0);
+      lotByProduct.set(p, prev);
+    }
+
     const perProduct = (bal ?? []).map((r: any) => {
       const physical = Number(r.physical ?? 0);
       const reserved = Number(r.reserved ?? 0);
       const available = physical - reserved;
-      return { product: r.product as string, physical, reserved, available };
+      const lot = lotByProduct.get(r.product as string);
+      // Towar bez partii FIFO (historyczny) wyceniany stawką z Ustawień.
+      const uncoveredTons = Math.max(0, physical - (lot?.tons ?? 0));
+      const value = (lot?.value ?? 0) + uncoveredTons * unitCost;
+      return { product: r.product as string, physical, reserved, available, lotTons: lot?.tons ?? 0, value };
     });
     const totalTons = perProduct.reduce((s, r) => s + r.available, 0);
-    const totalValue = totalTons * unitCost;
-    return { unitCost, totalTons, totalValue, perProduct };
+    const fifoValue = perProduct.reduce((s, r) => s + r.value, 0);
+    const lotTons = perProduct.reduce((s, r) => s + r.lotTons, 0);
+    return { unitCost, totalTons, lotTons, totalValue: fifoValue, fifoValue, perProduct };
   });
+
 
 

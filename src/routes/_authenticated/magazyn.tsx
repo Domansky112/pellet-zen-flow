@@ -23,20 +23,24 @@ import {
   releaseReservation,
   listOpenLeads,
   deleteStockEvent,
+  listStockLots,
+  getDefaultPurchasePrice,
 } from "@/lib/stock.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { pl } from "date-fns/locale";
 
 const balanceQuery = queryOptions({ queryKey: ["stock", "balance"], queryFn: () => listStockBalance() });
 const eventsQuery = queryOptions({ queryKey: ["stock", "events"], queryFn: () => listStockEvents() });
 const openLeadsQuery = queryOptions({ queryKey: ["leads", "open"], queryFn: () => listOpenLeads() });
+const lotsQuery = queryOptions({ queryKey: ["stock", "lots"], queryFn: () => listStockLots() });
+const defaultPriceQuery = queryOptions({ queryKey: ["stock", "default-price"], queryFn: () => getDefaultPurchasePrice() });
 
 export const Route = createFileRoute("/_authenticated/magazyn")({
   head: () => ({
     meta: [
       { title: "Magazyn — Słoneczny Pellet OS" },
-      { name: "description", content: "Silnik magazynowy: zdarzenia → saldo, rezerwacje pod lead." },
+      { name: "description", content: "Silnik magazynowy: zdarzenia → saldo, partie FIFO, rezerwacje pod lead." },
     ],
   }),
   loader: async ({ context }) => {
@@ -44,8 +48,11 @@ export const Route = createFileRoute("/_authenticated/magazyn")({
       context.queryClient.ensureQueryData(balanceQuery),
       context.queryClient.ensureQueryData(eventsQuery),
       context.queryClient.ensureQueryData(openLeadsQuery),
+      context.queryClient.ensureQueryData(lotsQuery),
+      context.queryClient.ensureQueryData(defaultPriceQuery),
     ]);
   },
+
   component: WarehousePage,
 });
 
@@ -325,19 +332,50 @@ function PhysicalDialog({
   const [qty, setQty] = useState("");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
+  const [price, setPrice] = useState("");
+  const [vat, setVat] = useState("8");
+  const [supplier, setSupplier] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const submit = useServerFn(addStockEvent);
+  const { data: defaults } = useSuspenseQuery(defaultPriceQuery);
+  const isPz = type === "przyjecie";
+
+  useEffect(() => {
+    if (open && isPz) {
+      setPrice(defaults.pln_per_ton ? String(defaults.pln_per_ton) : "");
+      setVat(String(defaults.vat_rate ?? 8));
+    }
+  }, [open, isPz, defaults]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = Number(qty);
     if (!q || q <= 0) { toast.error("Podaj ilość > 0"); return; }
+    const p = Number(price);
+    if (isPz && (!p || p <= 0)) { toast.error("Podaj cenę zakupu za 1 tonę"); return; }
     setBusy(true);
     try {
-      await submit({ data: { product: product.key, txn_type: type, quantity: q, reference: reference || null, note: note || null } });
-      toast.success(`${label}: ${q} t (${product.label})`);
-      setOpen(false); setQty(""); setReference(""); setNote("");
+      await submit({
+        data: {
+          product: product.key,
+          txn_type: type,
+          quantity: q,
+          reference: reference || null,
+          note: note || null,
+          ...(isPz
+            ? {
+                unit_price: p,
+                vat_rate: Number(vat) as 0 | 8 | 23,
+                supplier: supplier || null,
+                invoice_number: invoiceNo || null,
+              }
+            : {}),
+        },
+      });
+      toast.success(isPz ? `Przyjęto partię ${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
+      setOpen(false); setQty(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo("");
       qc.invalidateQueries({ queryKey: ["stock"] });
     } catch (err: any) {
       toast.error(err?.message ?? "Błąd — brak uprawnień?");
@@ -351,19 +389,55 @@ function PhysicalDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{label} — {product.label}</DialogTitle>
-          <DialogDescription>Wymaga roli warehouse lub admin.</DialogDescription>
+          <DialogTitle>{isPz ? "Przyjęcie towaru (PZ)" : label} — {product.label}</DialogTitle>
+          <DialogDescription>
+            {isPz
+              ? "Każde przyjęcie tworzy osobną partię magazynową (FIFO) z własną ceną zakupu."
+              : "Wydanie zdejmuje towar z najstarszych partii (FIFO). Wymaga roli warehouse lub admin."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid gap-1.5"><Label>Ilość (t)</Label><Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></div>
+          <div className="grid gap-1.5"><Label>{isPz ? "Ilość przyjętych ton (t)" : "Ilość (t)"}</Label><Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></div>
+          {isPz && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label>Cena zakupu za 1 t (brutto)</Label>
+                  <Input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="np. 762" />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Stawka VAT zakupu</Label>
+                  <Select value={vat} onValueChange={setVat}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="8">8%</SelectItem>
+                      <SelectItem value="23">23%</SelectItem>
+                      <SelectItem value="0">zw. / 0%</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {Number(price) > 0 && Number(qty) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Wartość partii: <b>{(Number(price) * Number(qty)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</b> brutto ·
+                  netto {(Number(price) * Number(qty) / (1 + Number(vat) / 100)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5"><Label>Dostawca (opcj.)</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="np. Tartak XYZ" /></div>
+                <div className="grid gap-1.5"><Label>Nr faktury zakupu (opcj.)</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="FV 123/2026" /></div>
+              </div>
+            </>
+          )}
           <div className="grid gap-1.5"><Label>Referencja (opcj.)</Label><Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="np. WZ-123, dostawca X" /></div>
           <div className="grid gap-1.5"><Label>Notatka</Label><Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} /></div>
-          <DialogFooter><Button type="submit" disabled={busy}>{busy ? "Zapisuję…" : "Zapisz zdarzenie"}</Button></DialogFooter>
+          <DialogFooter><Button type="submit" disabled={busy}>{busy ? "Zapisuję…" : isPz ? "Zapisz przyjęcie (PZ)" : "Zapisz zdarzenie"}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 function ReserveDialog({
   product, openLeads, available,
