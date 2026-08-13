@@ -11,9 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirectTo: typeof search.redirectTo === "string" ? search.redirectTo : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { redirectTo?: string } =>
+    typeof search.redirectTo === "string" ? { redirectTo: search.redirectTo } : {},
   head: () => ({
     meta: [
       { title: "Logowanie — Słoneczny Pellet OS" },
