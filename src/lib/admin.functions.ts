@@ -423,6 +423,7 @@ export const createCrmUser = createServerFn({ method: "POST" })
       .object({
         email: z.string().email().max(120),
         password: z.string().min(8).max(128),
+        full_name: z.string().max(120).optional().nullable(),
         roles: z.array(RoleEnum).default(["sales"]),
       })
       .parse(d),
@@ -434,6 +435,10 @@ export const createCrmUser = createServerFn({ method: "POST" })
       email: data.email,
       password: data.password,
       email_confirm: true,
+      user_metadata: {
+        full_name: data.full_name ?? null,
+        role: data.roles[0] ?? "sales",
+      },
     });
     if (error) throw new Error(error.message);
     const uid = created.user?.id;
