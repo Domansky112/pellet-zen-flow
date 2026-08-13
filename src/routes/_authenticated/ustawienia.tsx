@@ -466,6 +466,7 @@ function UsersTab() {
 
   const [newOpen, setNewOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
   const [newPass, setNewPass] = useState("");
   const [newRoles, setNewRoles] = useState<string[]>(["sales"]);
 
