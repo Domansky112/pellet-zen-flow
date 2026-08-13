@@ -1,9 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { productEnum, txnEnum } from "@/lib/product-enum";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const productEnum = z.enum(["pellet_paleta", "pellet_bigbag", "inne"]);
-const txnEnum = z.enum(["przyjecie", "wydanie", "rezerwacja", "zwolnienie_rez", "korekta"]);
 
 export const listStockBalance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
