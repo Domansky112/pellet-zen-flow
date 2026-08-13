@@ -510,6 +510,7 @@ function UsersTab() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nowe konto CRM</DialogTitle></DialogHeader>
             <div className="grid gap-3">
+              <div><Label>Imię i nazwisko</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
               <div><Label>E-mail</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
               <div><Label>Hasło (min. 8 znaków)</Label><Input type="text" value={newPass} onChange={(e) => setNewPass(e.target.value)} /></div>
               <div>
