@@ -56,6 +56,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { roles } = useUserRole();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeMobile = () => isMobile && setOpenMobile(false);
   const isAdmin = roles.includes("admin");
   const visibleNav = nav.filter((item) => canAccess(item.url, roles));
   const [email, setEmail] = useState<string>("");
