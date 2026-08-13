@@ -107,7 +107,7 @@ function CrmPage() {
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const tab = search.tab ?? "all";
   const productFilter: ProductFilter = search.product ?? "all";
-  const sort = search.sort ?? "smart";
+  const sort = search.sort ?? "newest";
   const statusFilter = search.status_key ?? "all";
   const hasNotesFilter = search.has_notes ?? "any";
 
