@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive,
+  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -50,7 +51,7 @@ import {
   listProductDefs, upsertProductDef, deleteProductDef,
   listWarehouses, upsertWarehouse, deleteWarehouse,
   listSettings, upsertSetting,
-  listCrmUsers, createCrmUser, setUserRoles, resetUserPassword, deleteCrmUser,
+  listCrmUsers, createCrmUser, setUserRoles, resetUserPassword, deleteCrmUser, impersonateUser,
 } from "@/lib/admin.functions";
 import { listAllTemplates, upsertTemplate, deleteTemplate, TEMPLATE_VARIABLES } from "@/lib/templates.functions";
 import { listLeadStatuses, upsertLeadStatus, deleteLeadStatus } from "@/lib/lead-statuses.functions";
@@ -462,7 +463,28 @@ function UsersTab() {
   const setRolesFn = useServerFn(setUserRoles);
   const resetFn = useServerFn(resetUserPassword);
   const delFn = useServerFn(deleteCrmUser);
+  const impersonateFn = useServerFn(impersonateUser);
   const { data = [], isLoading } = useQuery({ queryKey: ["admin-users"], queryFn: () => listFn() });
+
+  const impersonate = useMutation({
+    mutationFn: async (user_id: string) => {
+      const res = await impersonateFn({ data: { user_id } });
+      await qc.cancelQueries();
+      await supabase.auth.signOut();
+      const { error } = await supabase.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: res.token_hash,
+      });
+      if (error) throw new Error(error.message);
+      return res;
+    },
+    onSuccess: (res) => {
+      qc.clear();
+      toast.success(`Zalogowano jako ${res.email}`);
+      window.location.href = "/dashboard";
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const [newOpen, setNewOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -560,9 +582,22 @@ function UsersTab() {
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pl-PL") : "—"}</TableCell>
                 <TableCell className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={impersonate.isPending}
+                    onClick={() => {
+                      if (confirm(`Zalogować się jako ${u.email}? Twoja sesja administratora zostanie zamknięta.`))
+                        impersonate.mutate(u.id);
+                    }}
+                  >
+                    <LogIn className="h-4 w-4 mr-1" /> Zaloguj jako
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setPwdUser(u)}><KeyRound className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Usunąć konto ${u.email}?`)) del.mutate(u.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </TableCell>
+
               </TableRow>
             ))}
           </TableBody>
