@@ -535,13 +535,16 @@ function UsersTab() {
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader><TableRow><TableHead>E-mail</TableHead><TableHead>Role</TableHead><TableHead>Ostatnie logowanie</TableHead><TableHead className="w-32" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Użytkownik</TableHead><TableHead>Role</TableHead><TableHead>Ostatnie logowanie</TableHead><TableHead className="w-32" /></TableRow></TableHeader>
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={4} className="text-center py-6">Ładowanie…</TableCell></TableRow>}
             {!isLoading && data.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-6">Brak użytkowników</TableCell></TableRow>}
             {data.map((u: any) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.email}</TableCell>
+                <TableCell className="font-medium">
+                  {u.full_name ? <div>{u.full_name}</div> : null}
+                  <div className={u.full_name ? "text-xs text-muted-foreground" : ""}>{u.email}</div>
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {ALL_ROLES.map((r) => (
