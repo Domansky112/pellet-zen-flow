@@ -481,6 +481,34 @@ export const deleteCrmUser = createServerFn({ method: "POST" })
   });
 
 // ================================================================
+// Login as (impersonacja) — admin-only
+// ================================================================
+export const impersonateUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    if (data.user_id === context.userId) {
+      throw new Error("Już jesteś zalogowany na tym koncie");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target, error: uErr } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
+    if (uErr || !target?.user?.email) throw new Error("Nie znaleziono konta");
+    const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email: target.user.email,
+    });
+    if (error || !link?.properties?.hashed_token) {
+      throw new Error(error?.message ?? "Nie udało się utworzyć sesji");
+    }
+    return {
+      email: target.user.email,
+      token_hash: link.properties.hashed_token as string,
+    };
+  });
+
+
+// ================================================================
 // Check if current user is admin (client helper)
 // ================================================================
 export const isCurrentUserAdmin = createServerFn({ method: "GET" })
