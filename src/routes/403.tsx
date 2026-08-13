@@ -37,7 +37,7 @@ function Forbidden() {
           potrzebujesz dostępu.
         </p>
         <Button asChild className="mt-6">
-          <Link to={target === "/403" ? "/dashboard" : target}>Powrót do pulpitu</Link>
+          <Link to={(target === "/403" ? "/dashboard" : target) as "/dashboard"}>Powrót do pulpitu</Link>
         </Button>
       </div>
     </div>

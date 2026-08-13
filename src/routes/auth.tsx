@@ -35,7 +35,7 @@ function AuthPage() {
         ? redirectTo
         : null;
     const target = safe && canAccess(safe, roles) ? safe : defaultRouteFor(roles);
-    navigate({ to: target, replace: true });
+    navigate({ to: target as "/dashboard", replace: true });
   }
 
   const [email, setEmail] = useState("");

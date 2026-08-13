@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
         throw redirect({ to: "/403" });
       }
       if (typeof window !== "undefined") sessionStorage.setItem("rbac_denied", "1");
-      throw redirect({ to: target });
+      throw redirect({ to: target as "/dashboard" });
     }
 
     return { user: data.user, roles };
