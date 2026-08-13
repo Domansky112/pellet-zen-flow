@@ -560,9 +560,22 @@ function UsersTab() {
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">{u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString("pl-PL") : "—"}</TableCell>
                 <TableCell className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={impersonate.isPending}
+                    onClick={() => {
+                      if (confirm(`Zalogować się jako ${u.email}? Twoja sesja administratora zostanie zamknięta.`))
+                        impersonate.mutate(u.id);
+                    }}
+                  >
+                    <LogIn className="h-4 w-4 mr-1" /> Zaloguj jako
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setPwdUser(u)}><KeyRound className="h-4 w-4" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Usunąć konto ${u.email}?`)) del.mutate(u.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </TableCell>
+
               </TableRow>
             ))}
           </TableBody>
