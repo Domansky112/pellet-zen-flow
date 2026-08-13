@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,8 @@ export const Route = createFileRoute("/_authenticated")({
       if (target === "/403" || target === location.pathname) {
         throw redirect({ to: "/403" });
       }
-      throw redirect({ to: target, search: { denied: "1" } });
+      if (typeof window !== "undefined") sessionStorage.setItem("rbac_denied", "1");
+      throw redirect({ to: target });
     }
 
     return { user: data.user, roles };
@@ -31,16 +32,15 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-  const denied = useRouterState({
-    select: (r) => (r.location.search as { denied?: string })?.denied,
-  });
   const shown = useRef(false);
   useEffect(() => {
-    if (denied && !shown.current) {
-      shown.current = true;
+    if (shown.current) return;
+    shown.current = true;
+    if (sessionStorage.getItem("rbac_denied")) {
+      sessionStorage.removeItem("rbac_denied");
       toast.error("Brak uprawnień do wyświetlenia tej sekcji");
     }
-  }, [denied]);
+  }, []);
 
 
   return (
