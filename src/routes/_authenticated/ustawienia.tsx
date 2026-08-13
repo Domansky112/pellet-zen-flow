@@ -526,7 +526,7 @@ function UsersTab() {
               </div>
             </div>
             <DialogFooter>
-              <Button disabled={!newEmail || newPass.length < 8 || create.isPending} onClick={() => create.mutate({ email: newEmail, password: newPass, roles: newRoles })}>
+              <Button disabled={!newEmail || newPass.length < 8 || create.isPending} onClick={() => create.mutate({ email: newEmail, password: newPass, full_name: newName || null, roles: newRoles })}>
                 {create.isPending ? "Tworzenie…" : "Utwórz"}
               </Button>
             </DialogFooter>
