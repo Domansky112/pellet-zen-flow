@@ -314,7 +314,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     let leadsQ = context.supabase
       .from("leads")
-      .select("id, lead_number, name, first_name, last_name, invoice_company, product, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status")
+      .select("id, lead_number, name, first_name, last_name, invoice_company, product, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status, sales_vat_rate, transport_cost_gross, transport_vat_rate")
       .or("reservation_status.eq.wydany,status_key.eq.wygrany,status.eq.wygrany")
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
@@ -338,11 +338,19 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
+    let salesVat = 0, transportVat = 0, transportCosts = 0, transportCostsNet = 0;
     let tonsTotal = 0, tonsPaleta = 0, tonsBigbag = 0, tonsInne = 0;
     let incomePaleta = 0, incomeBigbag = 0, incomeInne = 0;
     for (const l of leads ?? []) {
       const amt = Number(l.payment_amount_gross ?? 0);
       income += amt;
+      const sVat = Number((l as any).sales_vat_rate ?? 8);
+      salesVat += amt - amt / (1 + sVat / 100);
+      const tCost = Number((l as any).transport_cost_gross ?? 0);
+      const tVat = Number((l as any).transport_vat_rate ?? 23);
+      transportCosts += tCost;
+      transportCostsNet += tCost / (1 + tVat / 100);
+      transportVat += tCost - tCost / (1 + tVat / 100);
       if (l.payment_status === "oplacone_gotowka") cash += amt;
       else if (l.payment_status === "oplacone_przelew") transfer += amt;
       else pending += amt;
@@ -408,7 +416,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const cogsNet = cogs / (1 + cogsVatRate / 100);
 
 
-    const totalCosts = manualCosts + cogs;
+    const totalCosts = manualCosts + cogs + transportCosts;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
     const avgPricePaleta = tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0;
     const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
@@ -416,11 +424,11 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
     // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
     const grossProfit = income - totalCosts;
-    // Przychód netto — wg stawki VAT kalkulatora ofert (23%).
-    const salesVatRate = 23;
-    const incomeNet = income / (1 + salesVatRate / 100);
-    const totalCostsNet = cogsNet + manualCostsNet;
-    const netProfit = incomeNet - totalCostsNet;
+    // VAT należny = VAT z towaru (8/23%) + VAT z transportu (23/8%)
+    const vatTotal = salesVat + transportVat;
+    const incomeNet = income - vatTotal;
+    const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet;
+    const netProfit = incomeNet - transportCostsNet - cogsNet - manualCostsNet;
 
     return {
       income, cash, transfer, pending,
@@ -435,7 +443,8 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       cogsUnitCost: unitCost,
       cogsFifo, cogsFifoTons, cogsFallback, cogsFallbackTons,
 
-      salesVatRate,
+      vatTotal, salesVat, transportVat,
+      transportCosts, transportCostsNet,
       balance: income - totalCosts,
       grossProfit,
       netProfit,
