@@ -19,6 +19,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useUserRole } from "@/hooks/use-user-role";
+import { ROLE_LABEL, canAccess } from "@/lib/rbac";
 
 const nav = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -52,6 +54,9 @@ export function AppSidebar() {
   });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { roles } = useUserRole();
+  const isAdmin = roles.includes("admin");
+  const visibleNav = nav.filter((item) => canAccess(item.url, roles));
   const [email, setEmail] = useState<string>("");
   const [role, setRole] = useState<string>("");
 
@@ -59,11 +64,15 @@ export function AppSidebar() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
       setEmail(data.user.email ?? "");
-      const { data: roles } = await supabase
+      const { data: rows } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", data.user.id);
-      setRole(roles?.map((r) => r.role).join(", ") ?? "");
+      setRole(
+        (rows ?? [])
+          .map((r) => ROLE_LABEL[r.role as keyof typeof ROLE_LABEL] ?? r.role)
+          .join(", "),
+      );
     });
   }, []);
 
@@ -95,7 +104,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Moduły</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {nav.map((item) => {
+              {visibleNav.map((item) => {
                 const active = pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -111,7 +120,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        {role.includes("admin") && (
+        {isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Administracja</SidebarGroupLabel>
             <SidebarGroupContent>
