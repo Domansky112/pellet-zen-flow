@@ -3,12 +3,16 @@ import { useEffect, useState } from "react";
 import { Flame } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchUserRoles } from "@/hooks/use-user-role";
+import { canAccess, defaultRouteFor } from "@/lib/rbac";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { redirectTo?: string } =>
+    typeof search.redirectTo === "string" ? { redirectTo: search.redirectTo } : {},
   head: () => ({
     meta: [
       { title: "Logowanie — Słoneczny Pellet OS" },
@@ -21,21 +25,34 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { redirectTo } = Route.useSearch();
+
+  async function goAfterLogin() {
+    const roles = await fetchUserRoles();
+    const safe =
+      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+        ? redirectTo
+        : null;
+    const target = safe && canAccess(safe, roles) ? safe : defaultRouteFor(roles);
+    navigate({ to: target as "/dashboard", replace: true });
+  }
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/dashboard", replace: true });
+      if (data.user) void goAfterLogin();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        navigate({ to: "/dashboard", replace: true });
+        void goAfterLogin();
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, redirectTo]);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();

@@ -1,20 +1,48 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalSearch } from "@/components/global-search";
+import { fetchUserRoles } from "@/hooks/use-user-role";
+import { canAccess, defaultRouteFor } from "@/lib/rbac";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
-    return { user: data.user };
+    if (error || !data.user) {
+      throw redirect({ to: "/auth", search: { redirectTo: location.href } });
+    }
+
+    const roles = await fetchUserRoles();
+    if (!canAccess(location.pathname, roles)) {
+      const target = defaultRouteFor(roles);
+      if (target === "/403" || target === location.pathname) {
+        throw redirect({ to: "/403" });
+      }
+      if (typeof window !== "undefined") sessionStorage.setItem("rbac_denied", "1");
+      throw redirect({ to: target as "/dashboard" });
+    }
+
+    return { user: data.user, roles };
   },
   component: AuthedLayout,
 });
 
 function AuthedLayout() {
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current) return;
+    shown.current = true;
+    if (sessionStorage.getItem("rbac_denied")) {
+      sessionStorage.removeItem("rbac_denied");
+      toast.error("Brak uprawnień do wyświetlenia tej sekcji");
+    }
+  }, []);
+
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
