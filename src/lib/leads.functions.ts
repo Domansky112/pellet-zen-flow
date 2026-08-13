@@ -209,6 +209,9 @@ const SettleAndWydanieInput = z.object({
   skip_wydanie: z.boolean().optional().default(false),
   new_status_key: z.string().trim().min(1).max(40).optional().nullable(),
   delivered_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  sales_vat_rate: z.number().refine((v) => [0, 8, 23].includes(v)).optional().nullable(),
+  transport_cost_gross: z.number().min(0).max(1_000_000).optional().nullable(),
+  transport_vat_rate: z.number().refine((v) => [0, 8, 23].includes(v)).optional().nullable(),
 });
 
 // Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu + (opcjonalnie) ustaw status.
@@ -224,7 +227,11 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
       _collected: data.collected_on_site,
       _skip_wydanie: data.skip_wydanie ?? false,
       _new_status_key: data.new_status_key ?? null,
-    });
+      _sales_vat_rate: data.sales_vat_rate ?? null,
+      _transport_cost_gross: data.transport_cost_gross ?? null,
+      _transport_vat_rate: data.transport_vat_rate ?? null,
+    } as any);
+
     if (error) {
       throw new Error(`Payment sync failed for Lead ${data.lead_id.slice(0, 8)}: ${error.message}`);
     }
