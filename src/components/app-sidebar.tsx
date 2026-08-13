@@ -15,6 +15,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,8 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { roles } = useUserRole();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeMobile = () => isMobile && setOpenMobile(false);
   const isAdmin = roles.includes("admin");
   const visibleNav = nav.filter((item) => canAccess(item.url, roles));
   const [email, setEmail] = useState<string>("");
@@ -109,7 +112,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link to={item.url}>
+                      <Link to={item.url} onClick={closeMobile}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>
@@ -127,7 +130,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/ustawienia"} tooltip="Ustawienia">
-                    <Link to="/ustawienia">
+                    <Link to="/ustawienia" onClick={closeMobile}>
                       <Settings />
                       <span>Ustawienia</span>
                       <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
@@ -138,7 +141,7 @@ export function AppSidebar() {
                       {SETTINGS_SECTIONS.map((s) => (
                         <SidebarMenuSubItem key={s.value}>
                           <SidebarMenuSubButton asChild isActive={currentSection === s.value}>
-                            <Link to="/ustawienia" search={{ section: s.value }}>
+                            <Link to="/ustawienia" search={{ section: s.value }} onClick={closeMobile}>
                               <s.icon className="h-3.5 w-3.5" />
                               <span>{s.label}</span>
                             </Link>
