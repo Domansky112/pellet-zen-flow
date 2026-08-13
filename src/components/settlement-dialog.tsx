@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,12 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, PackageOpen, Wallet } from "lucide-react";
+import { suggestTransportCost } from "@/lib/transport.functions";
 
 export type SettlementResult = {
   payment_amount_gross: number;
   payment_method: "gotowka" | "karta_blik" | "przelew";
   collected_on_site: boolean;
   delivered_at: string; // ISO date yyyy-mm-dd
+  sales_vat_rate: number;
+  transport_cost_gross: number;
+  transport_vat_rate: number;
 };
 
 const methodLabel: Record<SettlementResult["payment_method"], string> = {
@@ -19,6 +24,7 @@ const methodLabel: Record<SettlementResult["payment_method"], string> = {
   karta_blik: "Karta / BLIK u kierowcy",
   przelew: "Przelew bankowy",
 };
+
 
 export function SettlementDialog({
   open,
