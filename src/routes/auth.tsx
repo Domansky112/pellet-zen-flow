@@ -46,18 +46,6 @@ function AuthPage() {
     if (error) toast.error(error.message);
   }
 
-  async function signUp(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    setLoading(false);
-    if (error) toast.error(error.message);
-    else toast.success("Konto utworzone. Sprawdź e-mail (jeśli wymaga potwierdzenia).");
-  }
 
   async function google() {
     const result = await lovable.auth.signInWithOAuth("google", {
