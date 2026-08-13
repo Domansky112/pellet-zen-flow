@@ -475,7 +475,7 @@ function UsersTab() {
 
   const create = useMutation({
     mutationFn: (p: any) => createFn({ data: p }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-users"] }); toast.success("Utworzono konto"); setNewOpen(false); setNewEmail(""); setNewPass(""); setNewRoles(["sales"]); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-users"] }); toast.success("Utworzono konto"); setNewOpen(false); setNewEmail(""); setNewName(""); setNewPass(""); setNewRoles(["sales"]); },
     onError: (e: any) => toast.error(e.message),
   });
   const setRoles = useMutation({
