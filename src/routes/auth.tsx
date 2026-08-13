@@ -68,44 +68,22 @@ function AuthPage() {
         </div>
 
         <div className="rounded-xl border border-border/60 bg-card p-6 shadow-sm">
-          <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Logowanie</TabsTrigger>
-              <TabsTrigger value="signup">Rejestracja</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="signin">
-              <form onSubmit={signIn} className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="password">Hasło</Label>
-                  <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Loguję..." : "Zaloguj"}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form onSubmit={signUp} className="mt-4 space-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="email2">E-mail</Label>
-                  <Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="password2">Hasło (min. 6 znaków)</Label>
-                  <Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Tworzę..." : "Utwórz konto"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={signIn} className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="password">Hasło</Label>
+              <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Loguję..." : "Zaloguj"}
+            </Button>
+          </form>
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Rejestracja publiczna jest wyłączona. Konta zakłada administrator.
+          </p>
 
           <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
