@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as FormularzRouteImport } from './routes/formularz'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as R403RouteImport } from './routes/403'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUstawieniaRouteImport } from './routes/_authenticated/ustawienia'
@@ -36,6 +37,11 @@ const FormularzRoute = FormularzRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const R403Route = R403RouteImport.update({
+  id: '/403',
+  path: '/403',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -124,6 +130,7 @@ const ApiPublicHooksFetchFuelPriceRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/403': typeof R403Route
   '/auth': typeof AuthRoute
   '/formularz': typeof FormularzRoute
   '/bot': typeof AuthenticatedBotRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/403': typeof R403Route
   '/auth': typeof AuthRoute
   '/formularz': typeof FormularzRoute
   '/bot': typeof AuthenticatedBotRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/403': typeof R403Route
   '/auth': typeof AuthRoute
   '/formularz': typeof FormularzRoute
   '/_authenticated/bot': typeof AuthenticatedBotRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/403'
     | '/auth'
     | '/formularz'
     | '/bot'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/403'
     | '/auth'
     | '/formularz'
     | '/bot'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/403'
     | '/auth'
     | '/formularz'
     | '/_authenticated/bot'
@@ -245,6 +257,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  R403Route: typeof R403Route
   AuthRoute: typeof AuthRoute
   FormularzRoute: typeof FormularzRoute
   ApiPublicLeadsRoute: typeof ApiPublicLeadsRoute
@@ -267,6 +280,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/403': {
+      id: '/403'
+      path: '/403'
+      fullPath: '/403'
+      preLoaderRoute: typeof R403RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -416,6 +436,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  R403Route: R403Route,
   AuthRoute: AuthRoute,
   FormularzRoute: FormularzRoute,
   ApiPublicLeadsRoute: ApiPublicLeadsRoute,
