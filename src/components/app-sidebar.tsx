@@ -112,7 +112,7 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
-                      <Link to={item.url}>
+                      <Link to={item.url} onClick={closeMobile}>
                         <item.icon />
                         <span>{item.title}</span>
                       </Link>
