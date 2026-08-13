@@ -36,6 +36,11 @@ export function SettlePaymentButton({
   quantity,
   defaultAmount,
   defaultMethod,
+  postalCode,
+  city,
+  defaultSalesVatRate,
+  defaultTransportCost,
+  defaultTransportVatRate,
   size = "sm",
   variant = "outline",
   label = "Uzupełnij płatność",
@@ -56,6 +61,9 @@ export function SettlePaymentButton({
           skip_wydanie: true,
           new_status_key: null,
           delivered_at: r.delivered_at,
+          sales_vat_rate: r.sales_vat_rate,
+          transport_cost_gross: r.transport_cost_gross,
+          transport_vat_rate: r.transport_vat_rate,
         },
       }),
     onSuccess: () => {
@@ -83,9 +91,15 @@ export function SettlePaymentButton({
         onOpenChange={setOpen}
         leadName={leadName}
         quantity={quantity ?? null}
+        postalCode={postalCode ?? null}
+        city={city ?? null}
         defaultAmount={defaultAmount ?? null}
         defaultMethod={defaultMethod ?? null}
+        defaultSalesVatRate={defaultSalesVatRate ?? 8}
+        defaultTransportCost={defaultTransportCost ?? null}
+        defaultTransportVatRate={defaultTransportVatRate ?? 23}
         submitting={m.isPending}
+
         onConfirm={(r) => m.mutate(r)}
         title="Uzupełnij płatność / dodaj do finansów"
         description="Ten lead jest zrealizowany, ale nie ma zapisanej kwoty. Podaj ostateczną kwotę i formę płatności — trafi do modułu Płatności."
