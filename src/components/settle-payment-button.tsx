@@ -13,11 +13,17 @@ type Props = {
   quantity?: number | null;
   defaultAmount?: number | null;
   defaultMethod?: SettlementResult["payment_method"] | null;
+  postalCode?: string | null;
+  city?: string | null;
+  defaultSalesVatRate?: number | null;
+  defaultTransportCost?: number | null;
+  defaultTransportVatRate?: number | null;
   size?: "sm" | "default";
   variant?: "default" | "outline" | "secondary";
   label?: string;
   className?: string;
 };
+
 
 /**
  * Opens the settlement modal for a realized lead that has no payment record yet.
