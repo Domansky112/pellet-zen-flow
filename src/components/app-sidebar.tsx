@@ -130,7 +130,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === "/ustawienia"} tooltip="Ustawienia">
-                    <Link to="/ustawienia">
+                    <Link to="/ustawienia" onClick={closeMobile}>
                       <Settings />
                       <span>Ustawienia</span>
                       <ChevronRight className="ml-auto h-4 w-4 opacity-60" />
@@ -141,7 +141,7 @@ export function AppSidebar() {
                       {SETTINGS_SECTIONS.map((s) => (
                         <SidebarMenuSubItem key={s.value}>
                           <SidebarMenuSubButton asChild isActive={currentSection === s.value}>
-                            <Link to="/ustawienia" search={{ section: s.value }}>
+                            <Link to="/ustawienia" search={{ section: s.value }} onClick={closeMobile}>
                               <s.icon className="h-3.5 w-3.5" />
                               <span>{s.label}</span>
                             </Link>
