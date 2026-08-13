@@ -740,6 +740,11 @@ export function LeadDetailDrawer({
                       leadId={lead.id}
                       leadName={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name}
                       quantity={lead.quantity ?? null}
+                      postalCode={(lead as any).postal_code ?? null}
+                      city={(lead as any).city ?? null}
+                      defaultSalesVatRate={(lead as any).sales_vat_rate ?? 8}
+                      defaultTransportCost={(lead as any).transport_cost_gross ?? null}
+                      defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
                     />
                   )}
                   <Button size="sm" variant="outline"

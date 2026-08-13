@@ -38,6 +38,7 @@ import { listFixedAssets } from "@/lib/assets.functions";
 import { backfillMissingPayments } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { backfillTransportCosts } from "@/lib/transport.functions";
 import { getWzDocument } from "@/lib/wz.functions";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
@@ -166,6 +167,16 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   const totalAssets = netBalance + warehouseValue + assetsValue;
 
 
+  const backfillTransportFn = useServerFn(backfillTransportCosts);
+  const backfillTransportM = useMutation({
+    mutationFn: async () => backfillTransportFn({ data: { limit: 40 } }),
+    onSuccess: (r: any) => {
+      toast.success(`Przeliczono koszty transportu: ${r.updated ?? 0} z ${r.scanned ?? 0}`);
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const backfillM = useMutation({
     mutationFn: async () => backfillFn(),
     onSuccess: (r: any) => {
@@ -205,6 +216,11 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             {isAdmin && (
               <Button size="sm" variant="secondary" onClick={() => backfillM.mutate()} disabled={backfillM.isPending}>
                 {backfillM.isPending ? "Synchronizacja…" : "Uzupełnij zaległe płatności"}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button size="sm" variant="outline" onClick={() => backfillTransportM.mutate()} disabled={backfillTransportM.isPending}>
+                {backfillTransportM.isPending ? "Liczę trasy…" : "Przelicz koszty transportu"}
               </Button>
             )}
           </div>
@@ -839,6 +855,11 @@ function LeadPaymentRow({ lead }: { lead: any }) {
             leadId={lead.id}
             leadName={leadDisplayName(lead)}
             quantity={lead.quantity ?? null}
+            postalCode={lead.postal_code ?? null}
+            city={lead.city ?? null}
+            defaultSalesVatRate={(lead as any).sales_vat_rate ?? 8}
+            defaultTransportCost={(lead as any).transport_cost_gross ?? null}
+            defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
             label="Uzupełnij płatność"
           />
         )}

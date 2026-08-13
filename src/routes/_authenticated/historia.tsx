@@ -251,6 +251,8 @@ function HistoriaPage() {
                       leadId={l.id}
                       leadName={[l.first_name, l.last_name].filter(Boolean).join(" ") || l.name}
                       quantity={l.quantity ?? null}
+                      postalCode={(l as any).postal_code ?? null}
+                      city={(l as any).city ?? null}
                     />
                   )}
                 </div>
