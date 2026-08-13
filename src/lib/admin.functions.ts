@@ -380,6 +380,9 @@ export const listCrmUsers = createServerFn({ method: "GET" })
     return (usersData?.users ?? []).map((u) => ({
       id: u.id,
       email: u.email ?? "",
+      full_name:
+        ((u.user_metadata ?? {}) as Record<string, unknown>)["full_name"] as string | undefined ??
+        null,
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at ?? null,
       roles: rolesByUser.get(u.id) ?? [],
