@@ -33,6 +33,11 @@ export function SettlementDialog({
   quantity,
   defaultAmount,
   defaultMethod,
+  defaultSalesVatRate,
+  defaultTransportCost,
+  defaultTransportVatRate,
+  postalCode,
+  city,
   submitting,
   onConfirm,
   title = "Rozliczenie zamówienia",
@@ -45,6 +50,11 @@ export function SettlementDialog({
   quantity?: number | null;
   defaultAmount?: number | null;
   defaultMethod?: SettlementResult["payment_method"] | null;
+  defaultSalesVatRate?: number | null;
+  defaultTransportCost?: number | null;
+  defaultTransportVatRate?: number | null;
+  postalCode?: string | null;
+  city?: string | null;
   submitting?: boolean;
   onConfirm: (r: SettlementResult) => void | Promise<void>;
   title?: string;
@@ -62,7 +72,13 @@ export function SettlementDialog({
   const [method, setMethod] = useState<SettlementResult["payment_method"]>("gotowka");
   const [collected, setCollected] = useState<boolean>(true);
   const [deliveredAt, setDeliveredAt] = useState<string>(todayIso());
+  const [salesVat, setSalesVat] = useState<string>("8");
+  const [transportCost, setTransportCost] = useState<string>("");
+  const [transportVat, setTransportVat] = useState<string>("23");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestInfo, setSuggestInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const suggestFn = useServerFn(suggestTransportCost);
 
   useEffect(() => {
     if (open) {
@@ -70,15 +86,46 @@ export function SettlementDialog({
       setMethod(defaultMethod ?? "gotowka");
       setCollected(true);
       setDeliveredAt(todayIso());
+      setSalesVat(String(defaultSalesVatRate ?? 8));
+      setTransportVat(String(defaultTransportVatRate ?? 23));
+      setTransportCost(
+        defaultTransportCost != null && Number.isFinite(defaultTransportCost) ? String(defaultTransportCost) : "",
+      );
+      setSuggestInfo(null);
       setError(null);
     }
-  }, [open, defaultAmount, defaultMethod]);
+  }, [open, defaultAmount, defaultMethod, defaultSalesVatRate, defaultTransportCost, defaultTransportVatRate]);
+
+  // Propozycja kosztu transportu na podstawie kodu pocztowego (edytowalna)
+  useEffect(() => {
+    if (!open) return;
+    if (defaultTransportCost != null && Number.isFinite(defaultTransportCost)) return;
+    let cancelled = false;
+    setSuggesting(true);
+    suggestFn({ data: { postal_code: postalCode ?? null, city: city ?? null, tons: Number(quantity ?? 0) } })
+      .then((r: any) => {
+        if (cancelled) return;
+        setTransportCost((cur) => (cur === "" ? String(r.cost) : cur));
+        setSuggestInfo(
+          r.source === "maps"
+            ? `Propozycja z odległości: ~${r.km} km w obie strony`
+            : "Propozycja ryczałtowa (brak trasy dla kodu pocztowego)",
+        );
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setSuggesting(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, postalCode, city, quantity, defaultTransportCost]);
 
   useEffect(() => {
     // przelew defaults to "oczekuje" (nie pobrane na miejscu)
     if (method === "przelew") setCollected(false);
     else setCollected(true);
   }, [method]);
+
+  const parseNum = (v: string) => Number(v.trim().replace(/\s+/g, "").replace(",", "."));
 
   const submit = async () => {
     const raw = amount.trim().replace(",", ".");
@@ -87,13 +134,27 @@ export function SettlementDialog({
       setError("Podaj poprawną kwotę (liczba ≥ 0).");
       return;
     }
+    const tc = transportCost.trim() === "" ? 0 : parseNum(transportCost);
+    if (!Number.isFinite(tc) || tc < 0) {
+      setError("Podaj poprawny koszt transportu (liczba ≥ 0).");
+      return;
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveredAt)) {
       setError("Podaj poprawną datę dostawy.");
       return;
     }
     setError(null);
-    await onConfirm({ payment_amount_gross: n, payment_method: method, collected_on_site: collected, delivered_at: deliveredAt });
+    await onConfirm({
+      payment_amount_gross: n,
+      payment_method: method,
+      collected_on_site: collected,
+      delivered_at: deliveredAt,
+      sales_vat_rate: Number(salesVat),
+      transport_cost_gross: Number(tc.toFixed(2)),
+      transport_vat_rate: Number(transportVat),
+    });
   };
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!submitting ? onOpenChange(o) : null)}>
