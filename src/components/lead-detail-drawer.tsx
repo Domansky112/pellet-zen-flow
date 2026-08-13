@@ -217,8 +217,12 @@ export function LeadDetailDrawer({
           // When triggered from a status change → include the status flip in the same DB transaction.
           new_status_key: settleMode === "status" ? pendingStatusKey : null,
           delivered_at: r.delivered_at,
+          sales_vat_rate: r.sales_vat_rate,
+          transport_cost_gross: r.transport_cost_gross,
+          transport_vat_rate: r.transport_vat_rate,
         },
       }),
+
     onSuccess: async () => {
       setSettleOpen(false);
       setPendingStatusKey(null);
@@ -736,6 +740,11 @@ export function LeadDetailDrawer({
                       leadId={lead.id}
                       leadName={[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name}
                       quantity={lead.quantity ?? null}
+                      postalCode={(lead as any).postal_code ?? null}
+                      city={(lead as any).city ?? null}
+                      defaultSalesVatRate={(lead as any).sales_vat_rate ?? 8}
+                      defaultTransportCost={(lead as any).transport_cost_gross ?? null}
+                      defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
                     />
                   )}
                   <Button size="sm" variant="outline"
@@ -1296,11 +1305,17 @@ export function LeadDetailDrawer({
         onOpenChange={setSettleOpen}
         leadName={lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name) : undefined}
         quantity={lead?.quantity ?? null}
+        postalCode={(lead as any)?.postal_code ?? null}
+        city={(lead as any)?.city ?? null}
+        defaultSalesVatRate={(lead as any)?.sales_vat_rate ?? 8}
+        defaultTransportCost={(lead as any)?.transport_cost_gross ?? null}
+        defaultTransportVatRate={(lead as any)?.transport_vat_rate ?? 23}
         defaultAmount={
           Number.isFinite(vatCalc.sumBr) && vatCalc.sumBr > 0
             ? Number(vatCalc.sumBr.toFixed(2))
             : ((lead as any)?.payment_amount_gross ?? null)
         }
+
         defaultMethod={((lead as any)?.payment_method as any) ?? "gotowka"}
         submitting={wydanieM.isPending}
         onConfirm={(r) => wydanieM.mutate(r)}

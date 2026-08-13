@@ -469,9 +469,12 @@ export type Database = {
           quantity: number | null
           receipt_number: string | null
           reservation_status: string
+          sales_vat_rate: number
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
+          transport_cost_gross: number | null
+          transport_vat_rate: number
           updated_at: string
           urgent_no_fuel: boolean
         }
@@ -520,9 +523,12 @@ export type Database = {
           quantity?: number | null
           receipt_number?: string | null
           reservation_status?: string
+          sales_vat_rate?: number
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
+          transport_cost_gross?: number | null
+          transport_vat_rate?: number
           updated_at?: string
           urgent_no_fuel?: boolean
         }
@@ -571,9 +577,12 @@ export type Database = {
           quantity?: number | null
           receipt_number?: string | null
           reservation_status?: string
+          sales_vat_rate?: number
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
+          transport_cost_gross?: number | null
+          transport_vat_rate?: number
           updated_at?: string
           urgent_no_fuel?: boolean
         }
@@ -1460,9 +1469,12 @@ export type Database = {
           quantity: number | null
           receipt_number: string | null
           reservation_status: string
+          sales_vat_rate: number
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
+          transport_cost_gross: number | null
+          transport_vat_rate: number
           updated_at: string
           urgent_no_fuel: boolean
         }[]
@@ -1492,6 +1504,20 @@ export type Database = {
               _method: string
               _new_status_key?: string
               _skip_wydanie?: boolean
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _collected: boolean
+              _lead_id: string
+              _method: string
+              _new_status_key?: string
+              _sales_vat_rate?: number
+              _skip_wydanie?: boolean
+              _transport_cost_gross?: number
+              _transport_vat_rate?: number
             }
             Returns: Json
           }

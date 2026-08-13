@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,12 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, PackageOpen, Wallet } from "lucide-react";
+import { suggestTransportCost } from "@/lib/transport.functions";
 
 export type SettlementResult = {
   payment_amount_gross: number;
   payment_method: "gotowka" | "karta_blik" | "przelew";
   collected_on_site: boolean;
   delivered_at: string; // ISO date yyyy-mm-dd
+  sales_vat_rate: number;
+  transport_cost_gross: number;
+  transport_vat_rate: number;
 };
 
 const methodLabel: Record<SettlementResult["payment_method"], string> = {
@@ -20,6 +25,7 @@ const methodLabel: Record<SettlementResult["payment_method"], string> = {
   przelew: "Przelew bankowy",
 };
 
+
 export function SettlementDialog({
   open,
   onOpenChange,
@@ -27,6 +33,11 @@ export function SettlementDialog({
   quantity,
   defaultAmount,
   defaultMethod,
+  defaultSalesVatRate,
+  defaultTransportCost,
+  defaultTransportVatRate,
+  postalCode,
+  city,
   submitting,
   onConfirm,
   title = "Rozliczenie zamówienia",
@@ -39,6 +50,11 @@ export function SettlementDialog({
   quantity?: number | null;
   defaultAmount?: number | null;
   defaultMethod?: SettlementResult["payment_method"] | null;
+  defaultSalesVatRate?: number | null;
+  defaultTransportCost?: number | null;
+  defaultTransportVatRate?: number | null;
+  postalCode?: string | null;
+  city?: string | null;
   submitting?: boolean;
   onConfirm: (r: SettlementResult) => void | Promise<void>;
   title?: string;
@@ -56,7 +72,13 @@ export function SettlementDialog({
   const [method, setMethod] = useState<SettlementResult["payment_method"]>("gotowka");
   const [collected, setCollected] = useState<boolean>(true);
   const [deliveredAt, setDeliveredAt] = useState<string>(todayIso());
+  const [salesVat, setSalesVat] = useState<string>("8");
+  const [transportCost, setTransportCost] = useState<string>("");
+  const [transportVat, setTransportVat] = useState<string>("23");
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestInfo, setSuggestInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const suggestFn = useServerFn(suggestTransportCost);
 
   useEffect(() => {
     if (open) {
@@ -64,15 +86,46 @@ export function SettlementDialog({
       setMethod(defaultMethod ?? "gotowka");
       setCollected(true);
       setDeliveredAt(todayIso());
+      setSalesVat(String(defaultSalesVatRate ?? 8));
+      setTransportVat(String(defaultTransportVatRate ?? 23));
+      setTransportCost(
+        defaultTransportCost != null && Number.isFinite(defaultTransportCost) ? String(defaultTransportCost) : "",
+      );
+      setSuggestInfo(null);
       setError(null);
     }
-  }, [open, defaultAmount, defaultMethod]);
+  }, [open, defaultAmount, defaultMethod, defaultSalesVatRate, defaultTransportCost, defaultTransportVatRate]);
+
+  // Propozycja kosztu transportu na podstawie kodu pocztowego (edytowalna)
+  useEffect(() => {
+    if (!open) return;
+    if (defaultTransportCost != null && Number.isFinite(defaultTransportCost)) return;
+    let cancelled = false;
+    setSuggesting(true);
+    suggestFn({ data: { postal_code: postalCode ?? null, city: city ?? null, tons: Number(quantity ?? 0) } })
+      .then((r: any) => {
+        if (cancelled) return;
+        setTransportCost((cur) => (cur === "" ? String(r.cost) : cur));
+        setSuggestInfo(
+          r.source === "maps"
+            ? `Propozycja z odległości: ~${r.km} km w obie strony`
+            : "Propozycja ryczałtowa (brak trasy dla kodu pocztowego)",
+        );
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setSuggesting(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, postalCode, city, quantity, defaultTransportCost]);
 
   useEffect(() => {
     // przelew defaults to "oczekuje" (nie pobrane na miejscu)
     if (method === "przelew") setCollected(false);
     else setCollected(true);
   }, [method]);
+
+  const parseNum = (v: string) => Number(v.trim().replace(/\s+/g, "").replace(",", "."));
 
   const submit = async () => {
     const raw = amount.trim().replace(",", ".");
@@ -81,13 +134,27 @@ export function SettlementDialog({
       setError("Podaj poprawną kwotę (liczba ≥ 0).");
       return;
     }
+    const tc = transportCost.trim() === "" ? 0 : parseNum(transportCost);
+    if (!Number.isFinite(tc) || tc < 0) {
+      setError("Podaj poprawny koszt transportu (liczba ≥ 0).");
+      return;
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveredAt)) {
       setError("Podaj poprawną datę dostawy.");
       return;
     }
     setError(null);
-    await onConfirm({ payment_amount_gross: n, payment_method: method, collected_on_site: collected, delivered_at: deliveredAt });
+    await onConfirm({
+      payment_amount_gross: n,
+      payment_method: method,
+      collected_on_site: collected,
+      delivered_at: deliveredAt,
+      sales_vat_rate: Number(salesVat),
+      transport_cost_gross: Number(tc.toFixed(2)),
+      transport_vat_rate: Number(transportVat),
+    });
   };
+
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!submitting ? onOpenChange(o) : null)}>
@@ -110,7 +177,7 @@ export function SettlementDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="settlement-amount">Kwota ostateczna (Brutto) [PLN]</Label>
+            <Label htmlFor="settlement-amount">Kwota sprzedaży (Brutto) [PLN]</Label>
             <Input
               id="settlement-amount"
               type="text"
@@ -126,6 +193,47 @@ export function SettlementDialog({
               </p>
             )}
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla towaru</Label>
+              <Select value={salesVat} onValueChange={setSalesVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="8">8%</SelectItem>
+                  <SelectItem value="23">23%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla transportu</Label>
+              <Select value={transportVat} onValueChange={setTransportVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="23">23%</SelectItem>
+                  <SelectItem value="8">8%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="settlement-transport">Koszt transportu (Brutto) [PLN]</Label>
+            <Input
+              id="settlement-transport"
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={transportCost}
+              onChange={(e) => setTransportCost(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {suggesting
+                ? "Liczę propozycję na podstawie kodu pocztowego…"
+                : suggestInfo ?? "Propozycja wyliczona z odległości — możesz ją dowolnie zmienić."}
+            </p>
+          </div>
+
 
           <div className="space-y-1.5">
             <Label htmlFor="settlement-delivered-at">Data dostawy / realizacji</Label>

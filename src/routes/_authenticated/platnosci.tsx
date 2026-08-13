@@ -38,6 +38,7 @@ import { listFixedAssets } from "@/lib/assets.functions";
 import { backfillMissingPayments } from "@/lib/leads.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { backfillTransportCosts } from "@/lib/transport.functions";
 import { getWzDocument } from "@/lib/wz.functions";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
@@ -166,6 +167,16 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   const totalAssets = netBalance + warehouseValue + assetsValue;
 
 
+  const backfillTransportFn = useServerFn(backfillTransportCosts);
+  const backfillTransportM = useMutation({
+    mutationFn: async () => backfillTransportFn({ data: { limit: 40 } }),
+    onSuccess: (r: any) => {
+      toast.success(`Przeliczono koszty transportu: ${r.updated ?? 0} z ${r.scanned ?? 0}`);
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const backfillM = useMutation({
     mutationFn: async () => backfillFn(),
     onSuccess: (r: any) => {
@@ -207,42 +218,66 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
                 {backfillM.isPending ? "Synchronizacja…" : "Uzupełnij zaległe płatności"}
               </Button>
             )}
+            {isAdmin && (
+              <Button size="sm" variant="outline" onClick={() => backfillTransportM.mutate()} disabled={backfillTransportM.isPending}>
+                {backfillTransportM.isPending ? "Liczę trasy…" : "Przelicz koszty transportu"}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <StatCard title="Przychód (wydane)" value={fmtPLN(s?.income ?? 0)} tone="emerald" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="Przychód Brutto" value={fmtPLN(s?.income ?? 0)} tone="emerald" />
+          <StatCard
+            title="Suma VAT"
+            value={fmtPLN((s as any)?.vatTotal ?? 0)}
+            hint={`VAT z towaru ${fmtPLN((s as any)?.salesVat ?? 0)} + VAT z transportu ${fmtPLN((s as any)?.transportVat ?? 0)}`}
+          />
+          <StatCard
+            title="Przychód Netto"
+            value={fmtPLN((s as any)?.incomeNet ?? 0)}
+            hint="Przychód brutto − suma VAT (stawki 8% / 23% wg zlecenia)"
+          />
+          <StatCard
+            title="Suma kosztów transportu"
+            value={fmtPLN((s as any)?.transportCosts ?? 0)}
+            tone="amber"
+            hint={`Netto ${fmtPLN((s as any)?.transportCostsNet ?? 0)} — koszt wpisany ręcznie lub z propozycji wg kodu pocztowego`}
+          />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard
+            title="Koszt surowca (COGS Netto)"
+            value={fmtPLN((s as any)?.cogsNet ?? 0)}
+            tone="amber"
+            hint={`Brutto ${fmtPLN((s as any)?.cogs ?? 0)} przy VAT ${(s as any)?.cogsVatRate ?? 8}% · FIFO ${((s as any)?.cogsFifoTons ?? 0).toFixed(2)} t = ${fmtPLN((s as any)?.cogsFifo ?? 0)}${((s as any)?.cogsFallbackTons ?? 0) > 0 ? ` + ${((s as any)?.cogsFallbackTons ?? 0).toFixed(2)} t × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t` : ""}`}
+          />
           <StatCard
             title="Koszty całkowite"
             value={fmtPLN(s?.totalCosts ?? 0)}
             tone="amber"
-            hint={`Koszt surowca (COGS) ${fmtPLN((s as any)?.cogs ?? 0)} + koszty dodatkowe ${fmtPLN((s as any)?.manualCosts ?? 0)}`}
+            hint={`COGS ${fmtPLN((s as any)?.cogs ?? 0)} + transport ${fmtPLN((s as any)?.transportCosts ?? 0)} + koszty dodatkowe ${fmtPLN((s as any)?.manualCosts ?? 0)}`}
           />
-          <StatCard title="Saldo" value={fmtPLN(netBalance)} tone={netBalance >= 0 ? "emerald" : "amber"} />
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <StatCard
-            title="Koszt surowca (COGS)"
-            value={fmtPLN((s as any)?.cogs ?? 0)}
-            tone="amber"
-            hint={`Rzeczywisty koszt zakupu wydanego surowca metodą FIFO: ${((s as any)?.cogsFifoTons ?? 0).toFixed(2)} t z partii = ${fmtPLN((s as any)?.cogsFifo ?? 0)}${((s as any)?.cogsFallbackTons ?? 0) > 0 ? ` + ${((s as any)?.cogsFallbackTons ?? 0).toFixed(2)} t bez partii × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t = ${fmtPLN((s as any)?.cogsFallback ?? 0)}` : ""} → razem ${fmtPLN((s as any)?.cogs ?? 0)}`}
-          />
+          <StatCard title="Saldo" value={fmtPLN(netBalance)} tone={netBalance >= 0 ? "emerald" : "amber"} hint="Przychód brutto − koszty całkowite" />
           <StatCard
             title="Zysk Brutto w okresie"
             value={fmtPLN(s?.grossProfit ?? 0)}
             tone={(s?.grossProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód ze sprzedaży − (Sprzedane tony × Cena jednostkowa towaru z Ustawień + Koszty dodatkowe)"
+            hint="Liczony jako: Przychód brutto − (Koszt surowca COGS + Koszt transportu + Koszty dodatkowe)"
           />
           <StatCard
-            title="Zysk Netto w okresie"
+            title="ZYSK NETTO W OKRESIE"
             value={fmtPLN(s?.netProfit ?? 0)}
             tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint={`Liczony jako: Przychód netto − Koszty całkowite netto (z uwzględnieniem stawek 8% i 23% VAT). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − koszty netto ${fmtPLN((s as any)?.totalCostsNet ?? 0)} (COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} przy VAT ${(s as any)?.cogsVatRate ?? 8}% + koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)})`}
+            hint={`Liczony jako: Przychód netto − (Koszt surowca COGS + Koszt transportu + Koszty dodatkowe). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} − transport netto ${fmtPLN((s as any)?.transportCostsNet ?? 0)} − koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)}`}
           />
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 
           <div className="rounded-lg border bg-card p-4">
@@ -820,6 +855,11 @@ function LeadPaymentRow({ lead }: { lead: any }) {
             leadId={lead.id}
             leadName={leadDisplayName(lead)}
             quantity={lead.quantity ?? null}
+            postalCode={lead.postal_code ?? null}
+            city={lead.city ?? null}
+            defaultSalesVatRate={(lead as any).sales_vat_rate ?? 8}
+            defaultTransportCost={(lead as any).transport_cost_gross ?? null}
+            defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
             label="Uzupełnij płatność"
           />
         )}
