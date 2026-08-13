@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const LEAD_COLS =
-  "id, lead_number, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, payment_method, payment_status, payment_amount_gross, invoice_number, receipt_number, payment_reminded_at, driver_settled_at, reservation_status, delivered_at, urgent_no_fuel";
+  "id, lead_number, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, payment_method, payment_status, payment_amount_gross, invoice_number, receipt_number, payment_reminded_at, driver_settled_at, reservation_status, delivered_at, urgent_no_fuel, sales_vat_rate, transport_cost_gross, transport_vat_rate";
 
 // ─────────────────────────────────────────────────────────────
 // Nadchodzące transporty (planowane) — z leadami do pobrania
