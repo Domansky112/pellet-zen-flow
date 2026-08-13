@@ -177,7 +177,7 @@ export function SettlementDialog({
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="settlement-amount">Kwota ostateczna (Brutto) [PLN]</Label>
+            <Label htmlFor="settlement-amount">Kwota sprzedaży (Brutto) [PLN]</Label>
             <Input
               id="settlement-amount"
               type="text"
@@ -193,6 +193,47 @@ export function SettlementDialog({
               </p>
             )}
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla towaru</Label>
+              <Select value={salesVat} onValueChange={setSalesVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="8">8%</SelectItem>
+                  <SelectItem value="23">23%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla transportu</Label>
+              <Select value={transportVat} onValueChange={setTransportVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="23">23%</SelectItem>
+                  <SelectItem value="8">8%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="settlement-transport">Koszt transportu (Brutto) [PLN]</Label>
+            <Input
+              id="settlement-transport"
+              type="text"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={transportCost}
+              onChange={(e) => setTransportCost(e.target.value)}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {suggesting
+                ? "Liczę propozycję na podstawie kodu pocztowego…"
+                : suggestInfo ?? "Propozycja wyliczona z odległości — możesz ją dowolnie zmienić."}
+            </p>
+          </div>
+
 
           <div className="space-y-1.5">
             <Label htmlFor="settlement-delivered-at">Data dostawy / realizacji</Label>
