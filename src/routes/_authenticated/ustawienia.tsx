@@ -466,6 +466,7 @@ function UsersTab() {
 
   const [newOpen, setNewOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
   const [newPass, setNewPass] = useState("");
   const [newRoles, setNewRoles] = useState<string[]>(["sales"]);
 
@@ -474,7 +475,7 @@ function UsersTab() {
 
   const create = useMutation({
     mutationFn: (p: any) => createFn({ data: p }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-users"] }); toast.success("Utworzono konto"); setNewOpen(false); setNewEmail(""); setNewPass(""); setNewRoles(["sales"]); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-users"] }); toast.success("Utworzono konto"); setNewOpen(false); setNewEmail(""); setNewName(""); setNewPass(""); setNewRoles(["sales"]); },
     onError: (e: any) => toast.error(e.message),
   });
   const setRoles = useMutation({
@@ -509,6 +510,7 @@ function UsersTab() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nowe konto CRM</DialogTitle></DialogHeader>
             <div className="grid gap-3">
+              <div><Label>Imię i nazwisko</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
               <div><Label>E-mail</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
               <div><Label>Hasło (min. 8 znaków)</Label><Input type="text" value={newPass} onChange={(e) => setNewPass(e.target.value)} /></div>
               <div>
@@ -524,7 +526,7 @@ function UsersTab() {
               </div>
             </div>
             <DialogFooter>
-              <Button disabled={!newEmail || newPass.length < 8 || create.isPending} onClick={() => create.mutate({ email: newEmail, password: newPass, roles: newRoles })}>
+              <Button disabled={!newEmail || newPass.length < 8 || create.isPending} onClick={() => create.mutate({ email: newEmail, password: newPass, full_name: newName || null, roles: newRoles })}>
                 {create.isPending ? "Tworzenie…" : "Utwórz"}
               </Button>
             </DialogFooter>
@@ -533,13 +535,16 @@ function UsersTab() {
       </CardHeader>
       <CardContent>
         <Table>
-          <TableHeader><TableRow><TableHead>E-mail</TableHead><TableHead>Role</TableHead><TableHead>Ostatnie logowanie</TableHead><TableHead className="w-32" /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Użytkownik</TableHead><TableHead>Role</TableHead><TableHead>Ostatnie logowanie</TableHead><TableHead className="w-32" /></TableRow></TableHeader>
           <TableBody>
             {isLoading && <TableRow><TableCell colSpan={4} className="text-center py-6">Ładowanie…</TableCell></TableRow>}
             {!isLoading && data.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-6">Brak użytkowników</TableCell></TableRow>}
             {data.map((u: any) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.email}</TableCell>
+                <TableCell className="font-medium">
+                  {u.full_name ? <div>{u.full_name}</div> : null}
+                  <div className={u.full_name ? "text-xs text-muted-foreground" : ""}>{u.email}</div>
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {ALL_ROLES.map((r) => (

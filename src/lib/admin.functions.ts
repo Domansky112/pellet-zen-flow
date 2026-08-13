@@ -380,6 +380,9 @@ export const listCrmUsers = createServerFn({ method: "GET" })
     return (usersData?.users ?? []).map((u) => ({
       id: u.id,
       email: u.email ?? "",
+      full_name:
+        ((u.user_metadata ?? {}) as Record<string, unknown>)["full_name"] as string | undefined ??
+        null,
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at ?? null,
       roles: rolesByUser.get(u.id) ?? [],
@@ -420,6 +423,7 @@ export const createCrmUser = createServerFn({ method: "POST" })
       .object({
         email: z.string().email().max(120),
         password: z.string().min(8).max(128),
+        full_name: z.string().max(120).optional().nullable(),
         roles: z.array(RoleEnum).default(["sales"]),
       })
       .parse(d),
@@ -431,6 +435,10 @@ export const createCrmUser = createServerFn({ method: "POST" })
       email: data.email,
       password: data.password,
       email_confirm: true,
+      user_metadata: {
+        full_name: data.full_name ?? null,
+        role: data.roles[0] ?? "sales",
+      },
     });
     if (error) throw new Error(error.message);
     const uid = created.user?.id;
