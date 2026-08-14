@@ -352,7 +352,9 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
 
 // ─── Nadchodzące ─────────────────────────────────────────────
 function UpcomingTab() {
-  const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => listUpcomingPayments() });
+  const upcomingFn = useServerFn(listUpcomingPayments);
+  const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => upcomingFn() });
+
   const rows = extractLeads(q.data ?? []);
 
   const totals = useMemo(() => {
