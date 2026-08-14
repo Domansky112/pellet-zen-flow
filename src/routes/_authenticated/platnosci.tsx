@@ -444,7 +444,8 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState("none");
 
-  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const listAssetsFn2 = useServerFn(listFixedAssets);
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listAssetsFn2({ data: {} }) });
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["expenses"] });
@@ -473,10 +474,11 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const summaryFn2 = useServerFn(getFinancialSummary);
   const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
   const manualTotal = (q.data ?? []).filter((e: any) => !isCapex(e)).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const capexTotal = (q.data ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => getFinancialSummary({ data: { from, to } }) });
+  const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => summaryFn2({ data: { from, to } }) });
   const cogs = Number((sumQ.data as any)?.cogs ?? 0);
   const cogsTons = Number((sumQ.data as any)?.cogsTons ?? 0);
   const cogsUnit = Number((sumQ.data as any)?.cogsUnitCost ?? 0);
@@ -630,7 +632,8 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
 
 // ─── AUDIT LOG ───────────────────────────────────────────────
 function AuditTab({ from, to }: { from: string; to: string }) {
-  const q = useQuery({ queryKey: ["payment-audit", from, to], queryFn: () => listPaymentAuditLog({ data: { from, to } }) });
+  const auditFn = useServerFn(listPaymentAuditLog);
+  const q = useQuery({ queryKey: ["payment-audit", from, to], queryFn: () => auditFn({ data: { from, to } }) });
 
   return (
     <Card>
