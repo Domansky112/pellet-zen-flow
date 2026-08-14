@@ -59,9 +59,11 @@ import {
   listFixedAssets, listAssetExpenses, upsertFixedAsset, archiveFixedAsset, deleteFixedAsset,
   ASSET_CATEGORIES, ASSET_STATUSES,
 } from "@/lib/assets.functions";
+import { EmployeeCalendarTab } from "@/components/employee-calendar";
+import { PhysicalWorkersCard } from "@/components/physical-workers-card";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
