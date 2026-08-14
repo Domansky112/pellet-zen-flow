@@ -151,18 +151,22 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   const qc = useQueryClient();
   const isAdmin = useIsAdmin();
   const backfillFn = useServerFn(backfillMissingPayments);
+  const summaryFn = useServerFn(getFinancialSummary);
+  const warehouseValueFn = useServerFn(getWarehouseValue);
+  const listAssetsFn = useServerFn(listFixedAssets);
   const q = useQuery({
     queryKey: ["financial-summary", from, to],
-    queryFn: () => getFinancialSummary({ data: { from, to } }),
+    queryFn: () => summaryFn({ data: { from, to } }),
   });
   const s = q.data;
   const wv = useQuery({
     queryKey: ["warehouse-value"],
-    queryFn: () => getWarehouseValue(),
+    queryFn: () => warehouseValueFn(),
   });
   const wh = wv.data;
   const warehouseValue = wh?.totalValue ?? 0;
-  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listAssetsFn({ data: {} }) });
+
   const activeAssets = (assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany");
   const assetsValue = activeAssets.reduce((s: number, a: any) => s + Number(a.purchase_value ?? 0), 0);
   const netBalance = s?.balance ?? 0;
