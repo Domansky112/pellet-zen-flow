@@ -192,7 +192,7 @@ function VehiclesSection() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj pojazd</Button></DialogTrigger>
-          <VehicleDialog editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <VehicleDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -287,7 +287,7 @@ function TrailersSection() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj naczepę</Button></DialogTrigger>
-          <TrailerDialog editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <TrailerDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -374,7 +374,7 @@ function DriversSection() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj kierowcę</Button></DialogTrigger>
-          <DriverDialog editing={editing} vehicles={vehicles as any[]} trailers={trailers as any[]} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <DriverDialog key={editing?.id ?? "new"} editing={editing} vehicles={vehicles as any[]} trailers={trailers as any[]} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -659,7 +659,7 @@ function ProductsTab() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj produkt</Button></DialogTrigger>
-          <ProductDialog editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <ProductDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -754,7 +754,7 @@ function WarehousesTab() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj magazyn</Button></DialogTrigger>
-          <WarehouseDialog editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <WarehouseDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
@@ -836,7 +836,7 @@ function CarriersTab() {
         </div>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj przewoźnika</Button></DialogTrigger>
-          <CarrierDialog editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+          <CarrierDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>

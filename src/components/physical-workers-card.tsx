@@ -77,7 +77,7 @@ export function PhysicalWorkersCard() {
               <Plus className="h-4 w-4 mr-1" /> Dodaj pracownika
             </Button>
           </DialogTrigger>
-          <EmployeeDialog editing={editing} onSave={(v) => save.mutate(v)} pending={save.isPending} />
+          <EmployeeDialog key={editing?.id ?? "new"} editing={editing} onSave={(v) => save.mutate(v)} pending={save.isPending} />
         </Dialog>
       </CardHeader>
       <CardContent>
