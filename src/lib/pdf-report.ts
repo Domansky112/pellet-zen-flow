@@ -137,19 +137,21 @@ export async function buildReportPdf(
     y = (doc as any).lastAutoTable.finalY + 6;
   };
 
+  let sectionNo = 0;
   const sectionTitle = (t: string) => {
+    sectionNo += 1;
     // Nie zostawiaj osieroconego nagłówka na dole strony.
     if (y > doc.internal.pageSize.getHeight() - 45) {
       doc.addPage();
       y = M;
     }
     doc.setFont(FONT, "bold").setFontSize(9.5).setTextColor(...INK);
-    doc.text(t, M, y);
+    doc.text(`${sectionNo}. ${t}`, M, y);
     y += 3;
   };
 
   // ── SEKCJA 2: KPI finansowe ──
-  sectionTitle("1. Kluczowe wskaźniki finansowe");
+  sectionTitle("Kluczowe wskaźniki finansowe");
   table({
     head: [["Pozycja", "Brutto", "Netto"]],
     body: [
@@ -183,7 +185,7 @@ export async function buildReportPdf(
   });
 
   // ── SEKCJA 3: wolumen ──
-  sectionTitle("2. Wolumen i statystyki operacyjne");
+  sectionTitle("Wolumen i statystyki operacyjne");
   table({
     head: [["Wskaźnik", "Wartość", "Wskaźnik", "Wartość"]],
     body: [
@@ -206,7 +208,7 @@ export async function buildReportPdf(
   });
 
   // ── SEKCJA 4 + 5 ──
-  sectionTitle("3. Stan magazynu i majątku (na dzień zamknięcia raportu)");
+  sectionTitle("Stan magazynu i majątku (na dzień zamknięcia raportu)");
   const wRows = data.warehouse.perProduct.map((p: any) => [
     p.product === "pellet_paleta" ? "Palety" : p.product === "pellet_bigbag" ? "Big Bagi" : "Inne",
     tons(p.available),
@@ -225,7 +227,7 @@ export async function buildReportPdf(
     columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
   });
 
-  sectionTitle("4. Struktura płatności i cashflow");
+  sectionTitle("Struktura płatności i cashflow");
   table({
     head: [["Forma płatności", "Kwota brutto"]],
     body: [
@@ -240,7 +242,7 @@ export async function buildReportPdf(
   // ── SEKCJA 6: tabela zleceń (tylko raport pełny) ──
   if (variant === "full") {
     if (data.costsByCategory.length) {
-      sectionTitle("5. Koszty dodatkowe wg kategorii");
+      sectionTitle("Koszty dodatkowe wg kategorii");
       table({
         head: [["Kategoria", "Kwota brutto"]],
         body: data.costsByCategory.map((c: any) => [
@@ -251,7 +253,7 @@ export async function buildReportPdf(
       });
     }
 
-    sectionTitle("6. Zrealizowane zlecenia w okresie");
+    sectionTitle("Zrealizowane zlecenia w okresie");
     const sum = data.rows.reduce(
       (a: any, r: any) => ({
         tons: a.tons + r.tons,
