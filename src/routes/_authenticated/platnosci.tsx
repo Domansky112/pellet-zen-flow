@@ -429,7 +429,9 @@ function CompletedTab() {
 // ─── KOSZTY ──────────────────────────────────────────────────
 function ExpensesTab({ from, to }: { from: string; to: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["expenses", from, to], queryFn: () => listExpenses({ data: { from, to } }) });
+  const listExpensesFn = useServerFn(listExpenses);
+  const q = useQuery({ queryKey: ["expenses", from, to], queryFn: () => listExpensesFn({ data: { from, to } }) });
+
   const addFn = useServerFn(addExpense);
   const delFn = useServerFn(deleteExpense);
 
