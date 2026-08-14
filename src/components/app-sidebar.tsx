@@ -39,6 +39,7 @@ const nav = [
 const SETTINGS_SECTIONS = [
   { value: "fleet", label: "Flota", icon: Truck },
   { value: "users", label: "Użytkownicy CRM", icon: Users2 },
+  { value: "employees", label: "Kalendarz pracowniczy", icon: CalendarDays },
   { value: "products", label: "Słownik produktów", icon: Package2 },
   { value: "warehouses", label: "Magazyny", icon: Store },
   { value: "carriers", label: "Przewoźnicy", icon: Building2 },
