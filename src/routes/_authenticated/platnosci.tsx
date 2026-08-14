@@ -151,18 +151,22 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
   const qc = useQueryClient();
   const isAdmin = useIsAdmin();
   const backfillFn = useServerFn(backfillMissingPayments);
+  const summaryFn = useServerFn(getFinancialSummary);
+  const warehouseValueFn = useServerFn(getWarehouseValue);
+  const listAssetsFn = useServerFn(listFixedAssets);
   const q = useQuery({
     queryKey: ["financial-summary", from, to],
-    queryFn: () => getFinancialSummary({ data: { from, to } }),
+    queryFn: () => summaryFn({ data: { from, to } }),
   });
   const s = q.data;
   const wv = useQuery({
     queryKey: ["warehouse-value"],
-    queryFn: () => getWarehouseValue(),
+    queryFn: () => warehouseValueFn(),
   });
   const wh = wv.data;
   const warehouseValue = wh?.totalValue ?? 0;
-  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listAssetsFn({ data: {} }) });
+
   const activeAssets = (assetsQ.data ?? []).filter((a: any) => a.status !== "wycofany");
   const assetsValue = activeAssets.reduce((s: number, a: any) => s + Number(a.purchase_value ?? 0), 0);
   const netBalance = s?.balance ?? 0;
@@ -348,7 +352,9 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
 
 // ─── Nadchodzące ─────────────────────────────────────────────
 function UpcomingTab() {
-  const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => listUpcomingPayments() });
+  const upcomingFn = useServerFn(listUpcomingPayments);
+  const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => upcomingFn() });
+
   const rows = extractLeads(q.data ?? []);
 
   const totals = useMemo(() => {
@@ -385,8 +391,11 @@ function UpcomingTab() {
 
 // ─── Wykonane ────────────────────────────────────────────────
 function CompletedTab() {
-  const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => listCompletedPayments() });
-  const orphans = useQuery({ queryKey: ["payments-orphans"], queryFn: () => listDeliveredLeadsWithoutTransport() });
+  const completedFn = useServerFn(listCompletedPayments);
+  const orphansFn = useServerFn(listDeliveredLeadsWithoutTransport);
+  const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => completedFn() });
+  const orphans = useQuery({ queryKey: ["payments-orphans"], queryFn: () => orphansFn() });
+
   const rows = extractLeads(q.data ?? []);
 
   // odfiltruj z sierot te, które już siedzą w jakimś transporcie
@@ -420,7 +429,9 @@ function CompletedTab() {
 // ─── KOSZTY ──────────────────────────────────────────────────
 function ExpensesTab({ from, to }: { from: string; to: string }) {
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["expenses", from, to], queryFn: () => listExpenses({ data: { from, to } }) });
+  const listExpensesFn = useServerFn(listExpenses);
+  const q = useQuery({ queryKey: ["expenses", from, to], queryFn: () => listExpensesFn({ data: { from, to } }) });
+
   const addFn = useServerFn(addExpense);
   const delFn = useServerFn(deleteExpense);
 
@@ -433,7 +444,8 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
   const [notes, setNotes] = useState("");
   const [assetId, setAssetId] = useState("none");
 
-  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listFixedAssets({ data: {} }) });
+  const listAssetsFn2 = useServerFn(listFixedAssets);
+  const assetsQ = useQuery({ queryKey: ["fixed-assets"], queryFn: () => listAssetsFn2({ data: {} }) });
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["expenses"] });
@@ -462,10 +474,11 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const summaryFn2 = useServerFn(getFinancialSummary);
   const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
   const manualTotal = (q.data ?? []).filter((e: any) => !isCapex(e)).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const capexTotal = (q.data ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => getFinancialSummary({ data: { from, to } }) });
+  const sumQ = useQuery({ queryKey: ["financial-summary", from, to], queryFn: () => summaryFn2({ data: { from, to } }) });
   const cogs = Number((sumQ.data as any)?.cogs ?? 0);
   const cogsTons = Number((sumQ.data as any)?.cogsTons ?? 0);
   const cogsUnit = Number((sumQ.data as any)?.cogsUnitCost ?? 0);
@@ -619,7 +632,8 @@ function ExpensesTab({ from, to }: { from: string; to: string }) {
 
 // ─── AUDIT LOG ───────────────────────────────────────────────
 function AuditTab({ from, to }: { from: string; to: string }) {
-  const q = useQuery({ queryKey: ["payment-audit", from, to], queryFn: () => listPaymentAuditLog({ data: { from, to } }) });
+  const auditFn = useServerFn(listPaymentAuditLog);
+  const q = useQuery({ queryKey: ["payment-audit", from, to], queryFn: () => auditFn({ data: { from, to } }) });
 
   return (
     <Card>
