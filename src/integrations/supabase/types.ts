@@ -44,6 +44,111 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_work_logs: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          entry_type: string
+          expense_id: string | null
+          id: string
+          notes: string | null
+          pallets_count: number
+          rate: number
+          status: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          entry_type?: string
+          expense_id?: string | null
+          id?: string
+          notes?: string | null
+          pallets_count?: number
+          rate?: number
+          status?: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          entry_type?: string
+          expense_id?: string | null
+          id?: string
+          notes?: string | null
+          pallets_count?: number
+          rate?: number
+          status?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_work_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_work_logs_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          daily_rate: number
+          full_name: string
+          id: string
+          notes: string | null
+          pallet_rate: number
+          phone: string | null
+          position: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          daily_rate?: number
+          full_name: string
+          id?: string
+          notes?: string | null
+          pallet_rate?: number
+          phone?: string | null
+          position?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          daily_rate?: number
+          full_name?: string
+          id?: string
+          notes?: string | null
+          pallet_rate?: number
+          phone?: string | null
+          position?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -54,10 +159,13 @@ export type Database = {
           deleted_by: string | null
           deleted_reason: string | null
           description: string
+          employee_id: string | null
           expense_date: string
           fixed_asset_id: string | null
           id: string
           notes: string | null
+          period_end: string | null
+          period_start: string | null
           updated_at: string
           vat_rate: number
         }
@@ -70,10 +178,13 @@ export type Database = {
           deleted_by?: string | null
           deleted_reason?: string | null
           description: string
+          employee_id?: string | null
           expense_date?: string
           fixed_asset_id?: string | null
           id?: string
           notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
           updated_at?: string
           vat_rate?: number
         }
@@ -86,14 +197,24 @@ export type Database = {
           deleted_by?: string | null
           deleted_reason?: string | null
           description?: string
+          employee_id?: string | null
           expense_date?: string
           fixed_asset_id?: string | null
           id?: string
           notes?: string | null
+          period_end?: string | null
+          period_start?: string | null
           updated_at?: string
           vat_rate?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "expenses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expenses_fixed_asset_id_fkey"
             columns: ["fixed_asset_id"]

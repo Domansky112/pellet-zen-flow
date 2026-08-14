@@ -72,6 +72,7 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
 const EXPENSE_CATEGORIES = [
   { value: "paliwo", label: "Paliwo" },
   { value: "wynagrodzenia", label: "Wynagrodzenia / kierowca" },
+  { value: "wynagrodzenia_robocizna", label: "Wynagrodzenia i Robocizna (pracownicy)" },
   { value: "eksploatacja", label: "Eksploatacja pojazdu" },
   { value: "biuro", label: "Biuro / administracja" },
   { value: "marketing", label: "Marketing" },

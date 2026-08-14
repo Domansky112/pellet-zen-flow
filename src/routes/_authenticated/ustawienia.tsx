@@ -38,7 +38,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive,
+  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive, CalendarDays,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -59,9 +59,11 @@ import {
   listFixedAssets, listAssetExpenses, upsertFixedAsset, archiveFixedAsset, deleteFixedAsset,
   ASSET_CATEGORIES, ASSET_STATUSES,
 } from "@/lib/assets.functions";
+import { EmployeeCalendarTab } from "@/components/employee-calendar";
+import { PhysicalWorkersCard } from "@/components/physical-workers-card";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
@@ -109,6 +111,7 @@ function UstawieniaPage() {
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
+    { value: "employees", label: "Kalendarz pracowniczy", Icon: CalendarDays },
     { value: "products", label: "Słownik produktów", Icon: Package2 },
     { value: "warehouses", label: "Magazyny", Icon: Store },
     { value: "carriers", label: "Przewoźnicy", Icon: Building2 },
@@ -127,7 +130,13 @@ function UstawieniaPage() {
       />
       <div className="pt-2">
         {section === "fleet" && <FleetTab />}
-        {section === "users" && <UsersTab />}
+        {section === "users" && (
+          <div className="space-y-6">
+            <UsersTab />
+            <PhysicalWorkersCard />
+          </div>
+        )}
+        {section === "employees" && <EmployeeCalendarTab />}
         {section === "products" && <ProductsTab />}
         {section === "warehouses" && <WarehousesTab />}
         {section === "carriers" && <CarriersTab />}
@@ -135,6 +144,7 @@ function UstawieniaPage() {
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
         {section === "assets" && <AssetsTab />}
+
       </div>
     </div>
   );
