@@ -109,6 +109,7 @@ function UstawieniaPage() {
   const SECTION_OPTIONS: { value: string; label: string; Icon: any }[] = [
     { value: "fleet", label: "Flota", Icon: Truck },
     { value: "users", label: "Użytkownicy CRM", Icon: Users2 },
+    { value: "employees", label: "Kalendarz pracowniczy", Icon: CalendarDays },
     { value: "products", label: "Słownik produktów", Icon: Package2 },
     { value: "warehouses", label: "Magazyny", Icon: Store },
     { value: "carriers", label: "Przewoźnicy", Icon: Building2 },
@@ -127,7 +128,13 @@ function UstawieniaPage() {
       />
       <div className="pt-2">
         {section === "fleet" && <FleetTab />}
-        {section === "users" && <UsersTab />}
+        {section === "users" && (
+          <div className="space-y-6">
+            <UsersTab />
+            <PhysicalWorkersCard />
+          </div>
+        )}
+        {section === "employees" && <EmployeeCalendarTab />}
         {section === "products" && <ProductsTab />}
         {section === "warehouses" && <WarehousesTab />}
         {section === "carriers" && <CarriersTab />}
@@ -135,6 +142,7 @@ function UstawieniaPage() {
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
         {section === "assets" && <AssetsTab />}
+
       </div>
     </div>
   );
