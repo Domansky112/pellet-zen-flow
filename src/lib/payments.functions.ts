@@ -270,7 +270,7 @@ export const addExpense = createServerFn({ method: "POST" })
 
 export const deleteExpense = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), reason: z.string().trim().max(500).optional() }).parse(d))
+  .inputValidator((d: unknown) => DeleteExpenseInput.parse(d))
   .handler(async ({ data, context }) => {
     await assertStaff(context);
     // pobierz stan przed (do audytu) — pozwala pokazać w dzienniku „co usunięto”
