@@ -391,8 +391,11 @@ function UpcomingTab() {
 
 // ─── Wykonane ────────────────────────────────────────────────
 function CompletedTab() {
-  const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => listCompletedPayments() });
-  const orphans = useQuery({ queryKey: ["payments-orphans"], queryFn: () => listDeliveredLeadsWithoutTransport() });
+  const completedFn = useServerFn(listCompletedPayments);
+  const orphansFn = useServerFn(listDeliveredLeadsWithoutTransport);
+  const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => completedFn() });
+  const orphans = useQuery({ queryKey: ["payments-orphans"], queryFn: () => orphansFn() });
+
   const rows = extractLeads(q.data ?? []);
 
   // odfiltruj z sierot te, które już siedzą w jakimś transporcie
