@@ -77,6 +77,19 @@ export function EmployeeCalendarTab() {
     enabled: !!employeeId,
   });
 
+  const allLogsFn = useServerFn(listAllWorkLogs);
+  const { data: allLogs = [], isLoading: allLoading } = useQuery({
+    queryKey: ["work-logs-all", from],
+    queryFn: () => allLogsFn({ data: { from, to } }),
+    enabled: !employeeId,
+  });
+
+  const allByDate = useMemo(() => {
+    const m: Record<string, any[]> = {};
+    for (const l of allLogs as any[]) (m[l.work_date] ||= []).push(l);
+    return m;
+  }, [allLogs]);
+
   const byDate = useMemo(() => {
     const m: Record<string, any> = {};
     for (const l of logs as any[]) m[l.work_date] = l;
