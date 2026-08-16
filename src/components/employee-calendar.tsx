@@ -236,9 +236,61 @@ export function EmployeeCalendarTab() {
           )}
 
           {!employeeId ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Wybierz pracownika, aby zobaczyć jego kalendarz rozliczeń.
-            </p>
+            <div>
+              <p className="pb-2 text-sm text-muted-foreground">
+                Przegląd zespołu — kto kiedy był w pracy. Wybierz pracownika, aby rozliczać dni.
+              </p>
+              <div className="grid grid-cols-7 gap-1 pb-1 text-center text-xs text-muted-foreground">
+                {["Pn", "Wt", "Śr", "Cz", "Pt", "So", "Nd"].map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {days.map((d, i) =>
+                  d === null ? (
+                    <div key={`o${i}`} />
+                  ) : (
+                    <div
+                      key={`o${iso(d)}`}
+                      className={`min-h-20 rounded-md border p-1.5 text-left ${
+                        isSameDay(d, new Date()) ? "border-primary" : "border-border"
+                      }`}
+                    >
+                      <div className="text-xs font-medium">{d.getDate()}</div>
+                      <div className="mt-1 space-y-0.5">
+                        {(allByDate[iso(d)] ?? [])
+                          .filter((l) => l.entry_type === "dniowka" || l.entry_type === "akord")
+                          .map((l) => (
+                            <button
+                              key={l.id}
+                              type="button"
+                              onClick={() => setEmployeeId(l.employee_id)}
+                              title={`${l.full_name} · ${TYPE_LABEL[l.entry_type]}`}
+                              className={`block w-full truncate rounded border px-1 py-0.5 text-left text-[10px] ${
+                                TYPE_CLASS[l.entry_type]
+                              }`}
+                            >
+                              {l.full_name}
+                            </button>
+                          ))}
+                        {(allByDate[iso(d)] ?? [])
+                          .filter((l) => l.entry_type === "wolne" || l.entry_type === "nieobecnosc")
+                          .map((l) => (
+                            <div
+                              key={l.id}
+                              title={`${l.full_name} · ${TYPE_LABEL[l.entry_type]}`}
+                              className="truncate text-[10px] text-muted-foreground line-through"
+                            >
+                              {l.full_name}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+              {allLoading && <p className="pt-3 text-xs text-muted-foreground">Ładowanie…</p>}
+            </div>
           ) : (
             <div>
               <div className="grid grid-cols-7 gap-1 pb-1 text-center text-xs text-muted-foreground">
