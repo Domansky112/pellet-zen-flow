@@ -97,6 +97,25 @@ export const listWorkLogs = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+/** Przegląd całego zespołu — kto kiedy pracował (bez wybierania pracownika) */
+export const listAllWorkLogs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ from: DateStr, to: DateStr }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: rows, error } = await context.supabase
+      .from("employee_work_logs")
+      .select("id, employee_id, work_date, entry_type, amount, pallets_count, status, employees(full_name)")
+      .gte("work_date", data.from)
+      .lte("work_date", data.to)
+      .order("work_date", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      full_name: r.employees?.full_name ?? "—",
+    }));
+  });
+
 /** Podpowiedź z produkcji: przyjęcia palet danego dnia (z magazynu / bota) */
 export const getProductionHint = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
