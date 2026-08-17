@@ -70,10 +70,29 @@ async function renderStockSummary(admin: any) {
   return lines.join("\n");
 }
 
+function plToday() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Warsaw" });
+}
+
+function addDays(ymdStr: string, n: number) {
+  const d = new Date(`${ymdStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Poniedziałek–niedziela tygodnia zawierającego `base` (czas PL). */
+function weekRange(base: string, weekOffset = 0) {
+  const dow = new Date(`${base}T12:00:00Z`).getUTCDay(); // 0=nd
+  const monday = addDays(base, (dow === 0 ? -6 : 1 - dow) + weekOffset * 7);
+  return { start: monday, end: addDays(monday, 6) };
+}
+
+const fmtShort = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString("pl-PL", { day: "2-digit", month: "2-digit" });
+
 async function renderUpcomingTransports(admin: any) {
-  const today = new Date().toISOString().slice(0, 10);
-  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
-  const end = in7.toISOString().slice(0, 10);
+  const today = plToday();
+  const end = addDays(today, 7);
   const { data, error } = await admin
     .from("transports")
     .select("scheduled_date, zone, city, postal_code, driver, vehicle, capacity_kg, status")
@@ -84,12 +103,50 @@ async function renderUpcomingTransports(admin: any) {
   if (!data || data.length === 0) return "🚚 Brak transportów na najbliższe 7 dni.";
   const lines = ["🚚 <b>Transporty (7 dni)</b>"];
   for (const t of data) {
-    const d = new Date(t.scheduled_date).toLocaleDateString("pl-PL", { weekday: "short", day: "2-digit", month: "2-digit" });
+    const d = new Date(`${t.scheduled_date}T12:00:00Z`).toLocaleDateString("pl-PL", { weekday: "short", day: "2-digit", month: "2-digit" });
     const tons = t.capacity_kg != null ? ` · ${Number(t.capacity_kg).toFixed(1)} t` : "";
     lines.push(`• <b>${d}</b> · ${t.zone ?? "—"} · ${t.city ?? "—"}${t.postal_code ? " " + t.postal_code : ""}${tons}${t.driver ? ` · ${t.driver}` : ""}`);
   }
   return lines.join("\n");
 }
+
+/** Zbiorcze zestawienie transportów na tydzień (Pn–Nd, czas PL). */
+export async function renderWeekSummary(admin: any, weekOffset = 0) {
+  const { start, end } = weekRange(plToday(), weekOffset);
+  const { data, error } = await admin
+    .from("transports")
+    .select("scheduled_date, zone, city, postal_code, driver, vehicle, capacity_kg, status")
+    .gte("scheduled_date", start).lte("scheduled_date", end)
+    .in("status", ["planowany", "potwierdzony", "w_trasie", "zrealizowany"])
+    .order("scheduled_date", { ascending: true });
+  const header = `📊 <b>ZBIORCZE ZESTAWIENIE TRANSPORTÓW</b>\n<b>Tydzień:</b> ${fmtShort(start)} – ${fmtShort(end)}`;
+  if (error) return `${header}\n\n❌ Błąd: ${error.message}`;
+  if (!data || data.length === 0) return `${header}\n\nℹ️ Brak zaplanowanych transportów na ten tydzień.`;
+
+  const byDay = new Map<string, any[]>();
+  for (const t of data) {
+    const arr = byDay.get(t.scheduled_date) ?? [];
+    arr.push(t);
+    byDay.set(t.scheduled_date, arr);
+  }
+  const lines = [header, ""];
+  let totalTons = 0;
+  for (const [day, items] of [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const dayLabel = new Date(`${day}T12:00:00Z`).toLocaleDateString("pl-PL", { weekday: "long", day: "2-digit", month: "2-digit" });
+    lines.push(`<b>${dayLabel}</b>`);
+    for (const t of items) {
+      const tons = t.capacity_kg != null ? Number(t.capacity_kg) : 0;
+      totalTons += tons;
+      lines.push(
+        `• ${t.city ?? "—"}${t.postal_code ? " " + t.postal_code : ""} · ${t.zone ?? "—"}${tons ? ` · ${tons.toFixed(1)} t` : ""}${t.driver ? ` · ${t.driver}` : ""} · ${t.status}`,
+      );
+    }
+    lines.push("");
+  }
+  lines.push(`<b>Razem:</b> ${data.length} transport(ów) · ${totalTons.toFixed(1)} t`);
+  return lines.join("\n");
+}
+
 
 // ============ /dodaj_palete flow ============
 
