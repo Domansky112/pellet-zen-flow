@@ -34,15 +34,21 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   if (le) throw new Error(le.message);
 
   // ── KOSZTY ──
+  // Koszty z okresem rozliczeniowym (np. wypłaty pracownicze wygenerowane
+  // kilka dni po zakończeniu miesiąca) przypisujemy do ich okresu,
+  // a nie do daty wystawienia. Pozostałe — po expense_date.
   const { data: expenses, error: ee } = await supabase
     .from("expenses")
     .select("*")
     .is("deleted_at", null)
-    .gte("expense_date", from)
-    .lte("expense_date", to)
+    .or(
+      `and(period_start.not.is.null,period_start.lte.${to},period_end.gte.${from}),` +
+        `and(period_start.is.null,expense_date.gte.${from},expense_date.lte.${to})`,
+    )
     .order("expense_date", { ascending: false })
     .limit(2000);
   if (ee) throw new Error(ee.message);
+
 
   // ── USTAWIENIA (koszt jednostkowy / dane firmy) ──
   const { data: settings } = await supabase
