@@ -404,14 +404,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         if (isStart) {
-          await replyToChat(chatIdStr, "✅ Pellet OS: czat aktywny.\n\nKomendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/dodaj_palete — przepakowanie big bag → paleta\n/id — pokaż chat_id\n/stop — wypisz się");
+          await replyToChat(chatIdStr, "✅ Pellet OS: czat aktywny.\n\nKomendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/tydzien — zbiorcze zestawienie tygodnia\n/dodaj_palete — przepakowanie big bag → paleta\n/id — pokaż chat_id\n/stop — wypisz się");
         } else if (isStop) {
           await clearFlow(supabaseAdmin, chatIdStr);
           await replyToChat(chatIdStr, "🔕 Wypisano. Wpisz /start żeby wrócić.");
         } else if (cmd === "id") {
           await replyToChat(chatIdStr, `chat_id: <code>${chatIdStr}</code>`);
         } else if (cmd === "help" || cmd === "menu") {
-          await replyToChat(chatIdStr, "Komendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/dodaj_palete — przepakowanie big bag → paleta\n/id — chat_id\n/start /stop — alerty");
+          await replyToChat(chatIdStr, "Komendy:\n/stan — magazyn\n/transport — najbliższe 7 dni\n/tydzien — zbiorcze zestawienie tygodnia\n/dodaj_palete — przepakowanie big bag → paleta\n/id — chat_id\n/start /stop — alerty");
         } else if (cmd === "stan" || cmd === "magazyn") {
           if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
           else await replyToChat(chatIdStr, await renderStockSummary(supabaseAdmin));
