@@ -418,6 +418,12 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         } else if (cmd === "transport" || cmd === "transporty") {
           if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
           else await replyToChat(chatIdStr, await renderUpcomingTransports(supabaseAdmin));
+        } else if (cmd === "tydzien" || cmd === "tydzień" || cmd === "zestawienie") {
+          if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chatIdStr, await renderWeekSummary(supabaseAdmin, 0));
+        } else if (cmd === "tydzien_next" || cmd === "przyszly_tydzien") {
+          if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
+          else await replyToChat(chatIdStr, await renderWeekSummary(supabaseAdmin, 1));
         } else if (cmd === "dodaj_palete" || cmd === "dodajpalete") {
           if (!whitelisted) await replyToChat(chatIdStr, "⛔ Ten czat nie jest aktywny. Wpisz /start.");
           else await startDodajPalete(supabaseAdmin, chatIdStr);
