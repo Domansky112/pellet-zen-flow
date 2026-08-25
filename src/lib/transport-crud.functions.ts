@@ -263,19 +263,9 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
     const missing = Math.max(0, qty - netReserved);
     const needsReservation = missing > 0;
 
-    if (needsReservation) {
-      const { data: bal } = await context.supabase
-        .from("stock_balance")
-        .select("physical, reserved")
-        .eq("product", product)
-        .maybeSingle();
-      const available = Number(bal?.physical ?? 0) - Number(bal?.reserved ?? 0);
-      if (missing > available) {
-        throw new Error(
-          `Brak wystarczającego tonażu w magazynie do zaplanowania tego transportu (dostępne: ${available} t, potrzebne: ${missing} t).`,
-        );
-      }
-    }
+    // Planowanie transportu nie zależy od dostępnego stanu magazynowego —
+    // rezerwacja powstaje nawet przy niedoborze (saldo dostępne może być ujemne).
+
 
     const destination =
       data.destination_address?.trim() ||
