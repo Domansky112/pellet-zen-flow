@@ -358,11 +358,19 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       if (f && f.tons > 0) {
         cogsFifo += f.cost;
         cogsFifoTons += f.tons;
+        // Partie FIFO mogły pokryć tylko część wydania (brak zarejestrowanych PZ z ceną).
+        // Resztę tonażu wyceniamy stawką jednostkową z Ustawień, żeby COGS nie był zaniżony.
+        const uncovered = Math.max(0, qty - f.tons);
+        if (uncovered > 0) {
+          cogsFallback += uncovered * unitCost;
+          cogsFallbackTons += uncovered;
+        }
       } else if (qty > 0) {
         cogsFallback += qty * unitCost;
         cogsFallbackTons += qty;
       }
     }
+
     const cogsTons = cogsFifoTons + cogsFallbackTons;
     const cogs = cogsFifo + cogsFallback;
     const cogsNet = cogs / (1 + cogsVatRate / 100);
