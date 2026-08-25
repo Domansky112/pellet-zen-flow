@@ -158,11 +158,15 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   let cogs = 0;
   const cogsByLead = new Map<string, number>();
   for (const l of leads ?? []) {
+    const qty = Number(l.quantity ?? 0);
     const f = fifoByLead.get(l.id);
-    const c = f && f.tons > 0 ? f.cost : Number(l.quantity ?? 0) * unitCost;
+    // Partie FIFO mogą pokrywać tylko część wydania — resztę wyceniamy stawką z Ustawień.
+    const c =
+      f && f.tons > 0 ? f.cost + Math.max(0, qty - f.tons) * unitCost : qty * unitCost;
     cogsByLead.set(l.id, c);
     cogs += c;
   }
+
   const cogsNet = cogs / (1 + cogsVatRate / 100);
 
   // ── MAGAZYN (stan na koniec okresu — bieżący stan FIFO) ──
