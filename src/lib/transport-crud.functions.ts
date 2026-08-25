@@ -72,19 +72,9 @@ export const createTransport = createServerFn({ method: "POST" })
       missingQty = Math.max(0, data.quantity - netReserved);
     }
 
-    if (data.reserve_stock && missingQty > 0) {
-      const { data: bal } = await context.supabase
-        .from("stock_balance")
-        .select("physical, reserved")
-        .eq("product", data.product)
-        .maybeSingle();
-      const available = Number(bal?.physical ?? 0) - Number(bal?.reserved ?? 0);
-      if (missingQty > available) {
-        throw new Error(
-          `Za mało dostępnego stanu (${available} t) — potrzeba jeszcze ${missingQty} t. Odznacz rezerwację lub uzupełnij magazyn.`,
-        );
-      }
-    }
+    // Brak blokady na dostępny stan — transport można zaplanować także wtedy,
+    // gdy magazyn nie ma jeszcze wystarczającej ilości (rezerwacja może być ujemna).
+
 
     // 1. Insert transport
     const { data: transport, error: tErr } = await context.supabase
