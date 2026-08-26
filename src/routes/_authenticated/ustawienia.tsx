@@ -120,6 +120,7 @@ function UstawieniaPage() {
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
     { value: "statuses", label: "Statusy leadów", Icon: Settings2 },
     { value: "assets", label: "Środki trwałe", Icon: Wrench },
+    { value: "affiliates", label: "Afiliacje", Icon: Handshake },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
