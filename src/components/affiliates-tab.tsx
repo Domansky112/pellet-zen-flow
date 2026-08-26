@@ -315,6 +315,13 @@ function CommissionsDialog({
     qc.invalidateQueries({ queryKey: ["affiliate-partners"] });
   }
 
+  const num = (s: string) => {
+    const n = Number(s.trim().replace(/\s+/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const computed = tons.trim() && ratePerTon.trim() ? num(tons) * num(ratePerTon) : null;
+  const effectiveAmount = computed !== null ? String(Number(computed.toFixed(2))) : amount;
+
   const add = useMutation({
     mutationFn: () =>
       addFn({
@@ -322,7 +329,9 @@ function CommissionsDialog({
           partner_id: partner.id,
           lead_id: lead?.id ?? null,
           description: desc.trim(),
-          amount,
+          amount: effectiveAmount,
+          tons: tons.trim() ? num(tons) : null,
+          rate_per_ton: ratePerTon.trim() ? num(ratePerTon) : null,
           commission_date: date,
         },
       }),
@@ -330,6 +339,8 @@ function CommissionsDialog({
       toast.success("Dodano pozycję");
       setDesc("");
       setAmount("");
+      setTons("");
+      setRatePerTon("");
       setLead(null);
       setLeadQuery("");
       refresh();
