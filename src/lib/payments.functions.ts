@@ -288,6 +288,32 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const { data: expenses, error: ee } = await expQ;
     if (ee) throw new Error(ee.message);
 
+    // ── KOSZTY AFILIACJI (memoriałowo — wg daty naliczenia prowizji, nie daty wypłaty) ──
+    let affQ = context.supabase
+      .from("affiliate_commissions")
+      .select("id, partner_id, description, amount, tons, rate_per_ton, commission_date, status, affiliate_partners(full_name)")
+      .order("commission_date", { ascending: false })
+      .limit(2000);
+    if (data.from) affQ = affQ.gte("commission_date", data.from);
+    if (data.to) affQ = affQ.lte("commission_date", data.to);
+    const { data: affRows, error: ae } = await affQ;
+    if (ae) throw new Error(ae.message);
+    const affiliateCosts = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const affiliateCostsPending = (affRows ?? [])
+      .filter((r: any) => r.status === "nierozliczona")
+      .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+
+    // Wypłaty prowizji tworzą wpis w kosztach (expenses) z datą rozliczenia — pomijamy go,
+    // żeby prowizja nie liczyła się podwójnie (ujmujemy ją w dacie naliczenia).
+    const { data: settlements } = await context.supabase
+      .from("affiliate_settlements")
+      .select("expense_id")
+      .not("expense_id", "is", null)
+      .limit(2000);
+    const settlementExpenseIds = new Set<string>((settlements ?? []).map((r: any) => r.expense_id));
+
+
+
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
     let salesVat = 0, transportVat = 0, transportCosts = 0, transportCostsNet = 0;
