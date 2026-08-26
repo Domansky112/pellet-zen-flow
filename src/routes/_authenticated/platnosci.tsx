@@ -261,13 +261,20 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             hint={`Brutto ${fmtPLN((s as any)?.cogs ?? 0)} przy VAT ${(s as any)?.cogsVatRate ?? 8}% · FIFO ${((s as any)?.cogsFifoTons ?? 0).toFixed(2)} t = ${fmtPLN((s as any)?.cogsFifo ?? 0)}${((s as any)?.cogsFallbackTons ?? 0) > 0 ? ` + ${((s as any)?.cogsFallbackTons ?? 0).toFixed(2)} t × ${fmtPLN((s as any)?.cogsUnitCost ?? 0)}/t` : ""}`}
           />
           <StatCard
+            title="Koszty afiliacji"
+            value={fmtPLN((s as any)?.affiliateCosts ?? 0)}
+            tone="amber"
+            hint={`Prowizje naliczone w okresie (wg daty naliczenia, nie daty wypłaty) · nierozliczone ${fmtPLN((s as any)?.affiliateCostsPending ?? 0)}`}
+          />
+          <StatCard
             title="Koszty całkowite"
             value={fmtPLN(s?.totalCosts ?? 0)}
             tone="amber"
-            hint={`COGS ${fmtPLN((s as any)?.cogs ?? 0)} + transport ${fmtPLN((s as any)?.transportCosts ?? 0)} + koszty dodatkowe ${fmtPLN((s as any)?.manualCosts ?? 0)}`}
+            hint={`COGS ${fmtPLN((s as any)?.cogs ?? 0)} + transport ${fmtPLN((s as any)?.transportCosts ?? 0)} + koszty dodatkowe ${fmtPLN((s as any)?.manualCosts ?? 0)} + afiliacje ${fmtPLN((s as any)?.affiliateCosts ?? 0)}`}
           />
           <StatCard title="Gotówka/BLIK" value={fmtPLN(s?.cash ?? 0)} />
           <StatCard title="Oczekujące" value={fmtPLN(s?.pending ?? 0)} tone="amber" />
+
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <StatCard title="Saldo" value={fmtPLN(netBalance)} tone={netBalance >= 0 ? "emerald" : "amber"} hint="Przychód brutto − koszty całkowite" />
