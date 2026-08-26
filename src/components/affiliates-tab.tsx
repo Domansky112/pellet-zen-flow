@@ -394,18 +394,44 @@ function CommissionsDialog({
 
         <div className="rounded-lg border p-3 space-y-3">
           <div className="text-sm font-medium">Nowa pozycja prowizji</div>
-          <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
+          <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
             <div>
               <Label>Opis *</Label>
               <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="np. Polecenie klienta z Radzynia" />
             </div>
             <div>
-              <Label>Kwota (zł) *</Label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="200" />
-            </div>
-            <div>
               <Label>Data</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <Label>Tonaż (t)</Label>
+              <Input value={tons} onChange={(e) => setTons(e.target.value)} inputMode="decimal" placeholder="22" />
+            </div>
+            <div>
+              <Label>Prowizja za tonę (zł/t)</Label>
+              <Input
+                value={ratePerTon}
+                onChange={(e) => setRatePerTon(e.target.value)}
+                inputMode="decimal"
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <Label>Kwota (zł) *</Label>
+              <Input
+                value={computed !== null ? String(Number(computed.toFixed(2))) : amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="200"
+                disabled={computed !== null}
+              />
+              {computed !== null && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {num(tons)} t × {num(ratePerTon)} zł/t
+                </p>
+              )}
             </div>
           </div>
           <div>
