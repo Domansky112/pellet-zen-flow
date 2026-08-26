@@ -36,6 +36,8 @@ const CommissionInput = z.object({
   lead_id: z.string().uuid().nullable().optional(),
   description: z.string().trim().min(1).max(300),
   amount: Amount.transform((v) => (v ?? 0) as number).pipe(z.number().nonnegative()),
+  tons: Amount.nullable().optional(),
+  rate_per_ton: Amount.nullable().optional(),
   commission_date: DateStr,
   notes: z.string().trim().max(1000).nullable().optional(),
 });
