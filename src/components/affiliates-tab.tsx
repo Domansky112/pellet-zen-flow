@@ -470,7 +470,7 @@ function CommissionsDialog({
           </div>
           <Button
             size="sm"
-            disabled={add.isPending || !desc.trim() || !amount.trim()}
+            disabled={add.isPending || !desc.trim() || !effectiveAmount.trim() || num(effectiveAmount) <= 0}
             onClick={() => add.mutate()}
           >
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
