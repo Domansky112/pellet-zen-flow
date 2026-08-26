@@ -288,6 +288,32 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const { data: expenses, error: ee } = await expQ;
     if (ee) throw new Error(ee.message);
 
+    // ── KOSZTY AFILIACJI (memoriałowo — wg daty naliczenia prowizji, nie daty wypłaty) ──
+    let affQ = context.supabase
+      .from("affiliate_commissions")
+      .select("id, partner_id, description, amount, tons, rate_per_ton, commission_date, status, affiliate_partners(full_name)")
+      .order("commission_date", { ascending: false })
+      .limit(2000);
+    if (data.from) affQ = affQ.gte("commission_date", data.from);
+    if (data.to) affQ = affQ.lte("commission_date", data.to);
+    const { data: affRows, error: ae } = await affQ;
+    if (ae) throw new Error(ae.message);
+    const affiliateCosts = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+    const affiliateCostsPending = (affRows ?? [])
+      .filter((r: any) => r.status === "nierozliczona")
+      .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+
+    // Wypłaty prowizji tworzą wpis w kosztach (expenses) z datą rozliczenia — pomijamy go,
+    // żeby prowizja nie liczyła się podwójnie (ujmujemy ją w dacie naliczenia).
+    const { data: settlements } = await context.supabase
+      .from("affiliate_settlements")
+      .select("expense_id")
+      .not("expense_id", "is", null)
+      .limit(2000);
+    const settlementExpenseIds = new Set<string>((settlements ?? []).map((r: any) => r.expense_id));
+
+
+
 
     let income = 0, cash = 0, transfer = 0, pending = 0;
     let salesVat = 0, transportVat = 0, transportCosts = 0, transportCostsNet = 0;
@@ -317,11 +343,12 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     // Zakupy środków trwałych (inwestycje: ciężarówka, owijarka itp.) NIE są kosztem operacyjnym —
     // ich wartość ujmujemy w majątku (środki trwałe), nie w kosztach/zysku okresu.
     const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
-    const manualCosts = (expenses ?? []).filter((e: any) => !isCapex(e)).reduce((s, e: any) => s + Number(e.amount ?? 0), 0);
+    const isAffiliatePayout = (e: any) => settlementExpenseIds.has(e.id);
+    const opEx = (expenses ?? []).filter((e: any) => !isCapex(e) && !isAffiliatePayout(e));
+    const manualCosts = opEx.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
     const capexCosts = (expenses ?? []).filter(isCapex).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
     // Koszty dodatkowe netto — każdy koszt przeliczany indywidualnie wg własnej stawki VAT (0 / 8 / 23%).
-    const manualCostsNet = (expenses ?? [])
-      .filter((e: any) => !isCapex(e))
+    const manualCostsNet = opEx
       .reduce((s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100), 0);
 
     // ── KOSZT SPRZEDANEGO TOWARU (COGS) ──
@@ -376,25 +403,31 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const cogsNet = cogs / (1 + cogsVatRate / 100);
 
 
-    const totalCosts = manualCosts + cogs + transportCosts;
+    const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
     const avgPricePaleta = tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0;
     const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
     const avgPriceInne = tonsInne > 0 ? incomeInne / tonsInne : 0;
 
-    // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
+    // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe + afiliacje)
     const grossProfit = income - totalCosts;
     // VAT należny = VAT z towaru (8/23%) + VAT z transportu (23/8%)
     const vatTotal = salesVat + transportVat;
     const incomeNet = income - vatTotal;
-    const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet;
-    const netProfit = incomeNet - transportCostsNet - cogsNet - manualCostsNet;
+    // Prowizje afiliacyjne traktujemy bez VAT (0%) — kwota netto = kwota brutto.
+    const affiliateCostsNet = affiliateCosts;
+    const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet;
+    const netProfit = incomeNet - transportCostsNet - cogsNet - manualCostsNet - affiliateCostsNet;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       manualCosts,
       manualCostsNet,
+      affiliateCosts,
+      affiliateCostsNet,
+      affiliateCostsPending,
+      affiliateCommissions: affRows ?? [],
       capexCosts,
       cogs,
       cogsNet,
