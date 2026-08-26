@@ -38,7 +38,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive, CalendarDays,
+  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive, CalendarDays, Handshake,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -146,6 +146,7 @@ function UstawieniaPage() {
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
         {section === "assets" && <AssetsTab />}
+        {section === "affiliates" && <AffiliatesTab />}
 
       </div>
     </div>
