@@ -282,13 +282,13 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
             title="Zysk Brutto w okresie"
             value={fmtPLN(s?.grossProfit ?? 0)}
             tone={(s?.grossProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint="Liczony jako: Przychód brutto − (Koszt surowca COGS + Koszt transportu + Koszty dodatkowe)"
+            hint="Liczony jako: Przychód brutto − (Koszt surowca COGS + Koszt transportu + Koszty dodatkowe + Prowizje afiliacyjne)"
           />
           <StatCard
             title="ZYSK NETTO W OKRESIE"
             value={fmtPLN(s?.netProfit ?? 0)}
             tone={(s?.netProfit ?? 0) >= 0 ? "emerald" : "amber"}
-            hint={`Liczony jako: Przychód netto − (Koszt surowca COGS + Koszt transportu + Koszty dodatkowe). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} − transport netto ${fmtPLN((s as any)?.transportCostsNet ?? 0)} − koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)}`}
+            hint={`Liczony jako: Przychód netto − (COGS + transport + koszty dodatkowe + afiliacje). Przychód netto ${fmtPLN((s as any)?.incomeNet ?? 0)} − COGS netto ${fmtPLN((s as any)?.cogsNet ?? 0)} − transport netto ${fmtPLN((s as any)?.transportCostsNet ?? 0)} − koszty dodatkowe netto ${fmtPLN((s as any)?.manualCostsNet ?? 0)} − afiliacje ${fmtPLN((s as any)?.affiliateCosts ?? 0)}`}
           />
         </div>
 
