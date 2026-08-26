@@ -38,7 +38,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive, CalendarDays,
+  Truck, Package2, Users2, LogIn, Store, Building2, Settings2, Plus, Trash2, Pencil, ShieldAlert, KeyRound, MessageSquare, Copy, Wallet, Wrench, Archive, CalendarDays, Handshake,
 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
@@ -61,9 +61,10 @@ import {
 } from "@/lib/assets.functions";
 import { EmployeeCalendarTab } from "@/components/employee-calendar";
 import { PhysicalWorkersCard } from "@/components/physical-workers-card";
+import { AffiliatesTab } from "@/components/affiliates-tab";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees", "affiliates"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
@@ -119,6 +120,7 @@ function UstawieniaPage() {
     { value: "templates", label: "Szablony wiadomości", Icon: MessageSquare },
     { value: "statuses", label: "Statusy leadów", Icon: Settings2 },
     { value: "assets", label: "Środki trwałe", Icon: Wrench },
+    { value: "affiliates", label: "Afiliacje", Icon: Handshake },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
@@ -144,6 +146,7 @@ function UstawieniaPage() {
         {section === "templates" && <TemplatesTab />}
         {section === "statuses" && <StatusesTab />}
         {section === "assets" && <AssetsTab />}
+        {section === "affiliates" && <AffiliatesTab />}
 
       </div>
     </div>
