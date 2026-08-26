@@ -279,6 +279,8 @@ function CommissionsDialog({
 
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
+  const [tons, setTons] = useState("");
+  const [ratePerTon, setRatePerTon] = useState("");
   const [date, setDate] = useState(today());
   const [leadQuery, setLeadQuery] = useState("");
   const [lead, setLead] = useState<any | null>(null);
