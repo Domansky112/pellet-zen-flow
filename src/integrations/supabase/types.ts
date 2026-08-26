@@ -14,6 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          amount: number
+          commission_date: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          lead_id: string | null
+          notes: string | null
+          partner_id: string
+          settlement_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          commission_date?: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          partner_id: string
+          settlement_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          commission_date?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          partner_id?: string
+          settlement_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_partners: {
+        Row: {
+          bank_account: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          id: string
+          nip: string | null
+          notes: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bank_account?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          nip?: string | null
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bank_account?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          nip?: string | null
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      affiliate_settlements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expense_id: string | null
+          id: string
+          method: string
+          notes: string | null
+          paid_at: string
+          partner_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expense_id?: string | null
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          partner_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expense_id?: string | null
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          partner_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_settlements_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_settlements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -1605,6 +1768,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      settle_affiliate_commissions: {
+        Args: {
+          _commission_ids: string[]
+          _method?: string
+          _notes?: string
+          _paid_at?: string
+          _partner_id: string
+        }
+        Returns: Json
       }
       settle_lead_payment:
         | {
