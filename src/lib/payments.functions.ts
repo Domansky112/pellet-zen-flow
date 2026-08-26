@@ -403,25 +403,31 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     const cogsNet = cogs / (1 + cogsVatRate / 100);
 
 
-    const totalCosts = manualCosts + cogs + transportCosts;
+    const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;
     const avgPricePerTon = tonsTotal > 0 ? income / tonsTotal : 0;
     const avgPricePaleta = tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0;
     const avgPriceBigbag = tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0;
     const avgPriceInne = tonsInne > 0 ? incomeInne / tonsInne : 0;
 
-    // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe)
+    // Zysk = Przychód ze zrealizowanych dostaw − (COGS + koszty dodatkowe + afiliacje)
     const grossProfit = income - totalCosts;
     // VAT należny = VAT z towaru (8/23%) + VAT z transportu (23/8%)
     const vatTotal = salesVat + transportVat;
     const incomeNet = income - vatTotal;
-    const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet;
-    const netProfit = incomeNet - transportCostsNet - cogsNet - manualCostsNet;
+    // Prowizje afiliacyjne traktujemy bez VAT (0%) — kwota netto = kwota brutto.
+    const affiliateCostsNet = affiliateCosts;
+    const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet;
+    const netProfit = incomeNet - transportCostsNet - cogsNet - manualCostsNet - affiliateCostsNet;
 
     return {
       income, cash, transfer, pending,
       totalCosts,
       manualCosts,
       manualCostsNet,
+      affiliateCosts,
+      affiliateCostsNet,
+      affiliateCostsPending,
+      affiliateCommissions: affRows ?? [],
       capexCosts,
       cogs,
       cogsNet,
