@@ -25,8 +25,10 @@ export type Database = {
           lead_id: string | null
           notes: string | null
           partner_id: string
+          rate_per_ton: number | null
           settlement_id: string | null
           status: string
+          tons: number | null
           updated_at: string
         }
         Insert: {
@@ -39,8 +41,10 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           partner_id: string
+          rate_per_ton?: number | null
           settlement_id?: string | null
           status?: string
+          tons?: number | null
           updated_at?: string
         }
         Update: {
@@ -53,8 +57,10 @@ export type Database = {
           lead_id?: string | null
           notes?: string | null
           partner_id?: string
+          rate_per_ton?: number | null
           settlement_id?: string | null
           status?: string
+          tons?: number | null
           updated_at?: string
         }
         Relationships: [

@@ -279,6 +279,8 @@ function CommissionsDialog({
 
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
+  const [tons, setTons] = useState("");
+  const [ratePerTon, setRatePerTon] = useState("");
   const [date, setDate] = useState(today());
   const [leadQuery, setLeadQuery] = useState("");
   const [lead, setLead] = useState<any | null>(null);
@@ -313,6 +315,13 @@ function CommissionsDialog({
     qc.invalidateQueries({ queryKey: ["affiliate-partners"] });
   }
 
+  const num = (s: string) => {
+    const n = Number(s.trim().replace(/\s+/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const computed = tons.trim() && ratePerTon.trim() ? num(tons) * num(ratePerTon) : null;
+  const effectiveAmount = computed !== null ? String(Number(computed.toFixed(2))) : amount;
+
   const add = useMutation({
     mutationFn: () =>
       addFn({
@@ -320,7 +329,9 @@ function CommissionsDialog({
           partner_id: partner.id,
           lead_id: lead?.id ?? null,
           description: desc.trim(),
-          amount,
+          amount: effectiveAmount,
+          tons: tons.trim() ? num(tons) : null,
+          rate_per_ton: ratePerTon.trim() ? num(ratePerTon) : null,
           commission_date: date,
         },
       }),
@@ -328,6 +339,8 @@ function CommissionsDialog({
       toast.success("Dodano pozycję");
       setDesc("");
       setAmount("");
+      setTons("");
+      setRatePerTon("");
       setLead(null);
       setLeadQuery("");
       refresh();
@@ -381,18 +394,44 @@ function CommissionsDialog({
 
         <div className="rounded-lg border p-3 space-y-3">
           <div className="text-sm font-medium">Nowa pozycja prowizji</div>
-          <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
+          <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
             <div>
               <Label>Opis *</Label>
               <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="np. Polecenie klienta z Radzynia" />
             </div>
             <div>
-              <Label>Kwota (zł) *</Label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="200" />
-            </div>
-            <div>
               <Label>Data</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <Label>Tonaż (t)</Label>
+              <Input value={tons} onChange={(e) => setTons(e.target.value)} inputMode="decimal" placeholder="22" />
+            </div>
+            <div>
+              <Label>Prowizja za tonę (zł/t)</Label>
+              <Input
+                value={ratePerTon}
+                onChange={(e) => setRatePerTon(e.target.value)}
+                inputMode="decimal"
+                placeholder="10"
+              />
+            </div>
+            <div>
+              <Label>Kwota (zł) *</Label>
+              <Input
+                value={computed !== null ? String(Number(computed.toFixed(2))) : amount}
+                onChange={(e) => setAmount(e.target.value)}
+                inputMode="decimal"
+                placeholder="200"
+                disabled={computed !== null}
+              />
+              {computed !== null && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {num(tons)} t × {num(ratePerTon)} zł/t
+                </p>
+              )}
             </div>
           </div>
           <div>
@@ -431,7 +470,7 @@ function CommissionsDialog({
           </div>
           <Button
             size="sm"
-            disabled={add.isPending || !desc.trim() || !amount.trim()}
+            disabled={add.isPending || !desc.trim() || !effectiveAmount.trim() || num(effectiveAmount) <= 0}
             onClick={() => add.mutate()}
           >
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
@@ -488,7 +527,14 @@ function CommissionsDialog({
                         />
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">{c.description}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.description}
+                      {c.tons != null && c.rate_per_ton != null && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({Number(c.tons)} t × {Number(c.rate_per_ton)} zł/t)
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {c.leads ? `${c.leads.lead_number ?? ""} ${c.leads.name ?? ""}` : "—"}
                     </TableCell>
