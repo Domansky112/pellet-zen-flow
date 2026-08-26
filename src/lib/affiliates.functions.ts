@@ -99,7 +99,7 @@ export const upsertAffiliatePartner = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { id, ...rest } = data;
     const payload = id ? { id, ...rest } : { ...rest, created_by: context.userId };
-    const { error } = await context.supabase.from("affiliate_partners").upsert(payload);
+    const { error } = await context.supabase.from("affiliate_partners").upsert(payload as any);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -145,7 +145,7 @@ export const upsertAffiliateCommission = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { id, ...rest } = data;
     const payload = id ? { id, ...rest } : { ...rest, created_by: context.userId };
-    const { error } = await context.supabase.from("affiliate_commissions").upsert(payload);
+    const { error } = await context.supabase.from("affiliate_commissions").upsert(payload as any);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -187,7 +187,7 @@ export const settleAffiliate = createServerFn({ method: "POST" })
       _paid_at: data.paid_at,
       _method: data.method,
       _notes: data.notes ?? null,
-    });
+    } as any);
     if (error) throw new Error(error.message);
     return res as { ok: boolean; total: number; count: number };
   });
