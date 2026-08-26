@@ -527,7 +527,14 @@ function CommissionsDialog({
                         />
                       )}
                     </TableCell>
-                    <TableCell className="text-sm">{c.description}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.description}
+                      {c.tons != null && c.rate_per_ton != null && (
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          ({Number(c.tons)} t × {Number(c.rate_per_ton)} zł/t)
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {c.leads ? `${c.leads.lead_number ?? ""} ${c.leads.name ?? ""}` : "—"}
                     </TableCell>
