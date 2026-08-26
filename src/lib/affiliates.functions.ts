@@ -124,7 +124,7 @@ export const listAffiliateCommissions = createServerFn({ method: "GET" })
     const [{ data: rows, error }, { data: settlements, error: e2 }] = await Promise.all([
       context.supabase
         .from("affiliate_commissions")
-        .select("id, lead_id, description, amount, commission_date, status, settlement_id, notes, leads(lead_number, name)")
+        .select("id, lead_id, description, amount, tons, rate_per_ton, commission_date, status, settlement_id, notes, leads(lead_number, name)")
         .eq("partner_id", data.partner_id)
         .order("commission_date", { ascending: false })
         .limit(1000),
