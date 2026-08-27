@@ -1314,8 +1314,8 @@ export function LeadDetailDrawer({
           <DialogHeader>
             <DialogTitle>Zaplanuj transport w kalendarzu</DialogTitle>
             <DialogDescription>
-              System sprawdzi stan rezerwacji: wykorzysta istniejącą lub utworzy nową 100% pod ten lead.
-              Jeśli w magazynie brakuje tonażu — zaplanowanie zostanie zablokowane.
+              Wybierz termin, ciągnik i kierowcę (lub zostaw bez wyboru). System sprawdzi kolizje
+              terminów i utworzy rezerwację magazynową pod ten lead.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -1332,25 +1332,30 @@ export function LeadDetailDrawer({
               <Label htmlFor="sched-addr">Adres dostawy</Label>
               <Input id="sched-addr" value={schedAddress} onChange={(e) => setSchedAddress(e.target.value)} placeholder="ul. …, kod, miasto" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="sched-driver">Kierowca (opcjonalnie)</Label>
-              <Input id="sched-driver" value={schedDriver} onChange={(e) => setSchedDriver(e.target.value)} />
-            </div>
+            <FleetPicker
+              driver={schedDriver}
+              vehicle={schedVehicle}
+              onDriver={setSchedDriver}
+              onVehicle={setSchedVehicle}
+            />
             <div className="space-y-2">
               <Label htmlFor="sched-notes">Notatki</Label>
               <Textarea id="sched-notes" rows={2} value={schedNotes} onChange={(e) => setSchedNotes(e.target.value)} />
             </div>
+            <ConflictWarning conflicts={schedConflicts} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setScheduleOpen(false)}>Anuluj</Button>
             <Button
-              onClick={() => scheduleM.mutate()}
-              disabled={!schedDate || scheduleM.isPending}
+              variant={schedConflicts ? "destructive" : "default"}
+              onClick={() => schedGuard(() => scheduleM.mutate())}
+              disabled={!schedDate || scheduleM.isPending || schedChecking}
             >
-              {scheduleM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarPlus className="h-4 w-4 mr-2" />}
-              Zaplanuj i zarezerwuj
+              {scheduleM.isPending || schedChecking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarPlus className="h-4 w-4 mr-2" />}
+              {schedConflicts ? "Tak, zaplanuj mimo to" : "Zaplanuj i zarezerwuj"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
