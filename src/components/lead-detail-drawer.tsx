@@ -27,6 +27,7 @@ import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { LeadBatchesPanel } from "@/components/lead-batches-panel";
 import { updateLeadPayment } from "@/lib/payments.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -1026,7 +1027,7 @@ export function LeadDetailDrawer({
                   <div className="sm:col-span-2">
                     <LeadBatchesPanel
                       leadId={lead.id}
-                      leadNumber={lead.lead_number ?? null}
+                      leadNumber={(lead as any).lead_number ?? null}
                       quantity={lead.quantity ?? null}
                     />
                   </div>
