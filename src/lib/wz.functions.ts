@@ -11,21 +11,28 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  */
 
 const PRODUCT_LABEL: Record<string, string> = {
-  pellet_paleta: "Pellet — paleta (960 kg)",
-  pellet_bigbag: "Pellet — Big Bag (1000 kg)",
+  pellet_paleta: "Pellet — paleta",
+  pellet_bigbag: "Pellet — Big Bag",
   inne: "Inne",
 };
 
-const PIECE_KG: Record<string, number> = {
-  pellet_paleta: 960,
-  pellet_bigbag: 1000,
+// Stałe dane nadawcy (wystawcy dokumentu)
+const ISSUER = {
+  name: "F.H.U. Rolmar",
+  address: "Strzyżówka, nr 14, 21-570 Drelów",
+  nip: "5372252870",
 };
+
+// Stałe miejsce załadunku
+const LOADING_PLACE = "Witoroż 70C, 21-570 Drelów";
+const LOADING_CITY = "Witoroż";
 
 // ─────────────────────────────────────────────────────────────
 // DTO
 // ─────────────────────────────────────────────────────────────
 
 export type WzRecipient = {
+  key: string;
   name: string;
   company: string | null;
   nip: string | null;
@@ -40,15 +47,14 @@ export type WzItem = {
   product: string;
   productLabel: string;
   quantityTons: number;
-  pieces: number | null;
   unit: string; // "big-bag", "paleta", "t"
-  description: string; // "10× Big Bag 1000 kg — Pellet"
+  description: string;
 };
 
 export type WzDocumentData = {
   number: string;
-  issueDate: string; // YYYY-MM-DD (dzień wygenerowania)
   transportDate: string; // YYYY-MM-DD (planowana data wydania)
+  city: string;
   source: "transport" | "pool";
   sourceId: string;
   issuer: {
@@ -56,6 +62,7 @@ export type WzDocumentData = {
     address: string;
     nip: string | null;
   };
+  loadingPlace: string;
   carrier: {
     driver: string | null;
     vehicle: string | null;
@@ -63,10 +70,6 @@ export type WzDocumentData = {
   };
   recipients: WzRecipient[];
   items: WzItem[];
-  totals: {
-    tons: number;
-    pieces: number;
-  };
   signatures: {
     issuedBy: string; // "Wydał"
     receivedBy: string; // "Odebrał"
@@ -74,15 +77,44 @@ export type WzDocumentData = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Numer dokumentu
+// Numer dokumentu: {numer transportu w miesiącu}/{miesiąc}/{rok}
 // ─────────────────────────────────────────────────────────────
 
-function makeWzNumber(sourceId: string, date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const short = sourceId.replace(/-/g, "").slice(0, 6).toUpperCase();
-  return `WZ/${y}/${m}/${d}-${short}`;
+async function makeWzNumber(
+  supabase: any,
+  transportId: string | null,
+  dateStr: string,
+): Promise<string> {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const toDate = new Date(Date.UTC(y, m + 1, 1));
+  const to = toDate.toISOString().slice(0, 10);
+
+  let seq = 1;
+  const { data } = await supabase
+    .from("transports")
+    .select("id, scheduled_date, created_at")
+    .gte("scheduled_date", from)
+    .lt("scheduled_date", to)
+    .order("scheduled_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  const rows = (data ?? []) as any[];
+  if (transportId) {
+    const idx = rows.findIndex((r) => r.id === transportId);
+    seq = idx >= 0 ? idx + 1 : rows.length + 1;
+  } else {
+    seq = rows.length + 1;
+  }
+
+  return `${seq}/${String(m + 1).padStart(2, "0")}/${String(y).slice(-2)}`;
+}
+
+function formatPlDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}.${m}.${y}`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -99,6 +131,7 @@ function leadToRecipient(lead: any): WzRecipient {
     [lead?.city, lead?.postal_code].filter(Boolean).join(" ") ??
     "—";
   return {
+    key: String(lead?.id ?? `${name}-${address}`),
     name: name || "—",
     company: lead?.invoice_company ?? null,
     nip: lead?.invoice_nip ?? null,
@@ -112,18 +145,13 @@ function leadToRecipient(lead: any): WzRecipient {
 
 function buildItem(product: string, quantityTons: number): WzItem {
   const label = PRODUCT_LABEL[product] ?? product;
-  const kgPer = PIECE_KG[product];
-  const totalKg = quantityTons * 1000;
-  const pieces = kgPer ? Math.ceil(totalKg / kgPer) : null;
-  const unit = product === "pellet_bigbag" ? "big-bag" : product === "pellet_paleta" ? "paleta" : "t";
-  const description = pieces
-    ? `${unit === "big-bag" ? "Big Bag" : "Paleta"} ${kgPer} kg — Pellet`
-    : label;
+  const unit =
+    product === "pellet_bigbag" ? "big-bag" : product === "pellet_paleta" ? "paleta" : "t";
+  const description = product === "pellet_bigbag" ? "Big Bag" : product === "pellet_paleta" ? "Paleta" : label;
   return {
     product,
     productLabel: label,
     quantityTons,
-    pieces,
     unit,
     description,
   };
@@ -132,19 +160,6 @@ function buildItem(product: string, quantityTons: number): WzItem {
 // ─────────────────────────────────────────────────────────────
 // Agregatory danych
 // ─────────────────────────────────────────────────────────────
-
-async function readIssuerAddress(supabase: any): Promise<string> {
-  const { data } = await supabase
-    .from("warehouses")
-    .select("name, address_line, postal_code, city, country, is_default")
-    .order("is_default", { ascending: false })
-    .limit(1);
-  const w = (data ?? [])[0];
-  if (!w) return "Witoroża, 21-570 Drelów";
-  return [w.address_line, [w.postal_code, w.city].filter(Boolean).join(" "), w.country]
-    .filter(Boolean)
-    .join(", ");
-}
 
 async function prepareFromTransport(
   supabase: any,
@@ -168,6 +183,7 @@ async function prepareFromTransport(
       i.leads
         ? leadToRecipient(i.leads)
         : {
+            key: `dest-${i.id}`,
             name: t.city,
             company: null,
             nip: null,
@@ -178,46 +194,38 @@ async function prepareFromTransport(
             leadNumber: null,
           },
     )
-    // deduplikuj po nazwie+adres
-    .filter(
-      (r, idx, arr) => arr.findIndex((x) => x.name === r.name && x.address === r.address) === idx,
-    );
+    .filter((r, idx, arr) => arr.findIndex((x) => x.key === r.key) === idx);
 
-  const issuerAddress = await readIssuerAddress(supabase);
-  const now = new Date();
+  const number = await makeWzNumber(supabase, t.id, t.scheduled_date);
   return {
-    number: makeWzNumber(t.id, now),
-    issueDate: now.toISOString().slice(0, 10),
+    number,
     transportDate: t.scheduled_date,
+    city: LOADING_CITY,
     source: "transport",
     sourceId: t.id,
-    issuer: {
-      name: "Słoneczny Pellet",
-      address: issuerAddress,
-      nip: null,
-    },
+    issuer: { ...ISSUER },
+    loadingPlace: LOADING_PLACE,
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
       notes: t.notes ?? null,
     },
-    recipients: recipients.length ? recipients : [
-      {
-        name: t.city,
-        company: null,
-        nip: null,
-        address: t.destination_address ?? "—",
-        phone: null,
-        email: null,
-        hasUnloadingEquipment: false,
-        leadNumber: null,
-      },
-    ],
+    recipients: recipients.length
+      ? recipients
+      : [
+          {
+            key: "dest",
+            name: t.city,
+            company: null,
+            nip: null,
+            address: t.destination_address ?? "—",
+            phone: null,
+            email: null,
+            hasUnloadingEquipment: false,
+            leadNumber: null,
+          },
+        ],
     items,
-    totals: {
-      tons: items.reduce((s, i) => s + i.quantityTons, 0),
-      pieces: items.reduce((s, i) => s + (i.pieces ?? 0), 0),
-    },
     signatures: {
       issuedBy: issuerName,
       receivedBy: "",
@@ -240,7 +248,6 @@ async function prepareFromPool(
   if (error) throw new Error(error.message);
   if (!p) throw new Error("Wspólny transport nie istnieje");
 
-  // Jeśli pool został potwierdzony i ma transport_id — pobierz też datę / kierowcę
   let transportRow: any = null;
   if (p.transport_id) {
     const { data: tr } = await supabase
@@ -252,7 +259,6 @@ async function prepareFromPool(
   }
 
   const rawItems = (p.transport_pool_items ?? []) as any[];
-  // agregacja per produkt
   const byProduct = new Map<string, number>();
   const recipients: WzRecipient[] = [];
   for (const it of rawItems) {
@@ -264,30 +270,26 @@ async function prepareFromPool(
   }
   const items = Array.from(byProduct.entries()).map(([prod, tons]) => buildItem(prod, tons));
 
-  const issuerAddress = await readIssuerAddress(supabase);
-  const now = new Date();
+  const transportDate = transportRow?.scheduled_date ?? new Date().toISOString().slice(0, 10);
+  const number = await makeWzNumber(supabase, p.transport_id ?? null, transportDate);
+
   return {
-    number: makeWzNumber(p.id, now),
-    issueDate: now.toISOString().slice(0, 10),
-    transportDate: transportRow?.scheduled_date ?? now.toISOString().slice(0, 10),
+    number,
+    transportDate,
+    city: LOADING_CITY,
     source: "pool",
     sourceId: p.id,
-    issuer: {
-      name: "Słoneczny Pellet",
-      address: issuerAddress,
-      nip: null,
-    },
+    issuer: { ...ISSUER },
+    loadingPlace: LOADING_PLACE,
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
       notes: transportRow?.notes ?? p.notes ?? null,
     },
-    recipients,
+    recipients: recipients.filter(
+      (r, idx, arr) => arr.findIndex((x) => x.key === r.key) === idx,
+    ),
     items,
-    totals: {
-      tons: items.reduce((s, i) => s + i.quantityTons, 0),
-      pieces: items.reduce((s, i) => s + (i.pieces ?? 0), 0),
-    },
     signatures: {
       issuedBy: issuerName,
       receivedBy: "",
@@ -296,12 +298,7 @@ async function prepareFromPool(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Renderer pliku (MOCK / PLACEHOLDER)
-//
-// TODO: Zamień treść tej funkcji na wywołanie generatora PDF
-// (np. Google Docs API + template docId, albo pdf-lib / puppeteer).
-// Reszta pipeline'u pozostaje bez zmian — funkcja przyjmuje WzDocumentData
-// i zwraca { filename, mime, content (base64|utf8) }.
+// Renderer pliku
 // ─────────────────────────────────────────────────────────────
 
 export type WzFile = {
@@ -314,7 +311,7 @@ export type WzFile = {
 export function generateWzFile(data: WzDocumentData): WzFile {
   const rows = data.items
     .map((i, idx) => {
-      const unit = i.pieces ? (i.unit === "big-bag" ? "big-bag" : "paleta") : "t";
+      const unit = i.unit === "big-bag" ? "big-bag" : i.unit === "paleta" ? "paleta" : "t";
       return `
         <tr>
           <td class="center">${idx + 1}</td>
@@ -336,7 +333,8 @@ export function generateWzFile(data: WzDocumentData): WzFile {
     .join("");
 
   const anyMissingUnload = data.recipients.some((r) => !r.hasUnloadingEquipment);
-  const allSelfUnload = data.recipients.length > 0 && data.recipients.every((r) => r.hasUnloadingEquipment);
+  const allSelfUnload =
+    data.recipients.length > 0 && data.recipients.every((r) => r.hasUnloadingEquipment);
   const unloadNote = allSelfUnload
     ? "Sprzęt do rozładunku u klienta: TAK (wszystkie punkty)"
     : anyMissingUnload
@@ -352,10 +350,10 @@ export function generateWzFile(data: WzDocumentData): WzFile {
            ? `<br/><span class="muted">+ ${data.recipients.length - 1} kolejnych odbiorców (patrz miejsca rozładunku)</span>`
            : ""
        }`
-    : "<em>—</em>";
+    : "<em>&nbsp;</em>";
 
   const html = `<!doctype html>
-<html lang="pl"><head><meta charset="utf-8"/><title>${data.number}</title>
+<html lang="pl"><head><meta charset="utf-8"/><title>WZ ${data.number}</title>
 <style>
   @page { size: A4; margin: 15mm; }
   * { box-sizing: border-box; }
@@ -391,10 +389,8 @@ export function generateWzFile(data: WzDocumentData): WzFile {
       <div class="muted">Dokument wydania towaru / list przewozowy</div>
     </div>
     <div class="meta">
-      <div>Nr: <strong>${data.number}</strong></div>
-      <div>Data wystawienia: <strong>${data.issueDate}</strong></div>
-      <div>Data wydania: <strong>${data.transportDate}</strong></div>
-      <div>Miejscowość: <strong>Drelów</strong></div>
+      <div>Nr dokumentu: <strong>${escapeHtml(data.number)}</strong></div>
+      <div>Miejscowość: <strong>${escapeHtml(data.city)}</strong>, Data: <strong>${formatPlDate(data.transportDate)}</strong></div>
     </div>
   </div>
 
@@ -409,8 +405,8 @@ export function generateWzFile(data: WzDocumentData): WzFile {
       <td>${recipientBlock}</td>
       <td>
         <strong>${escapeHtml(data.issuer.name)}</strong><br/>
-        Kierowca: <strong>${escapeHtml(data.carrier.driver ?? "—")}</strong><br/>
-        Pojazd: <strong>${escapeHtml(data.carrier.vehicle ?? "—")}</strong>
+        Kierowca: <strong>${escapeHtml(data.carrier.driver ?? "")}</strong><br/>
+        Pojazd: <strong>${escapeHtml(data.carrier.vehicle ?? "")}</strong>
       </td>
     </tr></tbody>
   </table>
@@ -418,8 +414,8 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   <table class="doc places">
     <thead><tr><th>Miejsce załadunku</th><th>Miejsce(a) rozładunku</th></tr></thead>
     <tbody><tr>
-      <td>${escapeHtml(`Magazyn ${data.issuer.name}, ${data.issuer.address}`)}</td>
-      <td>${unloading || "<em>—</em>"}</td>
+      <td>${escapeHtml(data.loadingPlace)}</td>
+      <td>${unloading || "&nbsp;"}</td>
     </tr></tbody>
   </table>
 
@@ -443,7 +439,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   <div class="notes">
     <h3>Uwagi do transportu / rozładunku</h3>
     ${unloadNote ? `<div><strong>${escapeHtml(unloadNote)}</strong></div>` : ""}
-    ${data.carrier.notes ? `<div>${escapeHtml(data.carrier.notes)}</div>` : (!unloadNote ? "&nbsp;" : "")}
+    ${data.carrier.notes ? `<div>${escapeHtml(data.carrier.notes)}</div>` : !unloadNote ? "&nbsp;" : ""}
   </div>
 
   <div class="signatures">
@@ -454,7 +450,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
 </body></html>`;
 
   return {
-    filename: `${data.number.replace(/\//g, "_")}.html`,
+    filename: `WZ_${data.number.replace(/\//g, "_")}.html`,
     mime: "text/html;charset=utf-8",
     encoding: "utf8",
     content: html,
@@ -475,25 +471,21 @@ const inputSchema = z
   .object({
     transportId: z.string().uuid().optional(),
     poolId: z.string().uuid().optional(),
+    recipientKeys: z.array(z.string()).optional(),
   })
   .refine((v) => !!v.transportId !== !!v.poolId, {
     message: "Podaj dokładnie jedno: transportId LUB poolId",
   });
 
-/** Zwraca sam DTO — do podglądu / debugowania. */
-export const prepareWzDocumentData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => inputSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const issuer =
-      (context.claims as any)?.email ?? (context.claims as any)?.name ?? "Operator";
-    if (data.transportId)
-      return prepareFromTransport(context.supabase, data.transportId, issuer);
-    return prepareFromPool(context.supabase, data.poolId!, issuer);
-  });
+function applyRecipientFilter(dto: WzDocumentData, keys?: string[]): WzDocumentData {
+  if (!keys || keys.length === 0) return dto;
+  const set = new Set(keys);
+  const filtered = dto.recipients.filter((r) => set.has(r.key));
+  return { ...dto, recipients: filtered.length ? filtered : dto.recipients };
+}
 
-/** Zwraca gotowy plik (mock HTML) + DTO. */
-export const getWzDocument = createServerFn({ method: "POST" })
+/** Zwraca sam DTO — do podglądu / wyboru odbiorców. */
+export const prepareWzDocumentData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
@@ -502,6 +494,20 @@ export const getWzDocument = createServerFn({ method: "POST" })
     const dto = data.transportId
       ? await prepareFromTransport(context.supabase, data.transportId, issuer)
       : await prepareFromPool(context.supabase, data.poolId!, issuer);
+    return applyRecipientFilter(dto, data.recipientKeys);
+  });
+
+/** Zwraca gotowy plik + DTO. */
+export const getWzDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => inputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const issuer =
+      (context.claims as any)?.email ?? (context.claims as any)?.name ?? "Operator";
+    const raw = data.transportId
+      ? await prepareFromTransport(context.supabase, data.transportId, issuer)
+      : await prepareFromPool(context.supabase, data.poolId!, issuer);
+    const dto = applyRecipientFilter(raw, data.recipientKeys);
     const file = generateWzFile(dto);
     return { data: dto, file };
   });
