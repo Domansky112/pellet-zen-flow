@@ -100,7 +100,7 @@ export function SettlementDialog({
 
   // Propozycja kosztu transportu na podstawie kodu pocztowego (edytowalna)
   useEffect(() => {
-    if (!open) return;
+    if (!open || selfPickup) return;
     if (defaultTransportCost != null && Number.isFinite(defaultTransportCost)) return;
     let cancelled = false;
     setSuggesting(true);
@@ -119,7 +119,7 @@ export function SettlementDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, postalCode, city, quantity, defaultTransportCost]);
+  }, [open, postalCode, city, quantity, defaultTransportCost, selfPickup]);
 
   useEffect(() => {
     // przelew defaults to "oczekuje" (nie pobrane na miejscu)
