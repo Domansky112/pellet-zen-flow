@@ -27,6 +27,7 @@ import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { LeadBatchesPanel } from "@/components/lead-batches-panel";
 import { updateLeadPayment } from "@/lib/payments.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
@@ -1023,7 +1024,15 @@ export function LeadDetailDrawer({
                       onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     />
                   </div>
+                  <div className="sm:col-span-2">
+                    <LeadBatchesPanel
+                      leadId={lead.id}
+                      leadNumber={(lead as any).lead_number ?? null}
+                      quantity={lead.quantity ?? null}
+                    />
+                  </div>
                 </div>
+
 
                 {validation.productMissing && (
                   <div className="text-xs rounded-md border px-3 py-2 border-destructive/40 bg-destructive/10 text-destructive">

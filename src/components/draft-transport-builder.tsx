@@ -99,7 +99,8 @@ export function DraftTransportBuilder() {
   });
 
   const addLead = useMutation({
-    mutationFn: (v: { draft_id: string; lead_id: string }) => addFn({ data: v }),
+    mutationFn: (v: { draft_id: string; lead_id: string; batch_id?: string | null }) =>
+      addFn({ data: v }),
     onSuccess: (r: any) => {
       if (r?.routeError) toast.warning(`Lead dodany, ale trasa: ${r.routeError}`);
       else toast.success("Lead dodany — trasa przeliczona");
@@ -182,8 +183,37 @@ export function DraftTransportBuilder() {
   const free = Math.max(0, capacity - loaded);
   const pct = capacity > 0 ? Math.min(100, (loaded / capacity) * 100) : 0;
 
-  const usedLeadIds = new Set(items.map((i: any) => i.lead_id));
-  const available = (candidates.data ?? []).filter((l: any) => !usedLeadIds.has(l.id));
+  const usedBatchIds = new Set(items.filter((i: any) => i.batch_id).map((i: any) => i.batch_id));
+  const usedLeadIds = new Set(items.filter((i: any) => !i.batch_id).map((i: any) => i.lead_id));
+
+  // Poczekalnia: lead z partiami rozbija się na osobne pozycje (np. #1080/1, #1080/2).
+  const available = (candidates.data ?? []).flatMap((l: any): any[] => {
+    const batches = ((l.lead_batches ?? []) as any[]).filter(
+      (b) => !b.transport_id && b.status !== "zrealizowana" && b.status !== "anulowana",
+    );
+    if (batches.length > 0) {
+      return batches
+        .filter((b) => !usedBatchIds.has(b.id))
+        .sort((a, b) => a.batch_no - b.batch_no)
+        .map((b) => ({
+          key: b.id,
+          lead: l,
+          batch_id: b.id as string,
+          title: `${l.lead_number ? `${l.lead_number}/${b.batch_no} · ` : ""}${l.name}`,
+          tons: Number(b.tons),
+        }));
+    }
+    if (usedLeadIds.has(l.id)) return [];
+    return [
+      {
+        key: l.id,
+        lead: l,
+        batch_id: null,
+        title: `${l.lead_number ? `${l.lead_number} · ` : ""}${l.name}`,
+        tons: Number(l.quantity ?? 0),
+      },
+    ];
+  });
 
   return (
     <Card>
@@ -363,20 +393,23 @@ export function DraftTransportBuilder() {
                     </Label>
                     <div className="max-h-[320px] overflow-auto space-y-2 pr-1">
                       {available.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Brak dostępnych leadów.</p>
+                        <p className="text-sm text-muted-foreground">Brak dostępnych pozycji.</p>
                       ) : (
-                        available.map((l: any) => {
-                          const tons = Number(l.quantity ?? 0);
+                        available.map((c: any) => {
+                          const l = c.lead;
+                          const tons = c.tons;
                           const fits = tons <= free + 0.001;
                           return (
                             <div
-                              key={l.id}
+                              key={c.key}
                               className="flex items-center justify-between gap-2 rounded-lg border border-border p-3"
                             >
                               <div className="min-w-0">
                                 <div className="font-medium truncate text-sm">
-                                  {l.lead_number ? `${l.lead_number} · ` : ""}
-                                  {l.name}
+                                  {c.title}
+                                  {c.batch_id && (
+                                    <Badge variant="outline" className="ml-2">partia</Badge>
+                                  )}
                                 </div>
                                 <div className="text-xs text-muted-foreground truncate">
                                   {tons} t · {PRODUCT_LABEL[l.product] ?? l.product ?? "—"} ·{" "}
@@ -389,7 +422,11 @@ export function DraftTransportBuilder() {
                                 disabled={!fits || addLead.isPending}
                                 title={fits ? "Dodaj do wersji roboczej" : "Nie mieści się"}
                                 onClick={() =>
-                                  addLead.mutate({ draft_id: active.id, lead_id: l.id })
+                                  addLead.mutate({
+                                    draft_id: active.id,
+                                    lead_id: l.id,
+                                    batch_id: c.batch_id,
+                                  })
                                 }
                               >
                                 {addLead.isPending ? (

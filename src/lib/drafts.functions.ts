@@ -91,7 +91,13 @@ export const deleteDraft = createServerFn({ method: "POST" })
 export const addLeadToDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({ draft_id: z.string().uuid(), lead_id: z.string().uuid() }).parse(input),
+    z
+      .object({
+        draft_id: z.string().uuid(),
+        lead_id: z.string().uuid(),
+        batch_id: z.string().uuid().optional().nullable(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { data: draft, error: dErr } = await context.supabase
@@ -110,7 +116,18 @@ export const addLeadToDraft = createServerFn({ method: "POST" })
     if (lErr || !lead) throw new Error("Lead nie istnieje");
     if (lead.deleted_at) throw new Error("Lead został anulowany");
 
-    const tons = Number(lead.quantity ?? 0);
+    let tons = Number(lead.quantity ?? 0);
+    if (data.batch_id) {
+      const { data: batch, error: bErr } = await context.supabase
+        .from("lead_batches")
+        .select("id, lead_id, tons, transport_id, status")
+        .eq("id", data.batch_id)
+        .maybeSingle();
+      if (bErr) throw new Error(bErr.message);
+      if (!batch || batch.lead_id !== data.lead_id) throw new Error("Partia nie istnieje");
+      if (batch.transport_id) throw new Error("Ta partia jest już przypisana do transportu");
+      tons = Number(batch.tons);
+    }
     const loaded = ((draft as any).transport_draft_items ?? []).reduce(
       (s: number, i: any) => s + Number(i.tons ?? 0),
       0,
@@ -124,6 +141,7 @@ export const addLeadToDraft = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("transport_draft_items").insert({
       draft_id: data.draft_id,
       lead_id: data.lead_id,
+      batch_id: data.batch_id ?? null,
       tons,
       stop_order: ((draft as any).transport_draft_items ?? []).length,
     });
@@ -173,7 +191,7 @@ export const listDraftCandidates = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select(LEAD_SELECT)
+      .select(`${LEAD_SELECT}, lead_batches(id, batch_no, tons, status, transport_id)`)
       .is("deleted_at", null)
       .not("quantity", "is", null)
       .in("status", ["nowy", "w_kontakcie", "oferta"])
@@ -262,6 +280,7 @@ export const confirmDraft = createServerFn({ method: "POST" })
       const { error: iErr } = await context.supabase.from("transport_items").insert({
         transport_id: transport.id,
         lead_id: it.lead_id,
+        batch_id: (it as any).batch_id ?? null,
         product: product as "pellet_paleta" | "pellet_bigbag" | "inne",
         quantity: qty,
         address: leadAddress(lead) || destination,
@@ -291,6 +310,13 @@ export const confirmDraft = createServerFn({ method: "POST" })
           note: `Rezerwacja pod ${transportNo} (${data.scheduled_date})`,
           created_by: context.userId,
         });
+      }
+
+      if ((it as any).batch_id) {
+        await context.supabase
+          .from("lead_batches")
+          .update({ transport_id: transport.id, status: "zaplanowana" })
+          .eq("id", (it as any).batch_id);
       }
 
       await context.supabase

@@ -21,6 +21,7 @@ export type DraftRow = {
   transport_draft_items: Array<{
     id: string;
     lead_id: string;
+    batch_id: string | null;
     tons: number;
     stop_order: number;
     leads: any;
@@ -31,7 +32,7 @@ export const LEAD_SELECT =
   "id, lead_number, name, city, postal_code, invoice_address, product, quantity, phone, status, status_key, payment_status, reservation_status, pooling_lat, pooling_lng, has_unloading_equipment";
 
 export const DRAFT_SELECT = `id, name, vehicle_class, capacity_tons, scheduled_date, delivery_window, status, transport_id, route_km, route_minutes, route_cost, cost_per_km, notes, created_at,
-  transport_draft_items(id, lead_id, tons, stop_order, leads(${LEAD_SELECT}))`;
+  transport_draft_items(id, lead_id, batch_id, tons, stop_order, leads(${LEAD_SELECT}))`;
 
 export function leadAddress(l: any): string {
   return (
