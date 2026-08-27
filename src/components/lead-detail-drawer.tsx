@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus, Wallet } from "lucide-react";
 import { scheduleTransportForLead } from "@/lib/transport-crud.functions";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { updateLeadPayment } from "@/lib/payments.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -250,6 +251,27 @@ export function LeadDetailDrawer({
       console.error(`[settlement] Payment sync failed for Lead ${lead?.id ?? "?"}:`, e);
       toast.error(e.message || "Nie udało się zapisać rozliczenia");
     },
+  });
+
+  const updatePaymentFn = useServerFn(updateLeadPayment);
+  const confirmPaidM = useMutation({
+    mutationFn: () =>
+      updatePaymentFn({
+        data: {
+          leadId: lead!.id,
+          payment_status:
+            (lead as any)?.payment_method === "przelew" ? "oplacone_przelew" : "oplacone_gotowka",
+        },
+      }),
+    onSuccess: () => {
+      invalidateLeads();
+      qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["payments-summary"] });
+      qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      toast.success("Wpłata potwierdzona");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const releaseM = useMutation({
