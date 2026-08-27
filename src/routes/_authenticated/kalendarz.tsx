@@ -494,25 +494,15 @@ function NewTransportDialog() {
                 onChange={(e) => setPostalCode(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="driver">Kierowca</Label>
-              <Input
-                id="driver"
-                placeholder="Jan Kowalski"
-                value={driver}
-                onChange={(e) => setDriver(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="vehicle">Pojazd</Label>
-              <Input
-                id="vehicle"
-                placeholder="WB 12345"
-                value={vehicle}
-                onChange={(e) => setVehicle(e.target.value)}
-              />
-            </div>
           </div>
+
+          <FleetPicker
+            driver={driver}
+            vehicle={vehicle}
+            onDriver={setDriver}
+            onVehicle={setVehicle}
+          />
+
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
