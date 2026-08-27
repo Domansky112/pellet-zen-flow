@@ -339,3 +339,55 @@ export const confirmDraft = createServerFn({ method: "POST" })
 
     return { transport_id: transport.id as string, transport_no: transportNo, total_tons: totalTons };
   });
+
+/** Flota do wyboru przy zatwierdzaniu transportu (ciągniki + kierowcy). */
+export const listPlanningFleet = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const [{ data: vehicles }, { data: drivers }] = await Promise.all([
+      context.supabase
+        .from("fleet_vehicles")
+        .select("id, registration, brand, model, capacity_tons, status")
+        .order("registration"),
+      context.supabase
+        .from("fleet_drivers")
+        .select("id, first_name, last_name, phone, status")
+        .order("last_name"),
+    ]);
+    return {
+      vehicles: (vehicles ?? []).filter((v: any) => v.status !== "wycofany"),
+      drivers: (drivers ?? []).filter((d: any) => d.status !== "nieaktywny"),
+    };
+  });
+
+/** Sprawdza czy na dany dzień istnieją już transporty (globalnie / dla kierowcy / dla auta). */
+export const checkTransportConflicts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        scheduled_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        driver: z.string().max(120).nullable().optional(),
+        vehicle: z.string().max(120).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("transports")
+      .select("id, scheduled_date, city, destination_address, driver, vehicle, status, notes")
+      .eq("scheduled_date", data.scheduled_date)
+      .neq("status", "anulowany");
+    if (error) throw new Error(error.message);
+    const all = rows ?? [];
+    const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
+    return {
+      sameDay: all,
+      driverConflicts: data.driver
+        ? all.filter((t: any) => norm(t.driver) === norm(data.driver))
+        : [],
+      vehicleConflicts: data.vehicle
+        ? all.filter((t: any) => norm(t.vehicle) === norm(data.vehicle))
+        : [],
+    };
+  });
