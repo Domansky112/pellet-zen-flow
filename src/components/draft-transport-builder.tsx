@@ -23,10 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileStack, Loader2, Plus, Route as RouteIcon, Trash2, Truck, X } from "lucide-react";
+import { AlertTriangle, FileStack, Loader2, Plus, Route as RouteIcon, Trash2, Truck, X } from "lucide-react";
 import {
   addLeadToDraft,
+  checkTransportConflicts,
   confirmDraft,
+  listPlanningFleet,
   createDraft,
   deleteDraft,
   listDraftCandidates,
@@ -36,6 +38,10 @@ import {
   updateDraft,
 } from "@/lib/drafts.functions";
 import { VEHICLE_CLASSES } from "@/lib/vehicle-classes";
+
+const NONE = "__none__";
+const vehicleLabel = (v: any) =>
+  [v.registration, [v.brand, v.model].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
 
 const PRODUCT_LABEL: Record<string, string> = {
   pellet_paleta: "Palety",
@@ -54,6 +60,8 @@ export function DraftTransportBuilder() {
   const removeFn = useServerFn(removeLeadFromDraft);
   const recalcFn = useServerFn(recalcDraftRoute);
   const confirmFn = useServerFn(confirmDraft);
+  const fleetFn = useServerFn(listPlanningFleet);
+  const conflictFn = useServerFn(checkTransportConflicts);
 
   const drafts = useQuery({ queryKey: ["transport-drafts"], queryFn: () => listFn() });
   const candidates = useQuery({
@@ -68,7 +76,15 @@ export function DraftTransportBuilder() {
   const [confirmFor, setConfirmFor] = useState<string | null>(null);
   const [date, setDate] = useState("");
   const [deliveryWindow, setDeliveryWindow] = useState("");
-  const [driver, setDriver] = useState("");
+  const [driver, setDriver] = useState(NONE);
+  const [vehicle, setVehicle] = useState(NONE);
+  const [conflicts, setConflicts] = useState<any | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const fleet = useQuery({
+    queryKey: ["planning-fleet"],
+    queryFn: () => fleetFn(),
+  });
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["transport-drafts"] });
@@ -157,7 +173,8 @@ export function DraftTransportBuilder() {
           draft_id: id,
           scheduled_date: date,
           delivery_window: deliveryWindow || null,
-          driver: driver || null,
+          driver: driver !== NONE ? driver : null,
+          vehicle: vehicle !== NONE ? vehicle : null,
         },
       }),
     onSuccess: (r: any) => {
@@ -165,11 +182,39 @@ export function DraftTransportBuilder() {
       setConfirmFor(null);
       setDate("");
       setDeliveryWindow("");
-      setDriver("");
+      setDriver(NONE);
+      setVehicle(NONE);
+      setConflicts(null);
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  async function handleConfirmClick(id: string) {
+    if (conflicts) {
+      confirm.mutate(id);
+      return;
+    }
+    setChecking(true);
+    try {
+      const res: any = await conflictFn({
+        data: {
+          scheduled_date: date,
+          driver: driver !== NONE ? driver : null,
+          vehicle: vehicle !== NONE ? vehicle : null,
+        },
+      });
+      if (res?.sameDay?.length > 0) {
+        setConflicts(res);
+        return;
+      }
+    } catch {
+      /* brak blokady gdy sprawdzenie się nie powiedzie */
+    } finally {
+      setChecking(false);
+    }
+    confirm.mutate(id);
+  }
 
   const openDrafts = (drafts.data ?? []).filter((d: any) => d.status === "draft");
   const active = useMemo(
