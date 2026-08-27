@@ -501,14 +501,50 @@ export function DraftTransportBuilder() {
       </Dialog>
 
       {/* Confirm dialog */}
-      <Dialog open={!!confirmFor} onOpenChange={(o) => !o && setConfirmFor(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!confirmFor}
+        onOpenChange={(o) => {
+          if (!o) {
+            setConfirmFor(null);
+            setConflicts(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Zatwierdź i utwórz transport</DialogTitle>
             <DialogDescription>
               Transport trafi do Kalendarza, leady zostaną przypisane i zarezerwowane w magazynie.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Podsumowanie: kiedy, co i jak */}
+          {active && (
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{active.name}</span>
+                <Badge variant="secondary">
+                  {loaded.toFixed(1)} t / {capacity} t
+                </Badge>
+              </div>
+              <div className="text-muted-foreground">
+                {items.length} przystanek(ów)
+                {active.route_km
+                  ? ` · ${active.route_km} km · ok. ${Math.round((active.route_minutes ?? 0) / 60)}h ${(active.route_minutes ?? 0) % 60}m · ${Math.round(Number(active.route_cost ?? 0))} zł`
+                  : " · trasa nieprzeliczona"}
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {items.map((it: any, idx: number) => (
+                  <li key={it.id} className="text-muted-foreground">
+                    {idx + 1}. {it.leads?.lead_number ? `${it.leads.lead_number} · ` : ""}
+                    {it.leads?.name} — {Number(it.tons).toFixed(1)} t
+                    {it.leads?.city ? ` · ${it.leads.city}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="draft-date">Data dostawy</Label>
@@ -516,7 +552,10 @@ export function DraftTransportBuilder() {
                 id="draft-date"
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setConflicts(null);
+                }}
               />
             </div>
             <div className="space-y-1.5">
@@ -528,22 +567,95 @@ export function DraftTransportBuilder() {
                 placeholder="np. 8:00–12:00"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="draft-driver">Kierowca (opcjonalnie)</Label>
-              <Input
-                id="draft-driver"
-                value={driver}
-                onChange={(e) => setDriver(e.target.value)}
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Ciągnik / pojazd</Label>
+                <Select
+                  value={vehicle}
+                  onValueChange={(v) => {
+                    setVehicle(v);
+                    setConflicts(null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Bez wyboru" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Bez wyboru</SelectItem>
+                    {(fleet.data?.vehicles ?? []).map((v: any) => (
+                      <SelectItem key={v.id} value={vehicleLabel(v)}>
+                        {vehicleLabel(v)}
+                        {v.status !== "aktywny" ? ` (${v.status})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Kierowca</Label>
+                <Select
+                  value={driver}
+                  onValueChange={(v) => {
+                    setDriver(v);
+                    setConflicts(null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Bez wyboru" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Bez wyboru</SelectItem>
+                    {(fleet.data?.drivers ?? []).map((d: any) => (
+                      <SelectItem key={d.id} value={`${d.first_name} ${d.last_name}`}>
+                        {d.first_name} {d.last_name}
+                        {d.status !== "aktywny" ? ` (${d.status})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {conflicts && conflicts.sameDay.length > 0 && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm space-y-1.5">
+                <div className="font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  Na ten dzień są już zaplanowane transporty
+                </div>
+                <ul className="space-y-0.5 text-muted-foreground">
+                  {conflicts.sameDay.map((t: any) => (
+                    <li key={t.id}>
+                      • {t.city ?? "—"}
+                      {t.driver ? ` · kierowca: ${t.driver}` : " · bez kierowcy"}
+                      {t.vehicle ? ` · auto: ${t.vehicle}` : ""}
+                    </li>
+                  ))}
+                </ul>
+                {(conflicts.driverConflicts.length > 0 || conflicts.vehicleConflicts.length > 0) && (
+                  <p className="font-medium text-destructive">
+                    Wybrany {conflicts.driverConflicts.length > 0 ? "kierowca" : "pojazd"} ma już
+                    kurs tego dnia — czy zdąży wrócić i wyrobić się z kolejną trasą?
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  Kliknij ponownie „Zatwierdź transport”, aby potwierdzić mimo to.
+                </p>
+              </div>
+            )}
           </div>
+
           <DialogFooter>
             <Button
-              disabled={!date || confirm.isPending}
-              onClick={() => confirmFor && confirm.mutate(confirmFor)}
+              variant={conflicts && conflicts.sameDay.length > 0 ? "destructive" : "default"}
+              disabled={!date || confirm.isPending || checking}
+              onClick={() => confirmFor && handleConfirmClick(confirmFor)}
             >
-              {confirm.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Zatwierdź transport
+              {(confirm.isPending || checking) && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {conflicts && conflicts.sameDay.length > 0
+                ? "Tak, zatwierdź mimo to"
+                : "Zatwierdź transport"}
             </Button>
           </DialogFooter>
         </DialogContent>
