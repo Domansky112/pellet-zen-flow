@@ -117,8 +117,8 @@ function buildItem(product: string, quantityTons: number): WzItem {
   const pieces = kgPer ? Math.ceil(totalKg / kgPer) : null;
   const unit = product === "pellet_bigbag" ? "big-bag" : product === "pellet_paleta" ? "paleta" : "t";
   const description = pieces
-    ? `${pieces}× ${unit === "big-bag" ? "Big Bag" : "Paleta"} ${kgPer} kg — Pellet (${quantityTons} t)`
-    : `${quantityTons} t — ${label}`;
+    ? `${unit === "big-bag" ? "Big Bag" : "Paleta"} ${kgPer} kg — Pellet`
+    : label;
   return {
     product,
     productLabel: label,
@@ -132,6 +132,19 @@ function buildItem(product: string, quantityTons: number): WzItem {
 // ─────────────────────────────────────────────────────────────
 // Agregatory danych
 // ─────────────────────────────────────────────────────────────
+
+async function readIssuerAddress(supabase: any): Promise<string> {
+  const { data } = await supabase
+    .from("warehouses")
+    .select("name, address_line, postal_code, city, country, is_default")
+    .order("is_default", { ascending: false })
+    .limit(1);
+  const w = (data ?? [])[0];
+  if (!w) return "Witoroża, 21-570 Drelów";
+  return [w.address_line, [w.postal_code, w.city].filter(Boolean).join(" "), w.country]
+    .filter(Boolean)
+    .join(", ");
+}
 
 async function prepareFromTransport(
   supabase: any,
@@ -170,6 +183,7 @@ async function prepareFromTransport(
       (r, idx, arr) => arr.findIndex((x) => x.name === r.name && x.address === r.address) === idx,
     );
 
+  const issuerAddress = await readIssuerAddress(supabase);
   const now = new Date();
   return {
     number: makeWzNumber(t.id, now),
@@ -179,7 +193,7 @@ async function prepareFromTransport(
     sourceId: t.id,
     issuer: {
       name: "Słoneczny Pellet",
-      address: "Witoroża 21-570",
+      address: issuerAddress,
       nip: null,
     },
     carrier: {
@@ -250,6 +264,7 @@ async function prepareFromPool(
   }
   const items = Array.from(byProduct.entries()).map(([prod, tons]) => buildItem(prod, tons));
 
+  const issuerAddress = await readIssuerAddress(supabase);
   const now = new Date();
   return {
     number: makeWzNumber(p.id, now),
@@ -259,7 +274,7 @@ async function prepareFromPool(
     sourceId: p.id,
     issuer: {
       name: "Słoneczny Pellet",
-      address: "Witoroża 21-570",
+      address: issuerAddress,
       nip: null,
     },
     carrier: {
@@ -296,18 +311,15 @@ export type WzFile = {
   content: string;
 };
 
-const LOADING_PLACE = "Magazyn Słoneczny Pellet, Witoroża, 21-570 Drelów";
-
 export function generateWzFile(data: WzDocumentData): WzFile {
   const rows = data.items
     .map((i, idx) => {
-      const qty = i.pieces ? `${i.pieces}` : i.quantityTons.toFixed(3);
       const unit = i.pieces ? (i.unit === "big-bag" ? "big-bag" : "paleta") : "t";
       return `
         <tr>
           <td class="center">${idx + 1}</td>
           <td>${escapeHtml(i.productLabel)}</td>
-          <td class="right">${qty}</td>
+          <td class="right fill"></td>
           <td class="center">${unit}</td>
           <td>${escapeHtml(i.description)}</td>
         </tr>`;
@@ -367,6 +379,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   .sig strong { display: block; color: #111; font-size: 11px; margin-bottom: 20px; }
   .place-row + .place-row { margin-top: 4px; padding-top: 4px; border-top: 1px dashed #bbb; }
   .muted { color: #666; font-size: 10px; }
+  table.items td.fill { border-bottom: 1px solid #333; min-width: 70px; height: 22px; }
   .print-btn { position: fixed; top: 12px; right: 12px; padding: 8px 14px; background: #e5661b; color: #fff; border: 0; border-radius: 4px; cursor: pointer; font-weight: 600; }
   @media print { .print-btn { display: none; } }
 </style></head><body>
@@ -405,7 +418,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   <table class="doc places">
     <thead><tr><th>Miejsce załadunku</th><th>Miejsce(a) rozładunku</th></tr></thead>
     <tbody><tr>
-      <td>${escapeHtml(LOADING_PLACE)}</td>
+      <td>${escapeHtml(`Magazyn ${data.issuer.name}, ${data.issuer.address}`)}</td>
       <td>${unloading || "<em>—</em>"}</td>
     </tr></tbody>
   </table>
@@ -420,10 +433,10 @@ export function generateWzFile(data: WzDocumentData): WzFile {
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot><tr>
-      <td colspan="2" class="right"><strong>RAZEM</strong></td>
-      <td class="right"><strong>${data.totals.pieces || data.totals.tons.toFixed(3)}</strong></td>
-      <td class="center"><strong>${data.totals.pieces ? "szt." : "t"}</strong></td>
-      <td>${data.totals.pieces ? `${data.totals.tons.toFixed(3)} t łącznie` : ""}</td>
+      <td colspan="2" class="right"><strong>RAZEM (wpisuje kierowca)</strong></td>
+      <td class="right fill"></td>
+      <td class="center"><strong>t</strong></td>
+      <td class="muted">Ilość i tonaż uzupełnia kierowca przy załadunku</td>
     </tr></tfoot>
   </table>
 
