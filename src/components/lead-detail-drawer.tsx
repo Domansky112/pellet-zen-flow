@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus } from "lucide-react";
+import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus, Wallet } from "lucide-react";
 import { scheduleTransportForLead } from "@/lib/transport-crud.functions";
 import {
   Dialog,
@@ -27,6 +27,7 @@ import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe } from "@/lib/leads.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
+import { updateLeadPayment } from "@/lib/payments.functions";
 import { listLeadStatuses, setLeadStatusKey } from "@/lib/lead-statuses.functions";
 import { useIsAdmin } from "@/hooks/use-is-admin";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -223,7 +224,7 @@ export function LeadDetailDrawer({
         },
       }),
 
-    onSuccess: async () => {
+    onSuccess: async (res: any) => {
       setSettleOpen(false);
       setPendingStatusKey(null);
 
@@ -233,6 +234,11 @@ export function LeadDetailDrawer({
       qc.invalidateQueries({ queryKey: ["payments-delivered-no-transport"] });
       qc.invalidateQueries({ queryKey: ["payments-summary"] });
       qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      if (res?.already_settled) {
+        toast.info("Lead był już rozliczony — kwota i status płatności pozostały bez zmian");
+        if (settleMode === "wydanie") onOpenChange(false);
+        return;
+      }
       if (settleMode === "wydanie") {
         onOpenChange(false);
         toast.success("Wydano z magazynu — rozliczenie zapisane");
@@ -240,10 +246,32 @@ export function LeadDetailDrawer({
         toast.success("Lead oznaczony jako Zrealizowany — rozliczenie zapisane");
       }
     },
+
     onError: (e: Error) => {
       console.error(`[settlement] Payment sync failed for Lead ${lead?.id ?? "?"}:`, e);
       toast.error(e.message || "Nie udało się zapisać rozliczenia");
     },
+  });
+
+  const updatePaymentFn = useServerFn(updateLeadPayment);
+  const confirmPaidM = useMutation({
+    mutationFn: () =>
+      updatePaymentFn({
+        data: {
+          leadId: lead!.id,
+          payment_status:
+            (lead as any)?.payment_method === "przelew" ? "oplacone_przelew" : "oplacone_gotowka",
+        },
+      }),
+    onSuccess: () => {
+      invalidateLeads();
+      qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["payments-summary"] });
+      qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      toast.success("Wpłata potwierdzona");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const releaseM = useMutation({
@@ -628,14 +656,17 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
-                  // Intercept "wygrany" (Zrealizowany) — ALWAYS open settlement dialog,
-                  // even if the lead was already marked as realized (payment could be missing).
-                  if (v === "wygrany") {
+                  // Intercept "wygrany" (Zrealizowany) — otwieramy modal rozliczenia
+                  // TYLKO gdy lead nie ma jeszcze wpisanej kwoty. Gdy kwota już jest,
+                  // status zmienia się bez dotykania płatności (żeby nie cofać
+                  // „opłacone” do „czeka na przelew” i nie dublować pozycji w Płatnościach).
+                  if (v === "wygrany" && !(lead as any).payment_amount_gross) {
                     setSettleMode("status");
                     setPendingStatusKey(v);
                     setSettleOpen(true);
                     return;
                   }
+
                   try {
                     await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
@@ -747,6 +778,20 @@ export function LeadDetailDrawer({
                       defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
                     />
                   )}
+                  {!!(lead as any).payment_amount_gross
+                    && ["czeka_przelew", "nieoplacone", "zaliczka"].includes(String((lead as any).payment_status ?? "")) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => confirmPaidM.mutate()}
+                      disabled={confirmPaidM.isPending}
+                      title="Oznacz wpłatę jako otrzymaną — kwota pozostaje bez zmian"
+                    >
+                      {confirmPaidM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wallet className="h-4 w-4 mr-2" />}
+                      Potwierdź wpłatę
+                    </Button>
+                  )}
+
                   <Button size="sm" variant="outline"
                     onClick={() => setScheduleOpen(true)}
                     disabled={!lead.product || !lead.quantity}
