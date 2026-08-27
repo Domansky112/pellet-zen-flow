@@ -1023,7 +1023,15 @@ export function LeadDetailDrawer({
                       onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                     />
                   </div>
+                  <div className="sm:col-span-2">
+                    <LeadBatchesPanel
+                      leadId={lead.id}
+                      leadNumber={lead.lead_number ?? null}
+                      quantity={lead.quantity ?? null}
+                    />
+                  </div>
                 </div>
+
 
                 {validation.productMissing && (
                   <div className="text-xs rounded-md border px-3 py-2 border-destructive/40 bg-destructive/10 text-destructive">
