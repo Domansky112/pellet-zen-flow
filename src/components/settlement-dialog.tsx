@@ -74,6 +74,7 @@ export function SettlementDialog({
   const [deliveredAt, setDeliveredAt] = useState<string>(todayIso());
   const [salesVat, setSalesVat] = useState<string>("8");
   const [transportCost, setTransportCost] = useState<string>("");
+  const [selfPickup, setSelfPickup] = useState<boolean>(false);
   const [transportVat, setTransportVat] = useState<string>("23");
   const [suggesting, setSuggesting] = useState(false);
   const [suggestInfo, setSuggestInfo] = useState<string | null>(null);
@@ -91,6 +92,7 @@ export function SettlementDialog({
       setTransportCost(
         defaultTransportCost != null && Number.isFinite(defaultTransportCost) ? String(defaultTransportCost) : "",
       );
+      setSelfPickup(false);
       setSuggestInfo(null);
       setError(null);
     }
