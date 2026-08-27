@@ -634,14 +634,17 @@ export function LeadDetailDrawer({
               <Select
                 value={(lead.status_key ?? lead.status ?? "nowy") as string}
                 onValueChange={async (v) => {
-                  // Intercept "wygrany" (Zrealizowany) — ALWAYS open settlement dialog,
-                  // even if the lead was already marked as realized (payment could be missing).
-                  if (v === "wygrany") {
+                  // Intercept "wygrany" (Zrealizowany) — otwieramy modal rozliczenia
+                  // TYLKO gdy lead nie ma jeszcze wpisanej kwoty. Gdy kwota już jest,
+                  // status zmienia się bez dotykania płatności (żeby nie cofać
+                  // „opłacone” do „czeka na przelew” i nie dublować pozycji w Płatnościach).
+                  if (v === "wygrany" && !(lead as any).payment_amount_gross) {
                     setSettleMode("status");
                     setPendingStatusKey(v);
                     setSettleOpen(true);
                     return;
                   }
+
                   try {
                     await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
