@@ -642,6 +642,63 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_batches: {
+        Row: {
+          batch_no: number
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          status: string
+          tons: number
+          transport_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_no: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          status?: string
+          tons: number
+          transport_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_no?: number
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          status?: string
+          tons?: number
+          transport_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_batches_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_batches_transport_id_fkey"
+            columns: ["transport_id"]
+            isOneToOne: false
+            referencedRelation: "transports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_notes: {
         Row: {
           author_id: string | null
@@ -1247,6 +1304,7 @@ export type Database = {
       }
       transport_draft_items: {
         Row: {
+          batch_id: string | null
           created_at: string
           draft_id: string
           id: string
@@ -1255,6 +1313,7 @@ export type Database = {
           tons: number
         }
         Insert: {
+          batch_id?: string | null
           created_at?: string
           draft_id: string
           id?: string
@@ -1263,6 +1322,7 @@ export type Database = {
           tons?: number
         }
         Update: {
+          batch_id?: string | null
           created_at?: string
           draft_id?: string
           id?: string
@@ -1271,6 +1331,13 @@ export type Database = {
           tons?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "transport_draft_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "lead_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transport_draft_items_draft_id_fkey"
             columns: ["draft_id"]
@@ -1355,6 +1422,7 @@ export type Database = {
       transport_items: {
         Row: {
           address: string | null
+          batch_id: string | null
           created_at: string
           id: string
           lead_id: string | null
@@ -1364,6 +1432,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          batch_id?: string | null
           created_at?: string
           id?: string
           lead_id?: string | null
@@ -1373,6 +1442,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          batch_id?: string | null
           created_at?: string
           id?: string
           lead_id?: string | null
@@ -1381,6 +1451,13 @@ export type Database = {
           transport_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transport_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "lead_batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transport_items_lead_id_fkey"
             columns: ["lead_id"]
