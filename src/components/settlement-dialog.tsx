@@ -136,7 +136,7 @@ export function SettlementDialog({
       setError("Podaj poprawną kwotę (liczba ≥ 0).");
       return;
     }
-    const tc = transportCost.trim() === "" ? 0 : parseNum(transportCost);
+    const tc = selfPickup ? 0 : transportCost.trim() === "" ? 0 : parseNum(transportCost);
     if (!Number.isFinite(tc) || tc < 0) {
       setError("Podaj poprawny koszt transportu (liczba ≥ 0).");
       return;
@@ -219,6 +219,31 @@ export function SettlementDialog({
             </div>
           </div>
 
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="self-pickup" className="text-sm font-medium">
+                Odbiór własny klienta
+              </Label>
+              <p className="text-[11px] text-muted-foreground">
+                Klient sam przyjechał po towar — brak kosztu transportu.
+              </p>
+            </div>
+            <Switch
+              id="self-pickup"
+              checked={selfPickup}
+              onCheckedChange={(v) => {
+                setSelfPickup(v);
+                if (v) {
+                  setTransportCost("0");
+                  setSuggestInfo("Odbiór własny — koszt transportu 0 zł.");
+                } else {
+                  setTransportCost("");
+                  setSuggestInfo(null);
+                }
+              }}
+            />
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="settlement-transport">Koszt transportu (Brutto) [PLN]</Label>
             <Input
@@ -226,13 +251,16 @@ export function SettlementDialog({
               type="text"
               inputMode="decimal"
               placeholder="0,00"
-              value={transportCost}
+              value={selfPickup ? "0" : transportCost}
+              disabled={selfPickup}
               onChange={(e) => setTransportCost(e.target.value)}
             />
             <p className="text-[11px] text-muted-foreground">
-              {suggesting
-                ? "Liczę propozycję na podstawie kodu pocztowego…"
-                : suggestInfo ?? "Propozycja wyliczona z odległości — możesz ją dowolnie zmienić."}
+              {selfPickup
+                ? "Odbiór własny — koszt transportu 0 zł."
+                : suggesting
+                  ? "Liczę propozycję na podstawie kodu pocztowego…"
+                  : suggestInfo ?? "Propozycja wyliczona z odległości — możesz ją dowolnie zmienić."}
             </p>
           </div>
 
