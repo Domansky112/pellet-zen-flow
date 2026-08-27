@@ -223,7 +223,7 @@ export function LeadDetailDrawer({
         },
       }),
 
-    onSuccess: async () => {
+    onSuccess: async (res: any) => {
       setSettleOpen(false);
       setPendingStatusKey(null);
 
@@ -233,6 +233,11 @@ export function LeadDetailDrawer({
       qc.invalidateQueries({ queryKey: ["payments-delivered-no-transport"] });
       qc.invalidateQueries({ queryKey: ["payments-summary"] });
       qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      if (res?.already_settled) {
+        toast.info("Lead był już rozliczony — kwota i status płatności pozostały bez zmian");
+        if (settleMode === "wydanie") onOpenChange(false);
+        return;
+      }
       if (settleMode === "wydanie") {
         onOpenChange(false);
         toast.success("Wydano z magazynu — rozliczenie zapisane");
@@ -240,6 +245,7 @@ export function LeadDetailDrawer({
         toast.success("Lead oznaczony jako Zrealizowany — rozliczenie zapisane");
       }
     },
+
     onError: (e: Error) => {
       console.error(`[settlement] Payment sync failed for Lead ${lead?.id ?? "?"}:`, e);
       toast.error(e.message || "Nie udało się zapisać rozliczenia");
