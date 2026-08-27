@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { pl } from "date-fns/locale";
+import { ConflictWarning, FleetPicker, NONE, useConflictGuard } from "@/components/fleet-conflict-picker";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -338,8 +339,8 @@ function NewTransportDialog() {
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [destination, setDestination] = useState("");
-  const [driver, setDriver] = useState("");
-  const [vehicle, setVehicle] = useState("");
+  const [driver, setDriver] = useState(NONE);
+  const [vehicle, setVehicle] = useState(NONE);
   const [product, setProduct] = useState<"pellet_paleta" | "pellet_bigbag" | "inne">(
     "pellet_bigbag",
   );
@@ -366,8 +367,8 @@ function NewTransportDialog() {
           city,
           postal_code: postalCode || null,
           destination_address: destination,
-          driver: driver || null,
-          vehicle: vehicle || null,
+          driver: driver !== NONE ? driver : null,
+          vehicle: vehicle !== NONE ? vehicle : null,
           notes: notes || null,
           product,
           quantity,
@@ -385,8 +386,8 @@ function NewTransportDialog() {
       setCity("");
       setPostalCode("");
       setDestination("");
-      setDriver("");
-      setVehicle("");
+      setDriver(NONE);
+      setVehicle(NONE);
       setQuantity(20);
       setLeadId("none");
       setNotes("");
@@ -394,8 +395,10 @@ function NewTransportDialog() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const { conflicts, checking, guard } = useConflictGuard(scheduledDate, driver, vehicle);
+
   const canSubmit =
-    scheduledDate && city && destination && quantity > 0 && !create.isPending;
+    scheduledDate && city && destination && quantity > 0 && !create.isPending && !checking;
 
   const onLeadChange = (value: string) => {
     setLeadId(value);
@@ -552,13 +555,19 @@ function NewTransportDialog() {
           </div>
         </div>
 
+        <div className="px-1"><ConflictWarning conflicts={conflicts} /></div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
             Anuluj
           </Button>
-          <Button disabled={!canSubmit} onClick={() => create.mutate()}>
-            {create.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Utwórz transport
+          <Button
+            variant={conflicts ? "destructive" : "default"}
+            disabled={!canSubmit}
+            onClick={() => guard(() => create.mutate())}
+          >
+            {(create.isPending || checking) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {conflicts ? "Tak, zatwierdź mimo to" : "Utwórz transport"}
           </Button>
         </DialogFooter>
       </DialogContent>
