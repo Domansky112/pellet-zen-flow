@@ -756,6 +756,20 @@ export function LeadDetailDrawer({
                       defaultTransportVatRate={(lead as any).transport_vat_rate ?? 23}
                     />
                   )}
+                  {!!(lead as any).payment_amount_gross
+                    && ["czeka_przelew", "nieoplacone", "zaliczka"].includes(String((lead as any).payment_status ?? "")) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => confirmPaidM.mutate()}
+                      disabled={confirmPaidM.isPending}
+                      title="Oznacz wpłatę jako otrzymaną — kwota pozostaje bez zmian"
+                    >
+                      {confirmPaidM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wallet className="h-4 w-4 mr-2" />}
+                      Potwierdź wpłatę
+                    </Button>
+                  )}
+
                   <Button size="sm" variant="outline"
                     onClick={() => setScheduleOpen(true)}
                     disabled={!lead.product || !lead.quantity}
