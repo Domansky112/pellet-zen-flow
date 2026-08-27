@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus, Wallet } from "lucide-react";
+import { ConflictWarning, FleetPicker, NONE, useConflictGuard } from "@/components/fleet-conflict-picker";
 import { scheduleTransportForLead } from "@/lib/transport-crud.functions";
 import {
   Dialog,
@@ -383,16 +384,23 @@ export function LeadDetailDrawer({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [schedDate, setSchedDate] = useState("");
   const [schedAddress, setSchedAddress] = useState("");
-  const [schedDriver, setSchedDriver] = useState("");
+  const [schedDriver, setSchedDriver] = useState(NONE);
+  const [schedVehicle, setSchedVehicle] = useState(NONE);
   const [schedNotes, setSchedNotes] = useState("");
   useEffect(() => {
     if (scheduleOpen && lead) {
       setSchedAddress(lead.invoice_address ?? [lead.postal_code, lead.city].filter(Boolean).join(" ") ?? "");
-      setSchedDriver("");
+      setSchedDriver(NONE);
+      setSchedVehicle(NONE);
       setSchedNotes("");
       setSchedDate("");
     }
   }, [scheduleOpen, lead]);
+  const {
+    conflicts: schedConflicts,
+    checking: schedChecking,
+    guard: schedGuard,
+  } = useConflictGuard(schedDate, schedDriver, schedVehicle);
   const scheduleM = useMutation({
     mutationFn: () =>
       scheduleFn({
@@ -400,7 +408,8 @@ export function LeadDetailDrawer({
           lead_id: lead!.id,
           scheduled_date: schedDate,
           destination_address: schedAddress || null,
-          driver: schedDriver || null,
+          driver: schedDriver !== NONE ? schedDriver : null,
+          vehicle: schedVehicle !== NONE ? schedVehicle : null,
           notes: schedNotes || null,
         },
       }),
