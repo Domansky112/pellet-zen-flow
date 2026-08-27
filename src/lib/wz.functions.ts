@@ -443,7 +443,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   </div>
 
   <div class="signatures">
-    <div class="sig"><strong>&nbsp;</strong>Sporządził / Wydał<br/>${escapeHtml(data.signatures.issuedBy)}</div>
+    <div class="sig"><strong>&nbsp;</strong>Sporządził / Wydał<br/>…………………………</div>
     <div class="sig"><strong>&nbsp;</strong>Przewoźnik / Kierowca<br/>${escapeHtml(data.carrier.driver ?? "…………………………")}</div>
     <div class="sig"><strong>&nbsp;</strong>Odebrał / Odbiorca<br/>${escapeHtml(data.signatures.receivedBy || "…………………………")}</div>
   </div>
