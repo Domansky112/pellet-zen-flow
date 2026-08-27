@@ -187,7 +187,7 @@ export function DraftTransportBuilder() {
   const usedLeadIds = new Set(items.filter((i: any) => !i.batch_id).map((i: any) => i.lead_id));
 
   // Poczekalnia: lead z partiami rozbija się na osobne pozycje (np. #1080/1, #1080/2).
-  const available = (candidates.data ?? []).flatMap((l: any) => {
+  const available = (candidates.data ?? []).flatMap((l: any): any[] => {
     const batches = ((l.lead_batches ?? []) as any[]).filter(
       (b) => !b.transport_id && b.status !== "zrealizowana" && b.status !== "anulowana",
     );
