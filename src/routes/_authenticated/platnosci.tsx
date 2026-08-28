@@ -362,7 +362,33 @@ function UpcomingTab() {
   const upcomingFn = useServerFn(listUpcomingPayments);
   const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => upcomingFn() });
 
-  const rows = extractLeads(q.data ?? []);
+  const [sort, setSort] = useState<"date_asc" | "date_desc" | "value_desc" | "value_asc">("date_asc");
+  const [search, setSearch] = useState("");
+
+  const allRows = useMemo(() => extractLeads(q.data ?? []), [q.data]);
+
+  const rows = useMemo(() => {
+    let r = allRows;
+    const s = search.trim().toLowerCase();
+    if (s) {
+      r = r.filter(({ transport, leads }) => {
+        const hay = [
+          transport.city, transport.destination_address, transport.driver, transport.vehicle,
+          ...leads.flatMap((l: any) => [l.lead_number, l.name, l.first_name, l.last_name, l.invoice_company, l.city, l.phone]),
+        ].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(s);
+      });
+    }
+    const gross = ({ leads }: any) => leads.reduce((acc: number, l: any) => acc + Number(l.payment_amount_gross ?? 0), 0);
+    return [...r].sort((a, b) => {
+      switch (sort) {
+        case "date_desc": return String(b.transport.scheduled_date ?? "").localeCompare(String(a.transport.scheduled_date ?? ""));
+        case "value_desc": return gross(b) - gross(a);
+        case "value_asc": return gross(a) - gross(b);
+        default: return String(a.transport.scheduled_date ?? "").localeCompare(String(b.transport.scheduled_date ?? ""));
+      }
+    });
+  }, [allRows, sort, search]);
 
   const totals = useMemo(() => {
     let expected = 0, cash = 0, transfer = 0;
@@ -382,6 +408,27 @@ function UpcomingTab() {
         <StatCard title="Do pobrania u kierowcy" value={fmtPLN(totals.cash)} tone="emerald" />
         <StatCard title="Do przelewu" value={fmtPLN(totals.transfer)} tone="amber" />
       </div>
+
+      <Card>
+        <CardContent className="p-3 flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="flex-1 space-y-1">
+            <Label htmlFor="up-search">Szukaj (klient, miasto, kierowca, nr leada)</Label>
+            <Input id="up-search" placeholder="np. Karczew, STOFARM, #1033…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="w-full sm:w-56 space-y-1">
+            <Label>Sortuj</Label>
+            <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date_asc">Data: najbliższe najpierw</SelectItem>
+                <SelectItem value="date_desc">Data: najpóźniejsze najpierw</SelectItem>
+                <SelectItem value="value_desc">Kwota: malejąco</SelectItem>
+                <SelectItem value="value_asc">Kwota: rosnąco</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {q.isLoading && <div className="text-sm text-muted-foreground">Ładowanie…</div>}
       {rows.length === 0 && !q.isLoading && (
