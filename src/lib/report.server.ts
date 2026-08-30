@@ -228,8 +228,10 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   // ── WYNIKI ──
   const vatTotal = salesVat + transportVat;
   const incomeNet = income - vatTotal;
-  const totalCosts = manualCosts + cogs + transportCosts;
-  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet;
+  // Prowizje afiliacyjne traktujemy bez VAT (0%) — kwota netto = brutto.
+  const affiliateCostsNet = affiliateCosts;
+  const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;
+  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet;
   const grossProfit = income - totalCosts;
   const netProfit = incomeNet - totalCostsNet;
   const margin = incomeNet > 0 ? (netProfit / incomeNet) * 100 : 0;
