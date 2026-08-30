@@ -147,22 +147,24 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
 
   // ── KOSZTY DODATKOWE ──
   const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
-  const manualCosts = (expenses ?? [])
-    .filter((e: any) => !isCapex(e))
-    .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const isAffiliatePayout = (e: any) => settlementExpenseIds.has(e.id);
+  const opEx = (expenses ?? []).filter((e: any) => !isCapex(e) && !isAffiliatePayout(e));
+  const manualCosts = opEx.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const capexCosts = (expenses ?? [])
     .filter(isCapex)
     .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const manualCostsNet = (expenses ?? [])
-    .filter((e: any) => !isCapex(e))
-    .reduce(
-      (s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100),
-      0,
-    );
+  const manualCostsNet = opEx.reduce(
+    (s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100),
+    0,
+  );
   const costsByCategory = new Map<string, number>();
-  for (const e of (expenses ?? []).filter((x: any) => !isCapex(x))) {
+  for (const e of opEx) {
     costsByCategory.set(e.category, (costsByCategory.get(e.category) ?? 0) + Number(e.amount ?? 0));
   }
+  if (affiliateCosts > 0) {
+    costsByCategory.set("afiliacje", (costsByCategory.get("afiliacje") ?? 0) + affiliateCosts);
+  }
+
 
   // ── COGS (FIFO + fallback) ──
   const leadIds = (leads ?? []).map((l: any) => l.id);
