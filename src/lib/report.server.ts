@@ -305,6 +305,15 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       category,
       amount,
     })),
+    affiliates: (affRows ?? []).map((r: any) => ({
+      date: String(r.commission_date ?? "").slice(0, 10),
+      partner: anonymize ? "—" : (r.affiliate_partners?.full_name ?? "—"),
+      description: r.description ?? "—",
+      tons: Number(r.tons ?? 0),
+      ratePerTon: Number(r.rate_per_ton ?? 0),
+      amount: Number(r.amount ?? 0),
+      paid: r.status === "wyplacona",
+    })),
     rows,
   };
 }
