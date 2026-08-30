@@ -57,6 +57,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   biuro: "Biuro / administracja",
   marketing: "Marketing",
   podatki: "Podatki / opłaty",
+  afiliacje: "Prowizje afiliacyjne",
   inne: "Inne",
 };
 
