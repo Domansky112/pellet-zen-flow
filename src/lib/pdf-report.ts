@@ -260,6 +260,38 @@ export async function buildReportPdf(
       });
     }
 
+    if (data.affiliates?.length) {
+      sectionTitle("Prowizje afiliacyjne naliczone w okresie");
+      const affSum = data.affiliates.reduce(
+        (a: any, r: any) => ({ tons: a.tons + (r.tons ?? 0), amount: a.amount + r.amount }),
+        { tons: 0, amount: 0 },
+      );
+      table({
+        head: [["Data naliczenia", "Partner", "Opis", "Tonaż", "Stawka / t", "Kwota", "Status"]],
+        body: [
+          ...data.affiliates.map((r: any) => [
+            dmy(r.date),
+            r.partner,
+            r.description,
+            r.tons ? tons(r.tons) : "—",
+            r.ratePerTon ? `${pln(r.ratePerTon)}/t` : "—",
+            pln(r.amount),
+            r.paid ? "Wypłacona" : "Do wypłaty",
+          ]),
+          [
+            { content: "SUMA", colSpan: 3, styles: { fontStyle: "bold" } },
+            { content: tons(affSum.tons), styles: { fontStyle: "bold" } },
+            "",
+            { content: pln(affSum.amount), styles: { fontStyle: "bold" } },
+            "",
+          ],
+        ],
+        columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+      });
+    }
+
+
+
     sectionTitle("Zrealizowane zlecenia w okresie");
     const sum = data.rows.reduce(
       (a: any, r: any) => ({
