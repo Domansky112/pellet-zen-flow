@@ -49,6 +49,30 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     .limit(2000);
   if (ee) throw new Error(ee.message);
 
+  // ── AFILIACJE (memoriałowo — wg daty naliczenia prowizji, nie daty wypłaty) ──
+  const { data: affRows, error: ae } = await supabase
+    .from("affiliate_commissions")
+    .select("id, amount, tons, rate_per_ton, commission_date, status, description, affiliate_partners(full_name)")
+    .gte("commission_date", from)
+    .lte("commission_date", to)
+    .order("commission_date", { ascending: false })
+    .limit(2000);
+  if (ae) throw new Error(ae.message);
+  const affiliateCosts = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const affiliateCostsPending = (affRows ?? [])
+    .filter((r: any) => r.status === "nierozliczona")
+    .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const affiliateTons = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.tons ?? 0), 0);
+
+  // Wypłaty prowizji tworzą wpis w kosztach — pomijamy, żeby nie liczyć podwójnie.
+  const { data: affSettlements } = await supabase
+    .from("affiliate_settlements")
+    .select("expense_id")
+    .not("expense_id", "is", null)
+    .limit(2000);
+  const settlementExpenseIds = new Set<string>((affSettlements ?? []).map((r: any) => r.expense_id));
+
+
 
   // ── USTAWIENIA (koszt jednostkowy / dane firmy) ──
   const { data: settings } = await supabase
