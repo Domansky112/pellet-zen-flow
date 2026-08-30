@@ -49,6 +49,30 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     .limit(2000);
   if (ee) throw new Error(ee.message);
 
+  // ── AFILIACJE (memoriałowo — wg daty naliczenia prowizji, nie daty wypłaty) ──
+  const { data: affRows, error: ae } = await supabase
+    .from("affiliate_commissions")
+    .select("id, amount, tons, rate_per_ton, commission_date, status, description, affiliate_partners(full_name)")
+    .gte("commission_date", from)
+    .lte("commission_date", to)
+    .order("commission_date", { ascending: false })
+    .limit(2000);
+  if (ae) throw new Error(ae.message);
+  const affiliateCosts = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const affiliateCostsPending = (affRows ?? [])
+    .filter((r: any) => r.status === "nierozliczona")
+    .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+  const affiliateTons = (affRows ?? []).reduce((s: number, r: any) => s + Number(r.tons ?? 0), 0);
+
+  // Wypłaty prowizji tworzą wpis w kosztach — pomijamy, żeby nie liczyć podwójnie.
+  const { data: affSettlements } = await supabase
+    .from("affiliate_settlements")
+    .select("expense_id")
+    .not("expense_id", "is", null)
+    .limit(2000);
+  const settlementExpenseIds = new Set<string>((affSettlements ?? []).map((r: any) => r.expense_id));
+
+
 
   // ── USTAWIENIA (koszt jednostkowy / dane firmy) ──
   const { data: settings } = await supabase
@@ -123,22 +147,24 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
 
   // ── KOSZTY DODATKOWE ──
   const isCapex = (e: any) => e.category === "zakup_srodka_trwalego";
-  const manualCosts = (expenses ?? [])
-    .filter((e: any) => !isCapex(e))
-    .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const isAffiliatePayout = (e: any) => settlementExpenseIds.has(e.id);
+  const opEx = (expenses ?? []).filter((e: any) => !isCapex(e) && !isAffiliatePayout(e));
+  const manualCosts = opEx.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const capexCosts = (expenses ?? [])
     .filter(isCapex)
     .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const manualCostsNet = (expenses ?? [])
-    .filter((e: any) => !isCapex(e))
-    .reduce(
-      (s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100),
-      0,
-    );
+  const manualCostsNet = opEx.reduce(
+    (s: number, e: any) => s + Number(e.amount ?? 0) / (1 + Number(e.vat_rate ?? 23) / 100),
+    0,
+  );
   const costsByCategory = new Map<string, number>();
-  for (const e of (expenses ?? []).filter((x: any) => !isCapex(x))) {
+  for (const e of opEx) {
     costsByCategory.set(e.category, (costsByCategory.get(e.category) ?? 0) + Number(e.amount ?? 0));
   }
+  if (affiliateCosts > 0) {
+    costsByCategory.set("afiliacje", (costsByCategory.get("afiliacje") ?? 0) + affiliateCosts);
+  }
+
 
   // ── COGS (FIFO + fallback) ──
   const leadIds = (leads ?? []).map((l: any) => l.id);
@@ -202,8 +228,10 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   // ── WYNIKI ──
   const vatTotal = salesVat + transportVat;
   const incomeNet = income - vatTotal;
-  const totalCosts = manualCosts + cogs + transportCosts;
-  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet;
+  // Prowizje afiliacyjne traktujemy bez VAT (0%) — kwota netto = brutto.
+  const affiliateCostsNet = affiliateCosts;
+  const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;
+  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet;
   const grossProfit = income - totalCosts;
   const netProfit = incomeNet - totalCostsNet;
   const margin = incomeNet > 0 ? (netProfit / incomeNet) * 100 : 0;
@@ -250,6 +278,10 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       manualCosts,
       manualCostsNet,
       capexCosts,
+      affiliateCosts,
+      affiliateCostsNet,
+      affiliateCostsPending,
+      affiliateTons,
       totalCosts,
       totalCostsNet,
       grossProfit,
@@ -272,6 +304,15 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     costsByCategory: Array.from(costsByCategory.entries()).map(([category, amount]) => ({
       category,
       amount,
+    })),
+    affiliates: (affRows ?? []).map((r: any) => ({
+      date: String(r.commission_date ?? "").slice(0, 10),
+      partner: anonymize ? "—" : (r.affiliate_partners?.full_name ?? "—"),
+      description: r.description ?? "—",
+      tons: Number(r.tons ?? 0),
+      ratePerTon: Number(r.rate_per_ton ?? 0),
+      amount: Number(r.amount ?? 0),
+      paid: r.status === "wyplacona",
     })),
     rows,
   };

@@ -57,6 +57,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   biuro: "Biuro / administracja",
   marketing: "Marketing",
   podatki: "Podatki / opłaty",
+  afiliacje: "Prowizje afiliacyjne",
   inne: "Inne",
 };
 
@@ -164,6 +165,13 @@ export async function buildReportPdf(
       ["Koszt surowca (COGS, FIFO)", pln(data.kpi.cogs), pln(data.kpi.cogsNet)],
       ["Koszty logistyki i transportu", pln(data.kpi.transportCosts), pln(data.kpi.transportCostsNet)],
       ["Koszty dodatkowe / eksploatacja / robocizna", pln(data.kpi.manualCosts), pln(data.kpi.manualCostsNet)],
+      [
+        `Prowizje afiliacyjne (naliczone${
+          data.kpi.affiliateCostsPending > 0 ? `, w tym niewypłacone ${pln(data.kpi.affiliateCostsPending)}` : ""
+        })`,
+        pln(data.kpi.affiliateCosts ?? 0),
+        pln(data.kpi.affiliateCostsNet ?? 0),
+      ],
       ["Koszty razem", pln(data.kpi.totalCosts), pln(data.kpi.totalCostsNet)],
       ["Zysk brutto", pln(data.kpi.grossProfit), "—"],
       [
@@ -252,6 +260,38 @@ export async function buildReportPdf(
         columnStyles: { 1: { halign: "right" } },
       });
     }
+
+    if (data.affiliates?.length) {
+      sectionTitle("Prowizje afiliacyjne naliczone w okresie");
+      const affSum = data.affiliates.reduce(
+        (a: any, r: any) => ({ tons: a.tons + (r.tons ?? 0), amount: a.amount + r.amount }),
+        { tons: 0, amount: 0 },
+      );
+      table({
+        head: [["Data naliczenia", "Partner", "Opis", "Tonaż", "Stawka / t", "Kwota", "Status"]],
+        body: [
+          ...data.affiliates.map((r: any) => [
+            dmy(r.date),
+            r.partner,
+            r.description,
+            r.tons ? tons(r.tons) : "—",
+            r.ratePerTon ? `${pln(r.ratePerTon)}/t` : "—",
+            pln(r.amount),
+            r.paid ? "Wypłacona" : "Do wypłaty",
+          ]),
+          [
+            { content: "SUMA", colSpan: 3, styles: { fontStyle: "bold" } },
+            { content: tons(affSum.tons), styles: { fontStyle: "bold" } },
+            "",
+            { content: pln(affSum.amount), styles: { fontStyle: "bold" } },
+            "",
+          ],
+        ],
+        columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+      });
+    }
+
+
 
     sectionTitle("Zrealizowane zlecenia w okresie");
     const sum = data.rows.reduce(
