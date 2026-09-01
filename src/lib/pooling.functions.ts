@@ -582,7 +582,9 @@ export const getPoolManifest = createServerFn({ method: "POST" })
       .slice()
       .sort((a, b) => (a.stop_order ?? 0) - (b.stop_order ?? 0))
       .map((i) => {
-        const l = i.leads;
+        const raw = i.leads as (typeof i.leads & { assigned_to?: string | null }) | null;
+        const owned = !scope.salesOnly || raw?.assigned_to === context.userId;
+        const l = raw ? (maskContact(raw as any, owned) as typeof raw) : null;
         const product = l?.product ?? "inne";
         const pieceKg = product === "pellet_paleta" ? 960 : product === "pellet_bigbag" ? 1000 : null;
         const tons = Number(i.tons);
@@ -597,6 +599,7 @@ export const getPoolManifest = createServerFn({ method: "POST" })
           email: l?.email ?? null,
           city: l?.city ?? null,
           postal_code: l?.postal_code ?? null,
+
           product,
           tons,
           pieces,
