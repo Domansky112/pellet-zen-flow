@@ -2,16 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { parseISO, parse } from "date-fns";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope } from "@/lib/scope";
 
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("leads")
       .select("*")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data;
   });
@@ -19,12 +23,15 @@ export const listLeads = createServerFn({ method: "GET" })
 export const listCancelledLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("leads")
       .select("*")
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
       .limit(200);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data;
   });
@@ -37,7 +44,9 @@ export const searchLeads = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase.rpc("search_leads_global", { _q: data.q });
     if (error) throw new Error(error.message);
-    return (rows ?? []) as any[];
+    const scope = await getUserScope(context.supabase, context.userId);
+    const list = (rows ?? []) as any[];
+    return scope.salesOnly ? list.filter((r) => r.assigned_to === context.userId) : list;
   });
 
 export const listReservedLeads = createServerFn({ method: "GET" })
@@ -46,16 +55,19 @@ export const listReservedLeads = createServerFn({ method: "GET" })
     z.object({ product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
     let q = context.supabase
       .from("leads")
       .select("*")
       .eq("reservation_status", "zarezerwowany")
       .is("deleted_at", null);
     if (data.product) q = q.eq("product", data.product);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
     const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
 
 const StatusInput = z.object({
   id: z.string().uuid(),
@@ -462,6 +474,7 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
     // A Lead belongs to Delivery History when it is marked "Zrealizowany"
     // (status_key = 'wygrany') OR when its warehouse reservation has been released
     // as "wydany". Both paths share a 1:1 relation with a delivery history entry.
+    const scope = await getUserScope(context.supabase, context.userId);
     let q = context.supabase
       .from("leads")
       .select("*")
@@ -469,6 +482,9 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
       .is("deleted_at", null)
       .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(500);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+
+
 
     if (data.from) q = q.gte("delivered_at", data.from);
     if (data.to) q = q.lte("delivered_at", data.to);
@@ -539,29 +555,40 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
 export const getDeliveryHistoryConsistency = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const realizedQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany");
+    const scope = await getUserScope(context.supabase, context.userId);
+    const own = <T extends { eq: (c: string, v: string) => T }>(q: T): T =>
+      scope.salesOnly ? q.eq("assigned_to", context.userId) : q;
+
+    const realizedQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany") as any,
+    );
     if (realizedQ.error) throw new Error(realizedQ.error.message);
 
-    const historyQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
-      .not("delivered_at", "is", null);
+    const historyQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
+        .not("delivered_at", "is", null) as any,
+    );
     if (historyQ.error) throw new Error(historyQ.error.message);
 
     // Missing = realized leads without a delivered_at stamp (would not show in history).
-    const missingQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .is("delivered_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany");
+    const missingQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .is("delivered_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany") as any,
+    );
     if (missingQ.error) throw new Error(missingQ.error.message);
+
 
     const realized = realizedQ.count ?? 0;
     const history = historyQ.count ?? 0;

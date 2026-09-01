@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope, maskContact } from "@/lib/scope";
+
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 const BASE_ADDRESS = "Witoroża, 21-570 Drelów, Polska";
@@ -110,13 +112,16 @@ export const listWaitlist = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at",
+        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at, assigned_to",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const scope = await getUserScope(context.supabase, context.userId);
+    if (!scope.salesOnly) return data ?? [];
+    return (data ?? []).map((l: any) => maskContact(l, l.assigned_to === context.userId));
+
   });
 
 // ---------- suggestions ----------
@@ -425,12 +430,23 @@ export const listPools = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng, assigned_to))",
       )
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const scope = await getUserScope(context.supabase, context.userId);
+    if (!scope.salesOnly) return data ?? [];
+    // Handlowiec: widzi obecność cudzych leadów w poolu, ale bez danych kontaktowych.
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      transport_pool_items: (p.transport_pool_items ?? []).map((it: any) =>
+        it.leads
+          ? { ...it, leads: maskContact(it.leads, it.leads.assigned_to === context.userId) }
+          : it,
+      ),
+    }));
+
   });
 
 // ---------- cancel / delete pool ----------
@@ -528,15 +544,17 @@ export const getPoolManifest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
     const { data: pool, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes, has_unloading_equipment))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes, has_unloading_equipment, assigned_to))",
       )
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
     if (!pool) throw new Error("Pool nie znaleziony");
+
 
     const rawItems = ((pool as any).transport_pool_items ?? []) as Array<{
       id: string;
@@ -564,7 +582,9 @@ export const getPoolManifest = createServerFn({ method: "POST" })
       .slice()
       .sort((a, b) => (a.stop_order ?? 0) - (b.stop_order ?? 0))
       .map((i) => {
-        const l = i.leads;
+        const raw = i.leads as (typeof i.leads & { assigned_to?: string | null }) | null;
+        const owned = !scope.salesOnly || raw?.assigned_to === context.userId;
+        const l = raw ? (maskContact(raw as any, owned) as typeof raw) : null;
         const product = l?.product ?? "inne";
         const pieceKg = product === "pellet_paleta" ? 960 : product === "pellet_bigbag" ? 1000 : null;
         const tons = Number(i.tons);
@@ -579,6 +599,7 @@ export const getPoolManifest = createServerFn({ method: "POST" })
           email: l?.email ?? null,
           city: l?.city ?? null,
           postal_code: l?.postal_code ?? null,
+
           product,
           tons,
           pieces,

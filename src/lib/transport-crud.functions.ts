@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { productEnum } from "@/lib/product-enum";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope, myLeadIds } from "@/lib/scope";
 
 
 export const listTransports = createServerFn({ method: "GET" })
@@ -10,13 +11,15 @@ export const listTransports = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transports")
       .select(
-        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name, lead_number, payment_status, is_b2b_kurnik, cycle_days, deleted_at, status))",
+        "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, status, notes, capacity_kg, telegram_t7_sent_at, telegram_t4_sent_at, transport_items(id, product, quantity, lead_id, address, leads(name, lead_number, payment_status, is_b2b_kurnik, cycle_days, deleted_at, status, assigned_to))",
       )
       .order("scheduled_date", { ascending: true });
     if (error) throw new Error(error.message);
+    const scope = await getUserScope(context.supabase, context.userId);
+    const mine = scope.salesOnly ? new Set(await myLeadIds(context.supabase, context.userId)) : null;
     // Hide transport_items whose lead was cancelled (soft-deleted or status=przegrany).
     // Items with no lead_id (ad-hoc transports) are kept.
-    return (data ?? []).map((t: any) => ({
+    const rows = (data ?? []).map((t: any) => ({
       ...t,
       transport_items: (t.transport_items ?? []).filter((it: any) => {
         if (!it.lead_id) return true;
@@ -27,7 +30,15 @@ export const listTransports = createServerFn({ method: "GET" })
         return true;
       }),
     }));
+    if (!mine) return rows;
+    // Handlowiec widzi tylko transporty, w których jest jego lead (lub transport bez leadów).
+    return rows.filter((t: any) => {
+      const items = t.transport_items ?? [];
+      if (items.length === 0) return true;
+      return items.some((it: any) => it.lead_id && mine.has(it.lead_id));
+    });
   });
+
 
 export const createTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
