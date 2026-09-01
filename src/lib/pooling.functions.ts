@@ -110,13 +110,16 @@ export const listWaitlist = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at",
+        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at, assigned_to",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const scope = await getUserScope(context.supabase, context.userId);
+    if (!scope.salesOnly) return data ?? [];
+    return (data ?? []).map((l: any) => maskContact(l, l.assigned_to === context.userId));
+
   });
 
 // ---------- suggestions ----------
