@@ -1,23 +1,34 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope } from "@/lib/scope";
 
 const StatusEnum = z.enum(["do_zadzwonienia", "w_trakcie", "zatwierdzone", "odrzucone"]);
 
 export const listPoultryReminders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("poultry_reminders")
       .select(
         `id, farm_name, tonnage, assigned_to, reminder_date, status, notes,
          lead_id, new_lead_id, created_at,
-         leads:lead_id (id, lead_number, name, first_name, last_name, city, phone, email, invoice_company, cycle_days)`,
+         leads:lead_id (id, lead_number, name, first_name, last_name, city, phone, email, invoice_company, cycle_days, assigned_to)`,
       )
       .order("reminder_date", { ascending: true })
       .limit(500);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    let rows = data ?? [];
+    // Handlowiec widzi wyłącznie wstawienia swoich leadów
+    if (scope.salesOnly) {
+      rows = rows.filter(
+        (r: any) =>
+          r.assigned_to === scope.userId || r.leads?.assigned_to === scope.userId,
+      );
+    }
+    return rows;
   });
 
 const UpdateInput = z.object({
