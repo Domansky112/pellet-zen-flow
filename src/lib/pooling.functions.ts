@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope, maskContact } from "@/lib/scope";
+
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 const BASE_ADDRESS = "Witoroża, 21-570 Drelów, Polska";
