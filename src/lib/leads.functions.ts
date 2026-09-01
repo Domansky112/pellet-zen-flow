@@ -474,11 +474,16 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
     // A Lead belongs to Delivery History when it is marked "Zrealizowany"
     // (status_key = 'wygrany') OR when its warehouse reservation has been released
     // as "wydany". Both paths share a 1:1 relation with a delivery history entry.
+    const scope = await getUserScope(context.supabase, context.userId);
     let q = context.supabase
       .from("leads")
       .select("*")
       .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
       .is("deleted_at", null)
+      .order("delivered_at", { ascending: false, nullsFirst: false })
+      .limit(500);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+
       .order("delivered_at", { ascending: false, nullsFirst: false })
       .limit(500);
 
