@@ -544,15 +544,17 @@ export const getPoolManifest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
     const { data: pool, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes, has_unloading_equipment))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, status, transport_id, notes, created_at, transport_pool_items(id, tons, share_cost, stop_order, detour_km, leads(id, name, first_name, last_name, phone, email, city, postal_code, product, quantity, notes, has_unloading_equipment, assigned_to))",
       )
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
     if (!pool) throw new Error("Pool nie znaleziony");
+
 
     const rawItems = ((pool as any).transport_pool_items ?? []) as Array<{
       id: string;
