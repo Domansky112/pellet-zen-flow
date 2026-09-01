@@ -617,6 +617,27 @@ export function LeadDetailDrawer({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Admin: przypisanie leada do wskazanego handlowca
+  const listUsersFn = useServerFn(listCrmUsers);
+  const usersQuery = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: () => listUsersFn(),
+    enabled: isAdmin,
+  });
+  const sellers = (usersQuery.data ?? []).filter(
+    (u) => u.roles.includes("sales") || u.roles.includes("admin"),
+  );
+  const assignedName = sellers.find((u) => u.id === lead?.assigned_to);
+  const assignToFn = useServerFn(assignLeadTo);
+  const assignToM = useMutation({
+    mutationFn: (userId: string | null) => assignToFn({ data: { id: lead!.id, user_id: userId } }),
+    onSuccess: () => {
+      invalidateLeads();
+      toast.success("Opiekun leada zaktualizowany");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const sendOffer = () => {
     if (!validation.canSend) {
       toast.error("Wypełnij brakujące pola, aby móc wysłać ofertę");
