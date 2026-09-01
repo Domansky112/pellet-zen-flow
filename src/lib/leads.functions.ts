@@ -100,6 +100,28 @@ export const assignToMe = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const AssignToInput = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(),
+});
+
+// Admin: przypisanie leada do wskazanego handlowca (lub usunięcie przypisania).
+export const assignLeadTo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => AssignToInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
+    if (!scope.roles.includes("admin")) {
+      throw new Error("Tylko administrator może przypisywać leady innym osobom");
+    }
+    const { error } = await context.supabase
+      .from("leads")
+      .update({ assigned_to: data.user_id })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 const CreateInput = z.object({
   first_name: z.string().trim().max(120).optional().or(z.literal("")),
   last_name: z.string().trim().max(120).optional().or(z.literal("")),
