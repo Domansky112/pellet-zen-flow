@@ -181,6 +181,8 @@ export const createLead = createServerFn({ method: "POST" })
       is_b2b_kurnik: data.is_b2b_kurnik,
       cycle_days: data.cycle_days ?? null,
       status: "nowy",
+      // Handlowiec tworzący leada zostaje automatycznie jego opiekunem.
+      assigned_to: scope.salesOnly ? context.userId : null,
     };
     const { data: row, error } = await context.supabase
       .from("leads")
