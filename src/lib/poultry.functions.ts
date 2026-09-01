@@ -56,6 +56,7 @@ export const updatePoultryReminder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertReminderInScope(context.supabase, context.userId, data.id);
     const patch: Record<string, unknown> = {};
     if (data.status !== undefined) patch.status = data.status;
     if (data.reminder_date !== undefined) patch.reminder_date = data.reminder_date;
@@ -71,6 +72,7 @@ export const deletePoultryReminder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => DeleteInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertReminderInScope(context.supabase, context.userId, data.id);
     const { error } = await context.supabase.from("poultry_reminders").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -82,6 +84,7 @@ export const linkPoultryReminderNewLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => LinkInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertReminderInScope(context.supabase, context.userId, data.id);
     const { error } = await context.supabase
       .from("poultry_reminders")
       .update({ new_lead_id: data.new_lead_id, status: "zatwierdzone" } as any)
