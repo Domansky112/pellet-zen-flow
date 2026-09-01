@@ -153,6 +153,7 @@ export const createLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => CreateInput.parse(d))
   .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
     const payload: Record<string, unknown> = {
       first_name: data.first_name || null,
       last_name: data.last_name || null,
