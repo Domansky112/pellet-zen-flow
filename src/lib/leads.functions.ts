@@ -2,16 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { parseISO, parse } from "date-fns";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getUserScope } from "@/lib/scope";
 
 export const listLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("leads")
       .select("*")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data;
   });
@@ -19,12 +23,15 @@ export const listLeads = createServerFn({ method: "GET" })
 export const listCancelledLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("leads")
       .select("*")
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false })
       .limit(200);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+    const { data, error } = await q;
     if (error) throw new Error(error.message);
     return data;
   });
@@ -37,7 +44,9 @@ export const searchLeads = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase.rpc("search_leads_global", { _q: data.q });
     if (error) throw new Error(error.message);
-    return (rows ?? []) as any[];
+    const scope = await getUserScope(context.supabase, context.userId);
+    const list = (rows ?? []) as any[];
+    return scope.salesOnly ? list.filter((r) => r.assigned_to === context.userId) : list;
   });
 
 export const listReservedLeads = createServerFn({ method: "GET" })
@@ -46,16 +55,19 @@ export const listReservedLeads = createServerFn({ method: "GET" })
     z.object({ product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
     let q = context.supabase
       .from("leads")
       .select("*")
       .eq("reservation_status", "zarezerwowany")
       .is("deleted_at", null);
     if (data.product) q = q.eq("product", data.product);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
     const { data: rows, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
 
 const StatusInput = z.object({
   id: z.string().uuid(),
