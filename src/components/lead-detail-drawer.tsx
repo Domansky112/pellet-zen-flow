@@ -737,7 +737,10 @@ export function LeadDetailDrawer({
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10">
-                      <UserCheck className="h-3 w-3 mr-1" /> Przypisany do innego opiekuna
+                      <UserCheck className="h-3 w-3 mr-1" />
+                      {assignedName
+                        ? `Opiekun: ${assignedName.full_name ?? assignedName.email}`
+                        : "Przypisany do innego opiekuna"}
                     </Badge>
                   )
                 ) : (
@@ -755,6 +758,30 @@ export function LeadDetailDrawer({
                   {assignM.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
                   Przypisz do mnie
                 </Button>
+                {isAdmin && (
+                  <Select
+                    value={lead.assigned_to ?? "none"}
+                    onValueChange={(v) => assignToM.mutate(v === "none" ? null : v)}
+                    disabled={assignToM.isPending || usersQuery.isLoading}
+                  >
+                    <SelectTrigger className="h-8 w-[220px]" title="Przypisz leada do handlowca">
+                      {assignToM.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SelectValue placeholder="Opiekun (admin)…" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— Brak opiekuna —</SelectItem>
+                      {sellers.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.full_name ?? u.email}
+                          {u.roles.includes("admin") ? " (admin)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
 
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1">
