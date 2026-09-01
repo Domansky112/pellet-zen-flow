@@ -31,6 +31,20 @@ export const listPoultryReminders = createServerFn({ method: "GET" })
     return rows;
   });
 
+// Blokuje operację, gdy handlowiec próbuje modyfikować wstawienie cudzego leada.
+async function assertReminderInScope(supabase: any, userId: string, id: string) {
+  const scope = await getUserScope(supabase, userId);
+  if (!scope.salesOnly) return;
+  const { data } = await supabase
+    .from("poultry_reminders")
+    .select("assigned_to, leads:lead_id (assigned_to)")
+    .eq("id", id)
+    .maybeSingle();
+  const owned =
+    data && (data.assigned_to === userId || (data.leads as any)?.assigned_to === userId);
+  if (!owned) throw new Error("Brak uprawnień do tego wstawienia");
+}
+
 const UpdateInput = z.object({
   id: z.string().uuid(),
   status: StatusEnum.optional(),
