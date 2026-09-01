@@ -555,29 +555,40 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
 export const getDeliveryHistoryConsistency = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const realizedQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany");
+    const scope = await getUserScope(context.supabase, context.userId);
+    const own = <T extends { eq: (c: string, v: string) => T }>(q: T): T =>
+      scope.salesOnly ? q.eq("assigned_to", context.userId) : q;
+
+    const realizedQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany") as any,
+    );
     if (realizedQ.error) throw new Error(realizedQ.error.message);
 
-    const historyQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
-      .not("delivered_at", "is", null);
+    const historyQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany,reservation_status.eq.wydany")
+        .not("delivered_at", "is", null) as any,
+    );
     if (historyQ.error) throw new Error(historyQ.error.message);
 
     // Missing = realized leads without a delivered_at stamp (would not show in history).
-    const missingQ = await context.supabase
-      .from("leads")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .is("delivered_at", null)
-      .or("status_key.eq.wygrany,status.eq.wygrany");
+    const missingQ = await own(
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null)
+        .is("delivered_at", null)
+        .or("status_key.eq.wygrany,status.eq.wygrany") as any,
+    );
     if (missingQ.error) throw new Error(missingQ.error.message);
+
 
     const realized = realizedQ.count ?? 0;
     const history = historyQ.count ?? 0;
