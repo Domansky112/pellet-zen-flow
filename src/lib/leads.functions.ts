@@ -484,8 +484,7 @@ export const listDeliveryHistory = createServerFn({ method: "POST" })
       .limit(500);
     if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
 
-      .order("delivered_at", { ascending: false, nullsFirst: false })
-      .limit(500);
+
 
     if (data.from) q = q.gte("delivered_at", data.from);
     if (data.to) q = q.lte("delivered_at", data.to);
