@@ -102,14 +102,14 @@ export function PhysicalWorkersCard() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center">
+                <TableCell colSpan={7} className="py-6 text-center">
                   Ładowanie…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                   Brak pracowników fizycznych
                 </TableCell>
               </TableRow>
