@@ -120,6 +120,11 @@ export function PhysicalWorkersCard() {
                   {e.full_name}
                   {e.position && <div className="text-xs text-muted-foreground">{e.position}</div>}
                 </TableCell>
+                <TableCell>
+                  <Badge variant={e.employee_type === "kierowca" ? "default" : "secondary"}>
+                    {TYPE_LABELS[e.employee_type ?? "pracownik"] ?? e.employee_type}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-sm">{e.phone ?? "—"}</TableCell>
                 <TableCell>{pln(Number(e.daily_rate ?? 0))}</TableCell>
                 <TableCell>{pln(Number(e.pallet_rate ?? 0))}</TableCell>
