@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS employee_type text NOT NULL DEFAULT 'pracownik' CHECK (employee_type IN ('pracownik','kierowca')); ALTER TABLE public.employees ADD COLUMN IF NOT EXISTS driver_id uuid REFERENCES public.fleet_drivers(id) ON DELETE SET NULL;

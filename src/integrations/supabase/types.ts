@@ -281,6 +281,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           daily_rate: number
+          driver_id: string | null
+          employee_type: string
           full_name: string
           id: string
           notes: string | null
@@ -294,6 +296,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           daily_rate?: number
+          driver_id?: string | null
+          employee_type?: string
           full_name: string
           id?: string
           notes?: string | null
@@ -307,6 +311,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           daily_rate?: number
+          driver_id?: string | null
+          employee_type?: string
           full_name?: string
           id?: string
           notes?: string | null
@@ -316,7 +322,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_drivers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
