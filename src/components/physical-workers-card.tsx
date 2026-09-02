@@ -105,6 +105,7 @@ export function PhysicalWorkersCard() {
           </DialogTrigger>
           <EmployeeDialog key={editing?.id ?? "new"} editing={editing} onSave={(v) => save.mutate(v)} pending={save.isPending} />
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
