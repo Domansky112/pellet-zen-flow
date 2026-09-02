@@ -176,7 +176,25 @@ function EmployeeDialog({
   const [daily, setDaily] = useState(String(editing?.daily_rate ?? 0));
   const [pallet, setPallet] = useState(String(editing?.pallet_rate ?? 0));
   const [status, setStatus] = useState(editing?.status ?? "aktywny");
+  const [employeeType, setEmployeeType] = useState(editing?.employee_type ?? "pracownik");
+  const [driverId, setDriverId] = useState<string>(editing?.driver_id ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
+
+  const driversFn = useServerFn(listDrivers);
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["fleet-drivers-picker"],
+    queryFn: () => driversFn(),
+    enabled: employeeType === "kierowca",
+  });
+
+  const pickDriver = (id: string) => {
+    setDriverId(id);
+    const d = (drivers as any[]).find((x) => x.id === id);
+    if (!d) return;
+    setFullName([d.first_name, d.last_name].filter(Boolean).join(" "));
+    setPhone(d.phone ?? "");
+    setPosition("Kierowca");
+  };
 
   return (
     <DialogContent key={editing?.id ?? "new"}>
