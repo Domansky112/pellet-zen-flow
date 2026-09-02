@@ -91,6 +91,7 @@ export function PhysicalWorkersCard() {
           <TableHeader>
             <TableRow>
               <TableHead>Pracownik</TableHead>
+              <TableHead>Typ</TableHead>
               <TableHead>Telefon</TableHead>
               <TableHead>Stawka dzienna</TableHead>
               <TableHead>Stawka / paleta</TableHead>
