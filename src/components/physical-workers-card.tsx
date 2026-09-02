@@ -203,6 +203,42 @@ function EmployeeDialog({
       </DialogHeader>
       <div className="grid gap-3">
         <div>
+          <Label>Rodzaj pracownika</Label>
+          <Select
+            value={employeeType}
+            onValueChange={(v) => {
+              setEmployeeType(v);
+              if (v !== "kierowca") setDriverId("");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pracownik">Pracownik fizyczny</SelectItem>
+              <SelectItem value="kierowca">Kierowca</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {employeeType === "kierowca" && (
+          <div>
+            <Label>Powiąż z kierowcą z floty (uzupełni dane)</Label>
+            <Select value={driverId} onValueChange={pickDriver}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz kierowcę…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(drivers as any[]).map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {[d.first_name, d.last_name].filter(Boolean).join(" ")}
+                    {d.phone ? ` · ${d.phone}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div>
           <Label>Imię i nazwisko *</Label>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
         </div>
