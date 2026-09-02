@@ -291,6 +291,8 @@ function EmployeeDialog({
               daily_rate: daily,
               pallet_rate: pallet,
               status,
+              employee_type: employeeType,
+              driver_id: employeeType === "kierowca" && driverId ? driverId : null,
               notes: notes || null,
             })
           }
