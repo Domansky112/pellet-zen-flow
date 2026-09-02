@@ -86,6 +86,11 @@ export function PhysicalWorkersCard() {
             Stawki dniówkowe i akordowe używane w „Kalendarzu pracowniczym”.
           </CardDescription>
         </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate()}>
+            <Truck className="h-4 w-4 mr-1" />
+            {sync.isPending ? "Importowanie…" : "Importuj kierowców z floty"}
+          </Button>
         <Dialog
           open={open}
           onOpenChange={(v) => {
