@@ -35,6 +35,20 @@ export function PhysicalWorkersCard() {
   const listFn = useServerFn(listEmployees);
   const saveFn = useServerFn(upsertEmployee);
   const delFn = useServerFn(deleteEmployee);
+  const syncFn = useServerFn(syncDriversFromFleet);
+
+  const sync = useMutation({
+    mutationFn: () => syncFn({}),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success(
+        r.imported > 0
+          ? `Zaimportowano ${r.imported} kierowców z floty`
+          : "Wszyscy kierowcy z floty są już na liście",
+      );
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
