@@ -19,8 +19,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { deleteEmployee, listEmployees, upsertEmployee } from "@/lib/employees.functions";
+import { deleteEmployee, listEmployees, syncDriversFromFleet, upsertEmployee } from "@/lib/employees.functions";
 import { listDrivers } from "@/lib/admin.functions";
+import { Truck } from "lucide-react";
 
 export const TYPE_LABELS: Record<string, string> = {
   pracownik: "Pracownik fizyczny",
