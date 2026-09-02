@@ -20,6 +20,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteEmployee, listEmployees, upsertEmployee } from "@/lib/employees.functions";
+import { listDrivers } from "@/lib/admin.functions";
+
+export const TYPE_LABELS: Record<string, string> = {
+  pracownik: "Pracownik fizyczny",
+  kierowca: "Kierowca",
+};
 
 const pln = (n: number) => n.toLocaleString("pl-PL", { style: "currency", currency: "PLN" });
 
