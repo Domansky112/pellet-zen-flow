@@ -70,6 +70,42 @@ export const upsertEmployee = createServerFn({ method: "POST" })
     return row;
   });
 
+/** Import kierowców z floty do listy pracowników (pomija już powiązanych) */
+export const syncDriversFromFleet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data: drivers, error: dErr } = await context.supabase
+      .from("fleet_drivers")
+      .select("id, first_name, last_name, phone, status")
+      .neq("status", "nieaktywny");
+    if (dErr) throw new Error(dErr.message);
+
+    const { data: linked, error: lErr } = await context.supabase
+      .from("employees")
+      .select("driver_id")
+      .not("driver_id", "is", null);
+    if (lErr) throw new Error(lErr.message);
+    const linkedIds = new Set((linked ?? []).map((r: any) => r.driver_id));
+
+    const toInsert = (drivers ?? [])
+      .filter((d: any) => !linkedIds.has(d.id))
+      .map((d: any) => ({
+        full_name: [d.first_name, d.last_name].filter(Boolean).join(" "),
+        phone: d.phone ?? null,
+        position: "Kierowca",
+        employee_type: "kierowca",
+        driver_id: d.id,
+        status: "aktywny",
+        created_by: context.userId,
+      }));
+    if (toInsert.length > 0) {
+      const { error } = await context.supabase.from("employees").insert(toInsert as any);
+      if (error) throw new Error(error.message);
+    }
+    return { imported: toInsert.length, skipped: (drivers ?? []).length - toInsert.length };
+  });
+
 export const deleteEmployee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))

@@ -19,8 +19,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { deleteEmployee, listEmployees, upsertEmployee } from "@/lib/employees.functions";
+import { deleteEmployee, listEmployees, syncDriversFromFleet, upsertEmployee } from "@/lib/employees.functions";
 import { listDrivers } from "@/lib/admin.functions";
+import { Truck } from "lucide-react";
 
 export const TYPE_LABELS: Record<string, string> = {
   pracownik: "Pracownik fizyczny",
@@ -34,6 +35,20 @@ export function PhysicalWorkersCard() {
   const listFn = useServerFn(listEmployees);
   const saveFn = useServerFn(upsertEmployee);
   const delFn = useServerFn(deleteEmployee);
+  const syncFn = useServerFn(syncDriversFromFleet);
+
+  const sync = useMutation({
+    mutationFn: () => syncFn({}),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      toast.success(
+        r.imported > 0
+          ? `Zaimportowano ${r.imported} kierowców z floty`
+          : "Wszyscy kierowcy z floty są już na liście",
+      );
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -71,6 +86,11 @@ export function PhysicalWorkersCard() {
             Stawki dniówkowe i akordowe używane w „Kalendarzu pracowniczym”.
           </CardDescription>
         </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate()}>
+            <Truck className="h-4 w-4 mr-1" />
+            {sync.isPending ? "Importowanie…" : "Importuj kierowców z floty"}
+          </Button>
         <Dialog
           open={open}
           onOpenChange={(v) => {
@@ -85,6 +105,7 @@ export function PhysicalWorkersCard() {
           </DialogTrigger>
           <EmployeeDialog key={editing?.id ?? "new"} editing={editing} onSave={(v) => save.mutate(v)} pending={save.isPending} />
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
