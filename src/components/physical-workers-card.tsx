@@ -20,6 +20,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteEmployee, listEmployees, upsertEmployee } from "@/lib/employees.functions";
+import { listDrivers } from "@/lib/admin.functions";
+
+export const TYPE_LABELS: Record<string, string> = {
+  pracownik: "Pracownik fizyczny",
+  kierowca: "Kierowca",
+};
 
 const pln = (n: number) => n.toLocaleString("pl-PL", { style: "currency", currency: "PLN" });
 
@@ -85,6 +91,7 @@ export function PhysicalWorkersCard() {
           <TableHeader>
             <TableRow>
               <TableHead>Pracownik</TableHead>
+              <TableHead>Typ</TableHead>
               <TableHead>Telefon</TableHead>
               <TableHead>Stawka dzienna</TableHead>
               <TableHead>Stawka / paleta</TableHead>
@@ -95,14 +102,14 @@ export function PhysicalWorkersCard() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center">
+                <TableCell colSpan={7} className="py-6 text-center">
                   Ładowanie…
                 </TableCell>
               </TableRow>
             )}
             {!isLoading && data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                   Brak pracowników fizycznych
                 </TableCell>
               </TableRow>
@@ -112,6 +119,11 @@ export function PhysicalWorkersCard() {
                 <TableCell className="font-medium">
                   {e.full_name}
                   {e.position && <div className="text-xs text-muted-foreground">{e.position}</div>}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={e.employee_type === "kierowca" ? "default" : "secondary"}>
+                    {TYPE_LABELS[e.employee_type ?? "pracownik"] ?? e.employee_type}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-sm">{e.phone ?? "—"}</TableCell>
                 <TableCell>{pln(Number(e.daily_rate ?? 0))}</TableCell>
@@ -164,7 +176,25 @@ function EmployeeDialog({
   const [daily, setDaily] = useState(String(editing?.daily_rate ?? 0));
   const [pallet, setPallet] = useState(String(editing?.pallet_rate ?? 0));
   const [status, setStatus] = useState(editing?.status ?? "aktywny");
+  const [employeeType, setEmployeeType] = useState(editing?.employee_type ?? "pracownik");
+  const [driverId, setDriverId] = useState<string>(editing?.driver_id ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
+
+  const driversFn = useServerFn(listDrivers);
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["fleet-drivers-picker"],
+    queryFn: () => driversFn(),
+    enabled: employeeType === "kierowca",
+  });
+
+  const pickDriver = (id: string) => {
+    setDriverId(id);
+    const d = (drivers as any[]).find((x) => x.id === id);
+    if (!d) return;
+    setFullName([d.first_name, d.last_name].filter(Boolean).join(" "));
+    setPhone(d.phone ?? "");
+    setPosition("Kierowca");
+  };
 
   return (
     <DialogContent key={editing?.id ?? "new"}>
@@ -172,6 +202,42 @@ function EmployeeDialog({
         <DialogTitle>{editing ? "Edytuj pracownika" : "Nowy pracownik fizyczny"}</DialogTitle>
       </DialogHeader>
       <div className="grid gap-3">
+        <div>
+          <Label>Rodzaj pracownika</Label>
+          <Select
+            value={employeeType}
+            onValueChange={(v) => {
+              setEmployeeType(v);
+              if (v !== "kierowca") setDriverId("");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pracownik">Pracownik fizyczny</SelectItem>
+              <SelectItem value="kierowca">Kierowca</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {employeeType === "kierowca" && (
+          <div>
+            <Label>Powiąż z kierowcą z floty (uzupełni dane)</Label>
+            <Select value={driverId} onValueChange={pickDriver}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz kierowcę…" />
+              </SelectTrigger>
+              <SelectContent>
+                {(drivers as any[]).map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {[d.first_name, d.last_name].filter(Boolean).join(" ")}
+                    {d.phone ? ` · ${d.phone}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div>
           <Label>Imię i nazwisko *</Label>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -225,6 +291,8 @@ function EmployeeDialog({
               daily_rate: daily,
               pallet_rate: pallet,
               status,
+              employee_type: employeeType,
+              driver_id: employeeType === "kierowca" && driverId ? driverId : null,
               notes: notes || null,
             })
           }
