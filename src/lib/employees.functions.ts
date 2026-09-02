@@ -21,6 +21,8 @@ const EmployeeInput = z.object({
   daily_rate: NumLike.default(0),
   pallet_rate: NumLike.default(0),
   status: z.enum(["aktywny", "nieaktywny"]).default("aktywny"),
+  employee_type: z.enum(["pracownik", "kierowca"]).default("pracownik"),
+  driver_id: z.string().uuid().nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
 });
 
