@@ -432,7 +432,7 @@ export const listPools = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng, assigned_to))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng, assigned_to, status_key))",
       )
       .order("created_at", { ascending: false })
       .limit(100);
