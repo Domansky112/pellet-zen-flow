@@ -112,10 +112,11 @@ export const listWaitlist = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, created_at, assigned_to",
+        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, status_key, created_at, assigned_to",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
+      .not("status_key", "in", "('wygrany','przegrany')")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     const scope = await getUserScope(context.supabase, context.userId);
@@ -151,12 +152,13 @@ export const findPoolSuggestions = createServerFn({ method: "POST" })
     const { data: leads } = await context.supabase
       .from("leads")
       .select(
-        "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until",
+        "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until, status_key",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
       .not("pooling_lat", "is", null)
       .not("quantity", "is", null)
+      .not("status_key", "in", "('wygrany','przegrany')")
       .or(`pooling_wait_until.is.null,pooling_wait_until.gte.${today}`);
 
     const list = (leads as Lead[] | null) ?? [];
@@ -430,7 +432,7 @@ export const listPools = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("transport_pools")
       .select(
-        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng, assigned_to))",
+        "id, name, route_to, total_tons, capacity_tons, estimated_km, estimated_cost, cost_per_ton, status, transport_id, notes, created_at, transport_pool_items(id, tons, detour_km, share_cost, stop_order, leads(id, name, phone, city, postal_code, product, pooling_lat, pooling_lng, assigned_to, status_key))",
       )
       .order("created_at", { ascending: false })
       .limit(100);
