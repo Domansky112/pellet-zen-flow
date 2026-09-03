@@ -17,14 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { MapPin, Users, Truck, Sparkles, Loader2, Trash2, Eye } from "lucide-react";
 import {
   listWaitlist,
