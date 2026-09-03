@@ -155,10 +155,12 @@ function Konsolidacja() {
   const mapPoints = useMemo(() => {
     const pts: any[] = [];
     const assignedIds = new Set<string>();
+    const isClosed = (l: any) => l.status_key === "wygrany" || l.status_key === "przegrany";
     for (const p of activePools) {
       for (const it of p.transport_pool_items ?? []) {
         const l = it.leads;
         if (!l || l.pooling_lat == null || l.pooling_lng == null) continue;
+        if (isClosed(l)) continue;
         assignedIds.add(l.id);
         const isSelected = selectedDraftId && p.id === selectedDraftId;
         pts.push({
@@ -178,6 +180,7 @@ function Konsolidacja() {
     for (const l of waitlist as any[]) {
       if (assignedIds.has(l.id)) continue;
       if (l.pooling_lat == null || l.pooling_lng == null) continue;
+      if (isClosed(l)) continue;
       pts.push({
         id: l.id,
         name: l.name,
