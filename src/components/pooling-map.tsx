@@ -132,7 +132,7 @@ export default function PoolingMap({
                   </div>
                   <div className="flex gap-1 pt-2">
                     <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onOpenLead(p.id)}>
-                      <ExternalLink className="h-3 w-3 mr-1" /> Lead
+                      <ExternalLink className="h-3 w-3 mr-1" /> Otwórz w CRM
                     </Button>
                     {p.kind !== "assigned" && (
                       <Button
