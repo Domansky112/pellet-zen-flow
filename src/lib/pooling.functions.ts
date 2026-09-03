@@ -152,12 +152,13 @@ export const findPoolSuggestions = createServerFn({ method: "POST" })
     const { data: leads } = await context.supabase
       .from("leads")
       .select(
-        "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until",
+        "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until, status_key",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
       .not("pooling_lat", "is", null)
       .not("quantity", "is", null)
+      .not("status_key", "in", "('wygrany','przegrany')")
       .or(`pooling_wait_until.is.null,pooling_wait_until.gte.${today}`);
 
     const list = (leads as Lead[] | null) ?? [];
