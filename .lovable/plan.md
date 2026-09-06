@@ -1,71 +1,24 @@
-# Plan: Leady z rezerwacją, szablony, notatki
+# Naprawa linków „Otwórz / Przejdź do leada”
 
-## 1. Baza danych (jedna migracja)
+## Problem
 
-**leads** — nowe kolumny:
-- `first_name text`, `last_name text` (opcjonalne, `name` zostaje jako pełna nazwa/firma)
-- `reservation_status text` — `brak | zarezerwowany | wydany | zwolniony` (default `brak`)
+Kliknięcie „Przejdź do leada” / „Otwórz w CRM” w wielu miejscach nic nie robi: strona CRM otwiera się, ale karta leada się nie pokazuje.
 
-**lead_notes** — nowa tabela:
-- `id, lead_id, author_id, body text, created_at, updated_at, edited boolean`
-- RLS: staff (admin/sales) czyta i edytuje własne wpisy; admin edytuje wszystkie
-- Trigger: przy UPDATE ustawia `edited=true`, `updated_at=now()`
-- Opcjonalna `lead_note_history` (poprzednie wersje) — zapis w triggerze BEFORE UPDATE
+Powód: CRM otwiera kartę tylko wtedy, gdy dany lead znajduje się już na wczytanej liście (ostatnie 200 aktywnych leadów, ewentualnie rezerwacje lub anulowane, jeśli akurat wybrana jest ta zakładka). Leady starsze, anulowane albo z zakładki, która nie jest aktywna, nigdy nie zostaną znalezione — dlatego nic się nie otwiera.
 
-**offer_templates** — nowa tabela:
-- `id, name, product, body text, created_at, updated_at`
-- Seed: 3 szablony (Paleta – oferta wstępna, Big-bag – oferta, Wspólny transport – potwierdzenie)
-- RLS: read dla staff, zapis dla admin
+Dodatkowo w Kalendarzu linki do leada to zwykłe odnośniki HTML, które przeładowują całą aplikację zamiast płynnie przejść do CRM.
 
-**Funkcja SQL `reserve_stock_for_lead(lead_id uuid)`** — `SECURITY DEFINER`, transakcyjna:
-- `SELECT ... FOR UPDATE` na wierszach `stock_events` danego produktu (blokada)
-- Wylicza `available = physical - reserved`; jeśli `quantity > available` → RAISE
-- INSERT `stock_events` typ `rezerwacja` z `lead_id`, `created_by = auth.uid()`
-- UPDATE `leads.reservation_status = 'zarezerwowany'`
-- Wywoływana z serwera po zapisaniu leada z `pooling_enabled=true` (lub ręcznie z CRM)
+## Co zrobię
 
-**Funkcja SQL `release_reservation_as_wydanie(lead_id uuid)`** — transakcyjna:
-- Suma dotychczasowych `rezerwacja - zwolnienie_rez` dla leada
-- INSERT `zwolnienie_rez` (na tę sumę) + INSERT `wydanie` (na tę sumę)
-- UPDATE `leads.reservation_status = 'wydany'`
+1. CRM: po wejściu z parametrem leada karta leada otwiera się zawsze — jeśli leada nie ma na wczytanej liście, zostanie dociągnięty pojedynczo z bazy (z zachowaniem uprawnień: handlowiec dalej widzi tylko swoje leady).
+2. CRM automatycznie przełącza się na właściwą zakładkę (Zrealizowane / Anulowane / Wszystkie), żeby lead był też widoczny na liście pod spodem.
+3. Gdy leada nie da się otworzyć (brak uprawnień lub usunięty), pokaże się czytelny komunikat zamiast ciszy.
+4. Kalendarz: linki do leada zamienione na wewnętrzną nawigację (bez przeładowania strony).
+5. Przegląd i weryfikacja wszystkich pozostałych miejsc z takim przejściem: Wspólny transport (mapa i lista), Płatności, Historia dostaw, Magazyn, Dashboard, wyszukiwarka globalna.
 
-## 2. Server functions (`src/lib/leads.functions.ts`, `src/lib/notes.functions.ts`, `src/lib/templates.functions.ts`)
+## Szczegóły techniczne
 
-Wszystkie z `.middleware([requireSupabaseAuth])` — RBAC przez RLS + `has_role`.
-
-- `createLead` — jeśli `pooling_enabled && quantity && product` → po INSERT wywołuje `reserve_stock_for_lead(id)` (RPC)
-- `confirmWydanie({ lead_id })` — RPC do `release_reservation_as_wydanie`
-- `listReservedLeads()` — leady z `reservation_status IN ('zarezerwowany')`
-- `listNotes(lead_id)`, `addNote`, `updateNote`, `deleteNote`
-- `listTemplates()`, `renderTemplate(id, lead_id)` — proste podstawienie `{{name}}`, `{{quantity}}`
-
-## 3. UI
-
-**`src/components/new-lead-dialog.tsx`**:
-- Rozdzielić na `Imię` + `Nazwisko` (obok siebie), zostawić Telefon + Email
-- Info-box gdy `pooling_enabled=true`: "Zapisanie automatycznie zarezerwuje X t w magazynie"
-
-**`src/routes/_authenticated/crm.tsx`** — nowa zakładka `Z rezerwacją`:
-- Lista leadów `reservation_status = 'zarezerwowany'` z przyciskiem `Wydaj z magazynu` (confirm dialog → `confirmWydanie`)
-
-**`src/components/lead-detail-drawer.tsx`** — nowy drawer/dialog otwierany po kliknięciu leada w CRM:
-- Layout dwukolumnowy: lewa kolumna — **Szablony ofert** (lista przycisków, klik → wypełnia textarea po prawej i otwiera mailto/kopiuje)
-- Prawa kolumna — dane leada + sekcja **Notatki**:
-  - Lista notatek z edycją inline (pencil icon → textarea → zapisz), badge "edytowano"
-  - Formularz dodania nowej notatki
-- Sekcja akcji: status, rezerwacja (Zarezerwuj / Wydaj / Zwolnij)
-
-## 4. Bezpieczeństwo
-
-- Wszystkie endpointy przez `requireSupabaseAuth` (JWT bearer + walidacja `getClaims`)
-- RLS na wszystkich tabelach: `has_role(auth.uid(), 'admin'|'sales')`
-- Transakcje magazynowe w PL/pgSQL z `FOR UPDATE` na `stock_events` per produkt — brak race condition
-- Zod walidacja na wejściu każdego server fn
-
-## Kolejność wykonania
-
-1. Migracja SQL (tabele, funkcje, RLS, seed szablonów)
-2. Server functions
-3. `NewLeadDialog` (imię/nazwisko + auto-rezerwacja)
-4. Zakładka "Z rezerwacją" w CRM + akcja Wydaj
-5. Lead detail drawer (szablony + notatki edytowalne)
+- Nowa funkcja serwerowa `getLeadById` w `src/lib/leads.functions.ts` (`requireSupabaseAuth`, filtr zakresu `getUserScope`, zwraca też leady z `deleted_at`).
+- `src/routes/_authenticated/crm.tsx`: efekt obsługujący `search.leadId` najpierw szuka w `leads` / `reserved` / `cancelled`, a w razie braku wywołuje `getLeadById`; ustawia `tab` na podstawie `isClosedLead` / `deleted_at`; czyści `leadId` z URL dopiero po otwarciu; `toast.error` przy braku wyniku.
+- `src/routes/_authenticated/kalendarz.tsx:190,283`: `<a href="/crm?leadId=...">` → `<Link to="/crm" search={{ leadId }}>`.
+- Bez zmian w logice biznesowej i w bazie danych.
