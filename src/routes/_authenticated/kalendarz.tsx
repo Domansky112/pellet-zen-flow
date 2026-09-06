@@ -279,12 +279,13 @@ function TransportRow({
                   <div key={it.id} className="flex flex-wrap items-center gap-2 text-xs">
                     <Badge variant="outline">{idx + 1}</Badge>
                     {it.lead_id ? (
-                      <a
-                        href={`/crm?leadId=${it.lead_id}`}
+                      <Link
+                        to="/crm"
+                        search={{ leadId: it.lead_id }}
                         className="font-medium underline hover:text-primary"
                       >
                         {it.leads?.name ?? "Lead"}
-                      </a>
+                      </Link>
                     ) : (
                       <span className="font-medium">{it.leads?.name ?? "—"}</span>
                     )}
