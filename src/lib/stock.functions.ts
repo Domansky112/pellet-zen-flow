@@ -53,6 +53,10 @@ export const addStockEvent = createServerFn({ method: "POST" })
       vat_rate: z.union([z.literal(0), z.literal(8), z.literal(23)]).optional().nullable(),
       supplier: z.string().max(200).optional().nullable(),
       invoice_number: z.string().max(120).optional().nullable(),
+      // PZ — koszt paliwa dowozu na magazyn
+      pickup_location_id: z.string().uuid().optional().nullable(),
+      transport_km: z.number().min(0).max(10000).optional().nullable(),
+      fuel_cost: z.number().min(0).max(1000000).optional().nullable(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -73,6 +77,36 @@ export const addStockEvent = createServerFn({ method: "POST" })
 
     // Przyjęcie → utwórz partię FIFO z ceną zakupu
     if (data.txn_type === "przyjecie") {
+      // Koszt paliwa dowozu → osobny wydatek w module Płatności
+      let fuelExpenseId: string | null = null;
+      const fuelCost = Number(data.fuel_cost ?? 0);
+      if (fuelCost > 0) {
+        let locName = "";
+        if (data.pickup_location_id) {
+          const { data: loc } = await context.supabase
+            .from("pickup_locations")
+            .select("name")
+            .eq("id", data.pickup_location_id)
+            .maybeSingle();
+          locName = (loc as any)?.name ?? "";
+        }
+        const { data: exp, error: ee } = await context.supabase
+          .from("expenses")
+          .insert({
+            description: `Paliwo — dostawa na magazyn${locName ? ` z: ${locName}` : ""}${data.transport_km ? ` (${Math.round(Number(data.transport_km))} km)` : ""}`,
+            amount: fuelCost,
+            expense_date: new Date().toISOString().slice(0, 10),
+            category: "paliwo",
+            vat_rate: 23,
+            notes: `Przyjęcie ${data.quantity} t (${data.product}). Koszt samego paliwa, bez kosztu kierowcy.`,
+            created_by: context.userId,
+          } as any)
+          .select("id")
+          .single();
+        if (ee) throw new Error(ee.message);
+        fuelExpenseId = (exp as any)?.id ?? null;
+      }
+
       const { error: le } = await context.supabase.from("stock_lots").insert({
         product: data.product,
         quantity: data.quantity,
@@ -84,11 +118,16 @@ export const addStockEvent = createServerFn({ method: "POST" })
         note: data.note ?? null,
         stock_event_id: row.id,
         created_by: context.userId,
+        pickup_location_id: data.pickup_location_id ?? null,
+        transport_km: data.transport_km ?? null,
+        fuel_cost: fuelCost > 0 ? fuelCost : null,
+        fuel_expense_id: fuelExpenseId,
       } as any);
       if (le) throw new Error(le.message);
     }
     return row;
   });
+
 
 
 export const reserveForLead = createServerFn({ method: "POST" })
