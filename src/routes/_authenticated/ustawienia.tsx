@@ -62,9 +62,10 @@ import {
 import { EmployeeCalendarTab } from "@/components/employee-calendar";
 import { PhysicalWorkersCard } from "@/components/physical-workers-card";
 import { AffiliatesTab } from "@/components/affiliates-tab";
+import { listPickupLocations, upsertPickupLocation, deletePickupLocation } from "@/lib/pickup.functions";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees", "affiliates"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees", "affiliates", "pickups"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
@@ -121,6 +122,7 @@ function UstawieniaPage() {
     { value: "statuses", label: "Statusy leadów", Icon: Settings2 },
     { value: "assets", label: "Środki trwałe", Icon: Wrench },
     { value: "affiliates", label: "Afiliacje", Icon: Handshake },
+    { value: "pickups", label: "Punkty odbioru towaru", Icon: Store },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
 
@@ -147,6 +149,7 @@ function UstawieniaPage() {
         {section === "statuses" && <StatusesTab />}
         {section === "assets" && <AssetsTab />}
         {section === "affiliates" && <AffiliatesTab />}
+        {section === "pickups" && <PickupLocationsTab />}
 
       </div>
     </div>
@@ -804,6 +807,93 @@ function WarehouseDialog({ editing, onSave, pending }: { editing: any | null; on
         <div><Label>Notatka</Label><Textarea rows={2} value={f.notes ?? ""} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
       </div>
       <DialogFooter><Button disabled={pending || !f.name} onClick={() => onSave(f)}>{pending ? "Zapisywanie…" : "Zapisz"}</Button></DialogFooter>
+    </DialogContent>
+  );
+}
+
+
+// ============================================================
+// PICKUP LOCATIONS TAB (punkty odbioru towaru)
+// ============================================================
+function PickupLocationsTab() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listPickupLocations);
+  const upsertFn = useServerFn(upsertPickupLocation);
+  const delFn = useServerFn(deletePickupLocation);
+  const { data = [] } = useQuery({ queryKey: ["pickup-locations"], queryFn: () => listFn() });
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+  const save = useMutation({
+    mutationFn: (p: any) => upsertFn({ data: p }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pickup-locations"] }); toast.success("Zapisano"); setOpen(false); setEditing(null); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pickup-locations"] }); toast.success("Usunięto"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" /> Punkty odbioru towaru</CardTitle>
+          <CardDescription>Miejsca, z których przywozimy towar na magazyn (np. Małaszewicze). Używane do wyliczenia kosztu paliwa przy przyjęciu (PZ).</CardDescription>
+        </div>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" /> Dodaj punkt</Button></DialogTrigger>
+          <PickupDialog key={editing?.id ?? "new"} editing={editing} onSave={(p) => save.mutate(p)} pending={save.isPending} />
+        </Dialog>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader><TableRow><TableHead>Nazwa</TableHead><TableHead>Adres</TableHead><TableHead className="text-right">Dystans (km, w jedną stronę)</TableHead><TableHead>Status</TableHead><TableHead className="w-24" /></TableRow></TableHeader>
+          <TableBody>
+            {data.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-6">Brak punktów odbioru</TableCell></TableRow>}
+            {data.map((p: any) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell className="text-sm">{p.address}</TableCell>
+                <TableCell className="text-right">{p.default_km != null ? `${Number(p.default_km)} km` : "auto (z mapy)"}</TableCell>
+                <TableCell>{p.is_active ? <Badge>aktywny</Badge> : <Badge variant="secondary">nieaktywny</Badge>}</TableCell>
+                <TableCell className="flex gap-1">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => { if (confirm(`Usunąć punkt ${p.name}?`)) del.mutate(p.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PickupDialog({ editing, onSave, pending }: { editing: any | null; onSave: (p: any) => void; pending: boolean }) {
+  const [f, setF] = useState({
+    id: editing?.id,
+    name: editing?.name ?? "",
+    address: editing?.address ?? "",
+    default_km: editing?.default_km != null ? String(editing.default_km) : "",
+    notes: editing?.notes ?? "",
+    is_active: editing?.is_active ?? true,
+  });
+  return (
+    <DialogContent>
+      <DialogHeader><DialogTitle>{editing ? "Edytuj punkt odbioru" : "Nowy punkt odbioru"}</DialogTitle></DialogHeader>
+      <div className="grid gap-3">
+        <div><Label>Nazwa *</Label><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="np. Małaszewicze" /></div>
+        <div><Label>Adres *</Label><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder="Małaszewicze, 21-540 Terespol, Polska" /></div>
+        <div><Label>Stały dystans w jedną stronę (km, opcj.)</Label><Input type="number" step="1" min="0" value={f.default_km} onChange={(e) => setF({ ...f, default_km: e.target.value })} placeholder="puste = liczone z mapy" /></div>
+        <label className="flex items-center gap-2"><Checkbox checked={f.is_active} onCheckedChange={(v) => setF({ ...f, is_active: !!v })} /> Aktywny</label>
+        <div><Label>Notatka</Label><Textarea rows={2} value={f.notes ?? ""} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+      </div>
+      <DialogFooter>
+        <Button disabled={pending || !f.name || !f.address} onClick={() => onSave({ ...f, default_km: f.default_km ? Number(f.default_km) : null })}>
+          {pending ? "Zapisywanie…" : "Zapisz"}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   );
 }
