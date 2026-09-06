@@ -26,6 +26,7 @@ import {
   listStockLots,
   getDefaultPurchasePrice,
 } from "@/lib/stock.functions";
+import { listPickupLocations, estimateInboundFuelCost } from "@/lib/pickup.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow, format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -34,6 +35,7 @@ const balanceQuery = queryOptions({ queryKey: ["stock", "balance"], queryFn: () 
 const eventsQuery = queryOptions({ queryKey: ["stock", "events"], queryFn: () => listStockEvents() });
 const openLeadsQuery = queryOptions({ queryKey: ["leads", "open"], queryFn: () => listOpenLeads() });
 const lotsQuery = queryOptions({ queryKey: ["stock", "lots"], queryFn: () => listStockLots() });
+const pickupsQuery = queryOptions({ queryKey: ["pickup-locations"], queryFn: () => listPickupLocations() });
 const defaultPriceQuery = queryOptions({ queryKey: ["stock", "default-price"], queryFn: () => getDefaultPurchasePrice() });
 
 export const Route = createFileRoute("/_authenticated/magazyn")({
@@ -340,10 +342,16 @@ function PhysicalDialog({
   const [vat, setVat] = useState("8");
   const [supplier, setSupplier] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
+  const [pickupId, setPickupId] = useState("none");
+  const [km, setKm] = useState("");
+  const [fuelCost, setFuelCost] = useState("");
+  const [estimating, setEstimating] = useState(false);
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
   const submit = useServerFn(addStockEvent);
+  const estimate = useServerFn(estimateInboundFuelCost);
   const { data: defaults } = useSuspenseQuery(defaultPriceQuery);
+  const { data: pickups } = useSuspenseQuery(pickupsQuery);
   const isPz = type === "przyjecie";
 
   useEffect(() => {
@@ -352,6 +360,23 @@ function PhysicalDialog({
       setVat(String(defaults.vat_rate ?? 8));
     }
   }, [open, isPz, defaults]);
+
+  async function runEstimate(locId: string) {
+    if (!locId || locId === "none") return;
+    setEstimating(true);
+    try {
+      const r = await estimate({ data: { pickup_location_id: locId } });
+      if (r.cost == null) {
+        toast.error("Nie udało się wyliczyć trasy — wpisz koszt paliwa ręcznie");
+      } else {
+        setKm(String(r.km));
+        setFuelCost(r.cost.toFixed(2));
+        toast.success(`Trasa ${r.km} km (tam i z powrotem) · ON ${r.fuelPrice.toFixed(2)} zł/l`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Błąd wyliczenia kosztu paliwa");
+    } finally { setEstimating(false); }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -374,12 +399,15 @@ function PhysicalDialog({
                 vat_rate: Number(vat) as 0 | 8 | 23,
                 supplier: supplier || null,
                 invoice_number: invoiceNo || null,
+                pickup_location_id: pickupId !== "none" ? pickupId : null,
+                transport_km: km ? Number(km) : null,
+                fuel_cost: fuelCost ? Number(fuelCost) : null,
               }
             : {}),
         },
       });
       toast.success(isPz ? `Przyjęto partię ${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
-      setOpen(false); setQty(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo("");
+      setOpen(false); setQty(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
       qc.invalidateQueries({ queryKey: ["stock"] });
     } catch (err: any) {
       toast.error(err?.message ?? "Błąd — brak uprawnień?");
@@ -430,6 +458,32 @@ function PhysicalDialog({
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1.5"><Label>Dostawca (opcj.)</Label><Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="np. Tartak XYZ" /></div>
                 <div className="grid gap-1.5"><Label>Nr faktury zakupu (opcj.)</Label><Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} placeholder="FV 123/2026" /></div>
+              </div>
+
+              <div className="rounded-md border p-3 space-y-3">
+                <p className="text-sm font-medium">Koszt paliwa dowozu na magazyn</p>
+                <div className="grid gap-1.5">
+                  <Label>Skąd przyjechał towar</Label>
+                  <Select value={pickupId} onValueChange={(v) => { setPickupId(v); void runEstimate(v); }}>
+                    <SelectTrigger><SelectValue placeholder="Wybierz punkt odbioru…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— nie podano —</SelectItem>
+                      {pickups.filter((p) => p.is_active).map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5"><Label>Trasa (km, tam i z powrotem)</Label><Input type="number" step="1" min="0" value={km} onChange={(e) => setKm(e.target.value)} placeholder="np. 240" /></div>
+                  <div className="grid gap-1.5"><Label>Koszt paliwa (zł)</Label><Input type="number" step="0.01" min="0" value={fuelCost} onChange={(e) => setFuelCost(e.target.value)} placeholder="np. 480" /></div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={pickupId === "none" || estimating} onClick={() => void runEstimate(pickupId)}>
+                    <RefreshCw className={`mr-2 h-3.5 w-3.5 ${estimating ? "animate-spin" : ""}`} />Przelicz z trasy
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Sam koszt paliwa — bez kosztu kierowcy. Trafia do Płatności jako wydatek.</span>
+                </div>
               </div>
             </>
           )}

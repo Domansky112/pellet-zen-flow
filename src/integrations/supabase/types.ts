@@ -993,6 +993,42 @@ export type Database = {
         }
         Relationships: []
       }
+      pickup_locations: {
+        Row: {
+          address: string
+          created_at: string
+          created_by: string | null
+          default_km: number | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          created_by?: string | null
+          default_km?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          created_by?: string | null
+          default_km?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       poultry_reminders: {
         Row: {
           assigned_to: string | null
@@ -1192,14 +1228,18 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          fuel_cost: number | null
+          fuel_expense_id: string | null
           id: string
           invoice_number: string | null
           note: string | null
+          pickup_location_id: string | null
           product: Database["public"]["Enums"]["product_type"]
           quantity: number
           remaining_quantity: number
           stock_event_id: string | null
           supplier: string | null
+          transport_km: number | null
           unit_price: number
           updated_at: string
           vat_rate: number
@@ -1207,14 +1247,18 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          fuel_cost?: number | null
+          fuel_expense_id?: string | null
           id?: string
           invoice_number?: string | null
           note?: string | null
+          pickup_location_id?: string | null
           product: Database["public"]["Enums"]["product_type"]
           quantity: number
           remaining_quantity?: number
           stock_event_id?: string | null
           supplier?: string | null
+          transport_km?: number | null
           unit_price?: number
           updated_at?: string
           vat_rate?: number
@@ -1222,19 +1266,37 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          fuel_cost?: number | null
+          fuel_expense_id?: string | null
           id?: string
           invoice_number?: string | null
           note?: string | null
+          pickup_location_id?: string | null
           product?: Database["public"]["Enums"]["product_type"]
           quantity?: number
           remaining_quantity?: number
           stock_event_id?: string | null
           supplier?: string | null
+          transport_km?: number | null
           unit_price?: number
           updated_at?: string
           vat_rate?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_lots_fuel_expense_id_fkey"
+            columns: ["fuel_expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_pickup_location_id_fkey"
+            columns: ["pickup_location_id"]
+            isOneToOne: false
+            referencedRelation: "pickup_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_lots_stock_event_id_fkey"
             columns: ["stock_event_id"]
