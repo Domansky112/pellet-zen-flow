@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -187,7 +187,7 @@ function TransportRow({
   const daysLeft = differenceInCalendarDays(parseISO(t.scheduled_date), new Date());
   const items = t.transport_items ?? [];
   const item = items[0];
-  const leadHref = item?.lead_id ? `/crm?leadId=${item.lead_id}` : null;
+  const leadHref = item?.lead_id ?? null;
   const totalTons = items.reduce((s: number, i: any) => s + Number(i.quantity ?? 0), 0);
   const transportNo = (t.notes ?? "").match(/#T-\d{4}\/\d{2}\/\d{3}/)?.[0] ?? null;
   const [expanded, setExpanded] = useState(false);
@@ -259,7 +259,7 @@ function TransportRow({
           {item?.leads?.name && leadHref && (
             <>
               {" · Lead: "}
-              <a href={leadHref} className="underline hover:text-foreground">{item.leads.name}</a>
+              <Link to="/crm" search={{ leadId: leadHref }} className="underline hover:text-foreground">{item.leads.name}</Link>
             </>
           )}
         </div>
@@ -279,12 +279,13 @@ function TransportRow({
                   <div key={it.id} className="flex flex-wrap items-center gap-2 text-xs">
                     <Badge variant="outline">{idx + 1}</Badge>
                     {it.lead_id ? (
-                      <a
-                        href={`/crm?leadId=${it.lead_id}`}
+                      <Link
+                        to="/crm"
+                        search={{ leadId: it.lead_id }}
                         className="font-medium underline hover:text-primary"
                       >
                         {it.leads?.name ?? "Lead"}
-                      </a>
+                      </Link>
                     ) : (
                       <span className="font-medium">{it.leads?.name ?? "—"}</span>
                     )}

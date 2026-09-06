@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Mail, Globe, Building2, Phone, Inbox as InboxIcon, RefreshCw, PackageCheck, PackageOpen, Trash2, StickyNote, X as XIcon } from "lucide-react";
-import { listLeads, listReservedLeads, listCancelledLeads, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
+import { listLeads, listReservedLeads, listCancelledLeads, getLeadById, assignToMe, confirmWydanie, cancelLead } from "@/lib/leads.functions";
 import { listLeadStatuses, setLeadStatusKey, type LeadStatus } from "@/lib/lead-statuses.functions";
 import { listLeadIdsWithNotes } from "@/lib/notes.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
@@ -140,17 +140,56 @@ function CrmPage() {
   const activeLeads = useMemo(() => (leads as Lead[]).filter((l) => !isClosedLead(l)), [leads]);
   const realizedLeads = useMemo(() => (leads as Lead[]).filter((l) => isRealizedLead(l)), [leads]);
 
+  const getLeadByIdFn = useServerFn(getLeadById);
   useEffect(() => {
-    if (!search.leadId) return;
+    const wanted = search.leadId;
+    if (!wanted) return;
+    let cancelledEffect = false;
+
+    const openIt = (lead: Lead) => {
+      if (cancelledEffect) return;
+      setOpenLead(lead);
+      const nextTab = (lead as any).deleted_at
+        ? "cancelled"
+        : isRealizedLead(lead)
+          ? "realized"
+          : isClosedLead(lead)
+            ? "realized"
+            : "all";
+      navigate({
+        search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined, tab: nextTab }),
+        replace: true,
+      });
+    };
+
     const found =
-      (leads as Lead[]).find((l) => l.id === search.leadId)
-      ?? (reserved.data ?? []).find((l) => l.id === search.leadId)
-      ?? (cancelled.data ?? []).find((l) => l.id === search.leadId);
+      (leads as Lead[]).find((l) => l.id === wanted)
+      ?? (reserved.data ?? []).find((l) => l.id === wanted)
+      ?? (cancelled.data ?? []).find((l) => l.id === wanted);
     if (found) {
-      setOpenLead(found as Lead);
-      navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
+      openIt(found as Lead);
+      return;
     }
-  }, [search.leadId, leads, reserved.data, cancelled.data, navigate]);
+
+    // Lead poza wczytanymi listami (starszy, zamknięty lub anulowany) — dociągnij pojedynczo.
+    (async () => {
+      try {
+        const lead = await getLeadByIdFn({ data: { id: wanted } });
+        if (lead) openIt(lead as Lead);
+        else if (!cancelledEffect) {
+          toast.error("Nie znaleziono leada lub brak dostępu.");
+          navigate({ search: (p: Record<string, unknown>) => ({ ...p, leadId: undefined }), replace: true });
+        }
+      } catch (e: any) {
+        if (!cancelledEffect) toast.error(e?.message ?? "Nie udało się otworzyć leada.");
+      }
+    })();
+
+    return () => {
+      cancelledEffect = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.leadId, leads, reserved.data, cancelled.data]);
 
   useEffect(() => {
     const ch = supabase

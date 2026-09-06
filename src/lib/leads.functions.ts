@@ -36,6 +36,18 @@ export const listCancelledLeads = createServerFn({ method: "GET" })
     return data;
   });
 
+export const getLeadById = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase.from("leads").select("*").eq("id", data.id);
+    if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
+    const { data: row, error } = await q.maybeSingle();
+    if (error) throw new Error(error.message);
+    return row ?? null;
+  });
+
 const SearchInput = z.object({ q: z.preprocess((v) => (typeof v === "string" ? v.trim().slice(0, 120) : v), z.string().min(2)) });
 
 export const searchLeads = createServerFn({ method: "GET" })
