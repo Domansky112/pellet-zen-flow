@@ -118,8 +118,8 @@ function CrmPage() {
   }, [statuses.data]);
 
   const notesByLead = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of notesIndex.data ?? []) m.set(r.lead_id, r.last_at);
+    const m = new Map<string, { last_at: string; body?: string | null }>();
+    for (const r of notesIndex.data ?? []) m.set(r.lead_id, { last_at: r.last_at, body: r.body });
     return m;
   }, [notesIndex.data]);
 
@@ -244,7 +244,7 @@ function CrmPage() {
     const byCreated = (a: Lead, b: Lead) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     const lastActivity = (l: Lead) =>
-      new Date(notesByLead.get(l.id) ?? l.created_at).getTime();
+      new Date(notesByLead.get(l.id)?.last_at ?? l.created_at).getTime();
 
     if (sort === "newest") copy.sort(byCreated);
     else if (sort === "oldest") copy.sort((a, b) => -byCreated(a, b));
@@ -465,6 +465,12 @@ function CrmPage() {
   );
 }
 
+function truncateNote(text: string, max = 140) {
+  if (!text) return "";
+  if (text.length <= max) return text;
+  return text.slice(0, max).trim() + "…";
+}
+
 function LeadList({
   items,
   onOpen,
@@ -476,7 +482,7 @@ function LeadList({
   onOpen: (l: Lead) => void;
   statusMap: Map<string, LeadStatus>;
   statuses: LeadStatus[];
-  notesByLead: Map<string, string>;
+  notesByLead: Map<string, { last_at: string; body?: string | null }>;
 }) {
   const setStatusFn = useServerFn(setLeadStatusKey);
   const assign = useServerFn(assignToMe);
@@ -552,6 +558,23 @@ function LeadList({
                   </CardDescription>
                 </div>
               </div>
+
+              {hasNotes && notesByLead.get(l.id)?.body && (
+                <div
+                  className="hidden md:flex flex-1 min-w-0 justify-end"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="max-w-sm rounded-md bg-sky-500/5 border border-sky-500/15 px-3 py-2">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-sky-600 mb-0.5">
+                      <StickyNote className="h-3 w-3" /> Ostatnia notatka
+                    </div>
+                    <p className="text-sm text-foreground/90 line-clamp-2">
+                      {truncateNote(notesByLead.get(l.id)!.body!)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Select
                   value={currentKey}
