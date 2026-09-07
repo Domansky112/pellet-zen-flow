@@ -286,31 +286,67 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
       "—";
     const city = lead.city || destination.split(",").pop()?.trim() || "—";
 
-    const { data: transport, error: tErr } = await context.supabase
-      .from("transports")
-      .insert({
-        scheduled_date: data.scheduled_date,
-        city,
-        postal_code: lead.postal_code ?? null,
-        destination_address: destination,
-        driver: data.driver ?? null,
-        vehicle: data.vehicle ?? null,
-        notes: data.notes ?? null,
-        capacity_kg: qty * 1000,
-        status: "planowany",
-      })
-      .select()
-      .single();
-    if (tErr) throw new Error(tErr.message);
+    // Jeśli lead ma podział na partie — każda oczekująca partia dostaje
+    // WŁASNY transport (i własne WZ). W przeciwnym razie jeden transport na całość.
+    const { data: pendingBatches } = await context.supabase
+      .from("lead_batches")
+      .select("id, batch_no, tons")
+      .eq("lead_id", lead.id)
+      .is("transport_id", null)
+      .neq("status", "zrealizowana")
+      .order("batch_no", { ascending: true });
 
-    const { error: iErr } = await context.supabase.from("transport_items").insert({
-      transport_id: transport.id,
-      lead_id: lead.id,
-      product,
-      quantity: qty,
-      address: destination,
-    });
-    if (iErr) throw new Error(iErr.message);
+    const loads: { batchId: string | null; batchNo: number | null; tons: number }[] =
+      (pendingBatches ?? []).length > 0
+        ? (pendingBatches ?? []).map((b: any) => ({
+            batchId: b.id as string,
+            batchNo: Number(b.batch_no),
+            tons: Number(b.tons),
+          }))
+        : [{ batchId: null, batchNo: null, tons: qty }];
+
+    const transportIds: string[] = [];
+    for (const load of loads) {
+      const noteParts = [
+        load.batchNo ? `Partia ${load.batchNo}/${loads.length}` : null,
+        data.notes ?? null,
+      ].filter(Boolean);
+      const { data: transport, error: tErr } = await context.supabase
+        .from("transports")
+        .insert({
+          scheduled_date: data.scheduled_date,
+          city,
+          postal_code: lead.postal_code ?? null,
+          destination_address: destination,
+          driver: data.driver ?? null,
+          vehicle: data.vehicle ?? null,
+          notes: noteParts.length ? noteParts.join(" — ") : null,
+          capacity_kg: load.tons * 1000,
+          status: "planowany",
+        })
+        .select()
+        .single();
+      if (tErr) throw new Error(tErr.message);
+      transportIds.push(transport.id);
+
+      const { error: iErr } = await context.supabase.from("transport_items").insert({
+        transport_id: transport.id,
+        lead_id: lead.id,
+        batch_id: load.batchId,
+        product,
+        quantity: load.tons,
+        address: destination,
+      });
+      if (iErr) throw new Error(iErr.message);
+
+      if (load.batchId) {
+        const { error: bErr } = await context.supabase
+          .from("lead_batches")
+          .update({ transport_id: transport.id, status: "zaplanowana" })
+          .eq("id", load.batchId);
+        if (bErr) throw new Error(bErr.message);
+      }
+    }
 
     if (needsReservation) {
       const { error: sErr } = await context.supabase.from("stock_events").insert({
@@ -318,7 +354,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         txn_type: "rezerwacja",
         quantity: missing,
         lead_id: lead.id,
-        reference: `TRANSPORT:${transport.id.slice(0, 8)}`,
+        reference: `TRANSPORT:${transportIds[0].slice(0, 8)}`,
         note: `Auto-rezerwacja pod transport ${data.scheduled_date}`,
         created_by: context.userId,
       });
@@ -331,7 +367,12 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         .eq("id", lead.id);
     }
 
-    return { transport_id: transport.id, reused_reservation: !needsReservation };
+    return {
+      transport_id: transportIds[0],
+      transport_ids: transportIds,
+      batch_count: loads.length,
+      reused_reservation: !needsReservation,
+    };
   });
 
 /**

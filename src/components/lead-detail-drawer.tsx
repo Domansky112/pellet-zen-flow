@@ -414,15 +414,19 @@ export function LeadDetailDrawer({
           notes: schedNotes || null,
         },
       }),
-    onSuccess: (res: { reused_reservation?: boolean }) => {
+    onSuccess: (res: { reused_reservation?: boolean; batch_count?: number }) => {
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ["transports"] });
       qc.invalidateQueries({ queryKey: ["stock"] });
+      qc.invalidateQueries({ queryKey: ["lead-batches", lead!.id] });
       setScheduleOpen(false);
+      const multi = (res?.batch_count ?? 1) > 1;
       toast.success(
-        res?.reused_reservation
-          ? "Transport dodany do kalendarza (użyto istniejącej rezerwacji)"
-          : "Transport dodany + auto-rezerwacja magazynu",
+        multi
+          ? `Zaplanowano ${res!.batch_count} transporty (po jednym na partię) — każdy dostanie osobne WZ`
+          : res?.reused_reservation
+            ? "Transport dodany do kalendarza (użyto istniejącej rezerwacji)"
+            : "Transport dodany + auto-rezerwacja magazynu",
       );
     },
     onError: (e: Error) => toast.error(e.message),
