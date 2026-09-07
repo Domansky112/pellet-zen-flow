@@ -246,6 +246,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         driver: z.string().max(120).optional().nullable(),
         vehicle: z.string().max(120).optional().nullable(),
         notes: z.string().max(1000).optional().nullable(),
+        batch_ids: z.array(z.string().uuid()).optional().nullable(),
       })
       .parse(input),
   )
