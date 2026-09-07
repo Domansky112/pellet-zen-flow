@@ -142,6 +142,7 @@ const CreateInput = z.object({
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   city: z.string().trim().max(120).optional().or(z.literal("")),
   postal_code: z.string().trim().max(12).optional().or(z.literal("")),
+  street: z.string().trim().max(200).optional().or(z.literal("")),
   source: z.enum(["www", "email", "b2b", "telefon", "inne"]).default("inne"),
   product: z.enum(["pellet_paleta", "pellet_bigbag", "inne"]).optional().nullable(),
   quantity: z.number().nonnegative().optional().nullable(),
@@ -174,6 +175,7 @@ export const createLead = createServerFn({ method: "POST" })
       phone: data.phone || null,
       city: data.city || null,
       postal_code: data.postal_code || null,
+      street: data.street || null,
       source: data.source,
       product: data.product ?? null,
       quantity: data.quantity ?? null,
@@ -311,6 +313,7 @@ const UpdateLeadInput = z.object({
   phone: z.string().trim().max(50).nullable().or(z.literal("")).optional(),
   city: z.string().trim().max(120).nullable().or(z.literal("")).optional(),
   postal_code: z.string().trim().max(12).nullable().or(z.literal("")).optional(),
+  street: z.string().trim().max(200).nullable().or(z.literal("")).optional(),
   invoice_company: z.string().trim().max(200).nullable().or(z.literal("")).optional(),
   invoice_nip: z.string().trim().max(20).nullable().or(z.literal("")).optional(),
   invoice_address: z.string().trim().max(500).nullable().or(z.literal("")).optional(),
@@ -473,7 +476,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: src, error: se } = await context.supabase
       .from("leads")
-      .select("first_name, last_name, name, email, phone, city, postal_code, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment, is_b2b_kurnik, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved")
+      .select("first_name, last_name, name, email, phone, city, postal_code, street, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment, is_b2b_kurnik, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved")
       .eq("id", data.lead_id)
       .single();
     if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
@@ -488,6 +491,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
         phone: src.phone,
         city: src.city,
         postal_code: src.postal_code,
+        street: (src as any).street ?? null,
         invoice_company: src.invoice_company,
         invoice_nip: src.invoice_nip,
         invoice_address: src.invoice_address,
@@ -909,6 +913,7 @@ export const importLeads = createServerFn({ method: "POST" })
         phone: phone || null,
         city: str(r.city) || null,
         postal_code: str(r.postal_code) || null,
+        street: str(r.street) || null,
         source,
         product,
         quantity,

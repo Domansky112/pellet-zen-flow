@@ -49,6 +49,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
     company: "",
     city: "",
     postal_code: "",
+    street: "",
     source: defaults?.source ?? "telefon",
     product: defaults?.product ?? "pellet_paleta",
     quantity: "",
@@ -87,6 +88,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
           phone: form.phone.trim(),
           city: form.city.trim(),
           postal_code: form.postal_code.trim(),
+          street: form.street.trim(),
           source: form.source,
           product: form.product,
           quantity: form.quantity ? Number(form.quantity) : null,
@@ -123,7 +125,7 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
       setForm((f) => ({
         ...f,
         first_name: "", last_name: "", phone: "", email: "", company: "",
-        city: "", postal_code: "", quantity: "", notes: "",
+        city: "", postal_code: "", street: "", quantity: "", notes: "",
       }));
     },
     onError: (e: Error) => toast.error(e.message),
@@ -177,6 +179,10 @@ export function NewLeadDialog({ defaults, triggerLabel = "Nowy lead", variant = 
               <Label>Kod pocztowy</Label>
               <Input value={form.postal_code} onChange={(e) => set("postal_code", e.target.value)} placeholder="00-000" />
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Ulica i nr posesji</Label>
+            <Input value={form.street} onChange={(e) => set("street", e.target.value)} placeholder="ul. Polna 12A" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
