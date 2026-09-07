@@ -36,7 +36,10 @@ export type WzRecipient = {
   name: string;
   company: string | null;
   nip: string | null;
+  /** Adres odbiorcy na WZ — dane do faktury, a gdy ich brak: adres rozładunku. */
   address: string;
+  /** Adres fizycznego rozładunku (z leada / transportu). */
+  deliveryAddress: string;
   phone: string | null;
   email: string | null;
   hasUnloadingEquipment: boolean;
@@ -132,13 +135,17 @@ function leadToRecipient(lead: any): WzRecipient {
   ]
     .filter(Boolean)
     .join(", ");
-  const address = fromLead || lead?.invoice_address || "—";
+  const deliveryAddress = fromLead || lead?.invoice_address || "—";
+  const hasInvoiceData = !!(lead?.invoice_address || lead?.invoice_company || lead?.invoice_nip);
+  // Odbiorca na WZ: preferujemy dane do faktury; gdy ich brak — adres rozładunku.
+  const address = hasInvoiceData ? (lead?.invoice_address ?? deliveryAddress) : deliveryAddress;
   return {
     key: String(lead?.id ?? `${name}-${address}`),
     name: name || "—",
     company: lead?.invoice_company ?? null,
     nip: lead?.invoice_nip ?? null,
     address: address || "—",
+    deliveryAddress: deliveryAddress || "—",
     phone: lead?.phone ?? null,
     email: lead?.email ?? null,
     hasUnloadingEquipment: !!lead?.has_unloading_equipment,
@@ -191,6 +198,7 @@ async function prepareFromTransport(
             company: null,
             nip: null,
             address: t.destination_address ?? "—",
+            deliveryAddress: t.destination_address ?? "—",
             phone: null,
             email: null,
             hasUnloadingEquipment: false,
@@ -222,6 +230,7 @@ async function prepareFromTransport(
             company: null,
             nip: null,
             address: t.destination_address ?? "—",
+            deliveryAddress: t.destination_address ?? "—",
             phone: null,
             email: null,
             hasUnloadingEquipment: false,
@@ -330,7 +339,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
     .map(
       (r) =>
         `<div class="place-row">${r.leadNumber ? `<span class="muted">${escapeHtml(r.leadNumber)}</span> · ` : ""}<strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
-          r.address,
+          r.deliveryAddress,
         )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}<br/><span class="muted">Sprzęt do rozładunku u klienta: <b>${r.hasUnloadingEquipment ? "TAK" : "NIE — wymagany HDS / winda"}</b></span></div>`,
     )
     .join("");
