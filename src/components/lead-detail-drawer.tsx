@@ -46,6 +46,7 @@ type Lead = {
   phone?: string | null;
   city?: string | null;
   postal_code?: string | null;
+  street?: string | null;
   invoice_company?: string | null;
   invoice_nip?: string | null;
   invoice_address?: string | null;
@@ -123,6 +124,7 @@ export function LeadDetailDrawer({
     email: "",
     city: "",
     postal_code: "",
+    street: "",
     invoice_company: "",
     invoice_nip: "",
     invoice_address: "",
@@ -150,6 +152,7 @@ export function LeadDetailDrawer({
       email: lead.email ?? "",
       city: lead.city ?? "",
       postal_code: lead.postal_code ?? "",
+      street: lead.street ?? "",
       invoice_company: lead.invoice_company ?? "",
       invoice_nip: lead.invoice_nip ?? "",
       invoice_address: lead.invoice_address ?? "",
@@ -390,7 +393,10 @@ export function LeadDetailDrawer({
   const [schedNotes, setSchedNotes] = useState("");
   useEffect(() => {
     if (scheduleOpen && lead) {
-      setSchedAddress(lead.invoice_address ?? [lead.postal_code, lead.city].filter(Boolean).join(" ") ?? "");
+      const street = (lead.street ?? "").trim();
+      const cityLine = [lead.postal_code, lead.city].filter(Boolean).join(" ").trim();
+      const fromLead = [street, cityLine].filter(Boolean).join(", ");
+      setSchedAddress(fromLead || (lead.invoice_address ?? ""));
       setSchedDriver(NONE);
       setSchedVehicle(NONE);
       setSchedNotes("");
@@ -1066,6 +1072,10 @@ export function LeadDetailDrawer({
                   <div className="space-y-1">
                     <Label htmlFor="ld-pc">Kod pocztowy</Label>
                     <Input id="ld-pc" value={form.postal_code} onChange={(e) => setForm({ ...form, postal_code: e.target.value })} />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label htmlFor="ld-street">Ulica i nr posesji</Label>
+                    <Input id="ld-street" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="ul. Polna 12A" />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
                     <Label htmlFor="ld-qty" className={validation.quantityMissing ? "text-destructive" : ""}>

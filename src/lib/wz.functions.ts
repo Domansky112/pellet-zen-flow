@@ -126,10 +126,13 @@ function leadToRecipient(lead: any): WzRecipient {
     lead?.name ??
     [lead?.first_name, lead?.last_name].filter(Boolean).join(" ").trim() ??
     "—";
-  const address =
-    lead?.invoice_address ??
-    [lead?.city, lead?.postal_code].filter(Boolean).join(" ") ??
-    "—";
+  const fromLead = [
+    (lead?.street ?? "").trim(),
+    [lead?.postal_code, lead?.city].filter(Boolean).join(" ").trim(),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const address = fromLead || lead?.invoice_address || "—";
   return {
     key: String(lead?.id ?? `${name}-${address}`),
     name: name || "—",
@@ -169,7 +172,7 @@ async function prepareFromTransport(
   const { data: t, error } = await supabase
     .from("transports")
     .select(
-      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
+      "id, scheduled_date, city, postal_code, destination_address, driver, vehicle, notes, transport_items(id, product, quantity, address, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, street, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", transportId)
     .maybeSingle();
@@ -241,7 +244,7 @@ async function prepareFromPool(
   const { data: p, error } = await supabase
     .from("transport_pools")
     .select(
-      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
+      "id, name, route_to, notes, transport_id, transport_pool_items(id, tons, stop_order, leads(id, lead_number, name, first_name, last_name, phone, email, city, postal_code, street, product, quantity, invoice_company, invoice_nip, invoice_address, has_unloading_equipment))",
     )
     .eq("id", poolId)
     .maybeSingle();
