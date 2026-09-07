@@ -244,7 +244,7 @@ function CrmPage() {
     const byCreated = (a: Lead, b: Lead) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     const lastActivity = (l: Lead) =>
-      new Date(notesByLead.get(l.id) ?? l.created_at).getTime();
+      new Date(notesByLead.get(l.id)?.last_at ?? l.created_at).getTime();
 
     if (sort === "newest") copy.sort(byCreated);
     else if (sort === "oldest") copy.sort((a, b) => -byCreated(a, b));
