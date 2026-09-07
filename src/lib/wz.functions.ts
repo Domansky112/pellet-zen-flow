@@ -339,7 +339,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
     .map(
       (r) =>
         `<div class="place-row">${r.leadNumber ? `<span class="muted">${escapeHtml(r.leadNumber)}</span> · ` : ""}<strong>${escapeHtml(r.company ?? r.name)}</strong> — ${escapeHtml(
-          r.address,
+          r.deliveryAddress,
         )}${r.phone ? ` · tel. ${escapeHtml(r.phone)}` : ""}<br/><span class="muted">Sprzęt do rozładunku u klienta: <b>${r.hasUnloadingEquipment ? "TAK" : "NIE — wymagany HDS / winda"}</b></span></div>`,
     )
     .join("");
