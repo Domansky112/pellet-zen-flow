@@ -246,6 +246,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         driver: z.string().max(120).optional().nullable(),
         vehicle: z.string().max(120).optional().nullable(),
         notes: z.string().max(1000).optional().nullable(),
+        batch_ids: z.array(z.string().uuid()).optional().nullable(),
       })
       .parse(input),
   )
@@ -296,19 +297,30 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
       .neq("status", "zrealizowana")
       .order("batch_no", { ascending: true });
 
+    const allPending = pendingBatches ?? [];
+    const selectedIds = data.batch_ids ?? null;
+    const chosen =
+      selectedIds && selectedIds.length > 0
+        ? allPending.filter((b: any) => selectedIds.includes(b.id as string))
+        : allPending;
+    if (selectedIds && selectedIds.length > 0 && chosen.length === 0) {
+      throw new Error("Wybrane partie nie są już dostępne do zaplanowania.");
+    }
+
     const loads: { batchId: string | null; batchNo: number | null; tons: number }[] =
-      (pendingBatches ?? []).length > 0
-        ? (pendingBatches ?? []).map((b: any) => ({
+      chosen.length > 0
+        ? chosen.map((b: any) => ({
             batchId: b.id as string,
             batchNo: Number(b.batch_no),
             tons: Number(b.tons),
           }))
         : [{ batchId: null, batchNo: null, tons: qty }];
+    const totalBatches = allPending.length || loads.length;
 
     const transportIds: string[] = [];
     for (const load of loads) {
       const noteParts = [
-        load.batchNo ? `Partia ${load.batchNo}/${loads.length}` : null,
+        load.batchNo ? `Partia ${load.batchNo}/${totalBatches}` : null,
         data.notes ?? null,
       ].filter(Boolean);
       const { data: transport, error: tErr } = await context.supabase
@@ -348,11 +360,13 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
       }
     }
 
-    if (needsReservation) {
+    const loadTons = loads.reduce((s, l) => s + l.tons, 0);
+    const reserveQty = Math.min(missing, loadTons);
+    if (needsReservation && reserveQty > 0) {
       const { error: sErr } = await context.supabase.from("stock_events").insert({
         product,
         txn_type: "rezerwacja",
-        quantity: missing,
+        quantity: reserveQty,
         lead_id: lead.id,
         reference: `TRANSPORT:${transportIds[0].slice(0, 8)}`,
         note: `Auto-rezerwacja pod transport ${data.scheduled_date}`,
