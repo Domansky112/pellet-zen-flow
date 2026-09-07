@@ -339,6 +339,22 @@ export const updateLead = createServerFn({ method: "POST" })
       if (v === undefined) continue;
       patch[k] = v === "" ? null : v;
     }
+    // Jeśli zmieniono imię/nazwisko, ale nie przesłano jawnej nazwy — przelicz `name`,
+    // żeby lista CRM i pozostałe moduły pokazywały aktualne dane.
+    if (
+      rest.name === undefined &&
+      (rest.first_name !== undefined || rest.last_name !== undefined)
+    ) {
+      const { data: cur } = await context.supabase
+        .from("leads")
+        .select("first_name, last_name, name")
+        .eq("id", id)
+        .single();
+      const fn = patch.first_name !== undefined ? (patch.first_name as string | null) : cur?.first_name;
+      const ln = patch.last_name !== undefined ? (patch.last_name as string | null) : cur?.last_name;
+      const joined = [fn, ln].filter(Boolean).join(" ").trim();
+      if (joined) patch.name = joined;
+    }
     // Synchronizuj pooling_status z pooling_enabled, żeby lead trafił do poczekalni
     if (rest.pooling_enabled !== undefined) {
       if (rest.pooling_enabled) {
