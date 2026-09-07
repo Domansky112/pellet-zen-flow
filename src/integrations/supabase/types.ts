@@ -834,6 +834,7 @@ export type Database = {
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
+          street: string | null
           transport_cost_gross: number | null
           transport_vat_rate: number
           updated_at: string
@@ -888,6 +889,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
+          street?: string | null
           transport_cost_gross?: number | null
           transport_vat_rate?: number
           updated_at?: string
@@ -942,6 +944,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_key?: string | null
+          street?: string | null
           transport_cost_gross?: number | null
           transport_vat_rate?: number
           updated_at?: string
@@ -1916,6 +1919,7 @@ export type Database = {
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_key: string | null
+          street: string | null
           transport_cost_gross: number | null
           transport_vat_rate: number
           updated_at: string
