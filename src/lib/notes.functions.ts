@@ -22,14 +22,14 @@ export const listLeadIdsWithNotes = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("lead_notes")
-      .select("lead_id, created_at")
+      .select("lead_id, body, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const map = new Map<string, string>();
+    const map = new Map<string, { last_at: string; body?: string | null }>();
     for (const r of (data ?? []) as any[]) {
-      if (r.lead_id && !map.has(r.lead_id)) map.set(r.lead_id, r.created_at);
+      if (r.lead_id && !map.has(r.lead_id)) map.set(r.lead_id, { last_at: r.created_at, body: r.body });
     }
-    return Array.from(map.entries()).map(([lead_id, last_at]) => ({ lead_id, last_at }));
+    return Array.from(map.entries()).map(([lead_id, { last_at, body }]) => ({ lead_id, last_at, body }));
   });
 
 export const addNote = createServerFn({ method: "POST" })
