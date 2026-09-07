@@ -354,7 +354,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         txn_type: "rezerwacja",
         quantity: missing,
         lead_id: lead.id,
-        reference: `TRANSPORT:${transport.id.slice(0, 8)}`,
+        reference: `TRANSPORT:${transportIds[0].slice(0, 8)}`,
         note: `Auto-rezerwacja pod transport ${data.scheduled_date}`,
         created_by: context.userId,
       });
@@ -367,7 +367,12 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
         .eq("id", lead.id);
     }
 
-    return { transport_id: transport.id, reused_reservation: !needsReservation };
+    return {
+      transport_id: transportIds[0],
+      transport_ids: transportIds,
+      batch_count: loads.length,
+      reused_reservation: !needsReservation,
+    };
   });
 
 /**
