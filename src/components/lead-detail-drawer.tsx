@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Pencil, Trash2, Save, X, Copy, Mail, FileText, PackageCheck, PackageOpen, PackageX, Loader2, Users, ShieldAlert, CopyPlus, ChevronDown, ChevronUp, AlertCircle, Send, UserPlus, UserCheck, Calculator, CalendarPlus, Wallet } from "lucide-react";
 import { ConflictWarning, FleetPicker, NONE, useConflictGuard } from "@/components/fleet-conflict-picker";
 import { scheduleTransportForLead } from "@/lib/transport-crud.functions";
+import { listLeadBatches } from "@/lib/batches.functions";
 import {
   Dialog,
   DialogContent,
@@ -391,6 +392,20 @@ export function LeadDetailDrawer({
   const [schedDriver, setSchedDriver] = useState(NONE);
   const [schedVehicle, setSchedVehicle] = useState(NONE);
   const [schedNotes, setSchedNotes] = useState("");
+  const [schedBatchIds, setSchedBatchIds] = useState<string[]>([]);
+  const listBatchesFn = useServerFn(listLeadBatches);
+  const schedBatchesQuery = useQuery({
+    queryKey: ["lead-batches", lead?.id, "schedule"],
+    enabled: scheduleOpen && !!lead?.id,
+    queryFn: () => listBatchesFn({ data: { lead_id: lead!.id } }),
+  });
+  const pendingBatches = ((schedBatchesQuery.data as any[]) ?? []).filter(
+    (b) => !b.transport_id && b.status !== "zrealizowana",
+  );
+  useEffect(() => {
+    if (scheduleOpen) setSchedBatchIds(pendingBatches.map((b) => b.id as string));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleOpen, schedBatchesQuery.data]);
   useEffect(() => {
     if (scheduleOpen && lead) {
       const street = (lead.street ?? "").trim();
@@ -418,6 +433,7 @@ export function LeadDetailDrawer({
           driver: schedDriver !== NONE ? schedDriver : null,
           vehicle: schedVehicle !== NONE ? schedVehicle : null,
           notes: schedNotes || null,
+          batch_ids: pendingBatches.length > 0 ? schedBatchIds : null,
         },
       }),
     onSuccess: (res: { reused_reservation?: boolean; batch_count?: number }) => {
@@ -1396,6 +1412,40 @@ export function LeadDetailDrawer({
               <div><span className="text-muted-foreground">Zamówienie:</span> <strong>{Number(lead?.quantity ?? 0)} t · {lead?.product ?? "—"}</strong></div>
               <div><span className="text-muted-foreground">Rezerwacja:</span> <strong>{lead?.reservation_status ?? "brak"}</strong></div>
             </div>
+            {pendingBatches.length > 0 && (
+              <div className="space-y-2 rounded-md border p-3">
+                <Label>Partie do zaplanowania na ten dzień</Label>
+                <p className="text-xs text-muted-foreground">
+                  Każda zaznaczona partia dostanie osobny transport i osobne WZ. Odznacz partie,
+                  które pojadą w innym terminie.
+                </p>
+                <div className="space-y-1.5 pt-1">
+                  {pendingBatches.map((b: any) => {
+                    const checked = schedBatchIds.includes(b.id);
+                    return (
+                      <label key={b.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-primary"
+                          checked={checked}
+                          onChange={(e) =>
+                            setSchedBatchIds((prev) =>
+                              e.target.checked
+                                ? [...prev, b.id]
+                                : prev.filter((x) => x !== b.id),
+                            )
+                          }
+                        />
+                        <span>
+                          Partia {b.batch_no} — <strong>{Number(b.tons)} t</strong>
+                          {b.notes ? <span className="text-muted-foreground"> · {b.notes}</span> : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="sched-date">Data odbioru / dostawy *</Label>
               <Input id="sched-date" type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} />
@@ -1421,7 +1471,12 @@ export function LeadDetailDrawer({
             <Button
               variant={schedConflicts ? "destructive" : "default"}
               onClick={() => schedGuard(() => scheduleM.mutate())}
-              disabled={!schedDate || scheduleM.isPending || schedChecking}
+              disabled={
+                !schedDate ||
+                scheduleM.isPending ||
+                schedChecking ||
+                (pendingBatches.length > 0 && schedBatchIds.length === 0)
+              }
             >
               {scheduleM.isPending || schedChecking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarPlus className="h-4 w-4 mr-2" />}
               {schedConflicts ? "Tak, zaplanuj mimo to" : "Zaplanuj i zarezerwuj"}
