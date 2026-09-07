@@ -320,7 +320,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
     const transportIds: string[] = [];
     for (const load of loads) {
       const noteParts = [
-        load.batchNo ? `Partia ${load.batchNo}/${loads.length}` : null,
+        load.batchNo ? `Partia ${load.batchNo}/${totalBatches}` : null,
         data.notes ?? null,
       ].filter(Boolean);
       const { data: transport, error: tErr } = await context.supabase
@@ -360,11 +360,13 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
       }
     }
 
-    if (needsReservation) {
+    const loadTons = loads.reduce((s, l) => s + l.tons, 0);
+    const reserveQty = Math.min(missing, loadTons);
+    if (needsReservation && reserveQty > 0) {
       const { error: sErr } = await context.supabase.from("stock_events").insert({
         product,
         txn_type: "rezerwacja",
-        quantity: missing,
+        quantity: reserveQty,
         lead_id: lead.id,
         reference: `TRANSPORT:${transportIds[0].slice(0, 8)}`,
         note: `Auto-rezerwacja pod transport ${data.scheduled_date}`,
