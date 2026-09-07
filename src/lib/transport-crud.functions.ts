@@ -253,7 +253,7 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: lead, error: lErr } = await context.supabase
       .from("leads")
-      .select("id, name, first_name, last_name, city, postal_code, invoice_address, product, quantity, reservation_status")
+      .select("id, name, first_name, last_name, city, postal_code, street, invoice_address, product, quantity, reservation_status")
       .eq("id", data.lead_id)
       .single();
     if (lErr || !lead) throw new Error(lErr?.message ?? "Lead nie istnieje");
@@ -279,10 +279,17 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
     // rezerwacja powstaje nawet przy niedoborze (saldo dostępne może być ujemne).
 
 
+    // Szablon adresu dostawy: ulica i nr posesji, kod pocztowy, miasto.
+    const fromLead = [
+      (lead.street ?? "").trim(),
+      [lead.postal_code, lead.city].filter(Boolean).join(" ").trim(),
+    ]
+      .filter(Boolean)
+      .join(", ");
     const destination =
       data.destination_address?.trim() ||
+      fromLead ||
       lead.invoice_address ||
-      [lead.postal_code, lead.city].filter(Boolean).join(" ") ||
       lead.city ||
       "—";
     const city = lead.city || destination.split(",").pop()?.trim() || "—";
