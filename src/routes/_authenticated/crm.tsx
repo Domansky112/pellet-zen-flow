@@ -118,8 +118,8 @@ function CrmPage() {
   }, [statuses.data]);
 
   const notesByLead = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of notesIndex.data ?? []) m.set(r.lead_id, r.last_at);
+    const m = new Map<string, { last_at: string; body?: string | null }>();
+    for (const r of notesIndex.data ?? []) m.set(r.lead_id, { last_at: r.last_at, body: r.body });
     return m;
   }, [notesIndex.data]);
 
