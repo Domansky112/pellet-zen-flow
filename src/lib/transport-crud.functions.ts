@@ -297,14 +297,25 @@ export const scheduleTransportForLead = createServerFn({ method: "POST" })
       .neq("status", "zrealizowana")
       .order("batch_no", { ascending: true });
 
+    const allPending = pendingBatches ?? [];
+    const selectedIds = data.batch_ids ?? null;
+    const chosen =
+      selectedIds && selectedIds.length > 0
+        ? allPending.filter((b: any) => selectedIds.includes(b.id as string))
+        : allPending;
+    if (selectedIds && selectedIds.length > 0 && chosen.length === 0) {
+      throw new Error("Wybrane partie nie są już dostępne do zaplanowania.");
+    }
+
     const loads: { batchId: string | null; batchNo: number | null; tons: number }[] =
-      (pendingBatches ?? []).length > 0
-        ? (pendingBatches ?? []).map((b: any) => ({
+      chosen.length > 0
+        ? chosen.map((b: any) => ({
             batchId: b.id as string,
             batchNo: Number(b.batch_no),
             tons: Number(b.tons),
           }))
         : [{ batchId: null, batchNo: null, tons: qty }];
+    const totalBatches = allPending.length || loads.length;
 
     const transportIds: string[] = [];
     for (const load of loads) {
