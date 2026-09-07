@@ -558,6 +558,23 @@ function LeadList({
                   </CardDescription>
                 </div>
               </div>
+
+              {hasNotes && notesByLead.get(l.id)?.body && (
+                <div
+                  className="hidden md:flex flex-1 min-w-0 justify-end"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="max-w-sm rounded-md bg-sky-500/5 border border-sky-500/15 px-3 py-2">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-sky-600 mb-0.5">
+                      <StickyNote className="h-3 w-3" /> Ostatnia notatka
+                    </div>
+                    <p className="text-sm text-foreground/90 line-clamp-2">
+                      {truncateNote(notesByLead.get(l.id)!.body!)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="text-right shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Select
                   value={currentKey}
