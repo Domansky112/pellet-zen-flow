@@ -465,6 +465,12 @@ function CrmPage() {
   );
 }
 
+function truncateNote(text: string, max = 140) {
+  if (!text) return "";
+  if (text.length <= max) return text;
+  return text.slice(0, max).trim() + "…";
+}
+
 function LeadList({
   items,
   onOpen,
@@ -476,7 +482,7 @@ function LeadList({
   onOpen: (l: Lead) => void;
   statusMap: Map<string, LeadStatus>;
   statuses: LeadStatus[];
-  notesByLead: Map<string, string>;
+  notesByLead: Map<string, { last_at: string; body?: string | null }>;
 }) {
   const setStatusFn = useServerFn(setLeadStatusKey);
   const assign = useServerFn(assignToMe);
