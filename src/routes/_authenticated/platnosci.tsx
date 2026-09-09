@@ -362,7 +362,7 @@ function UpcomingTab() {
   const upcomingFn = useServerFn(listUpcomingPayments);
   const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => upcomingFn() });
 
-  const [sort, setSort] = useState<"date_asc" | "date_desc" | "value_desc" | "value_asc">("date_asc");
+  const [sort, setSort] = useState<"date_asc" | "date_desc" | "value_desc" | "value_asc">("date_desc");
   const [search, setSearch] = useState("");
 
   const allRows = useMemo(() => extractLeads(q.data ?? []), [q.data]);
