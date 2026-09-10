@@ -380,6 +380,7 @@ export function generateWzFile(data: WzDocumentData): WzFile {
   .parties td { width: 33.33%; }
   .places td { width: 50%; }
   table.items th { background: #eee; font-size: 11px; }
+  table.items tfoot td { background: #eee; }
   table.items td.center, table.items th.center { text-align: center; }
   table.items td.right, table.items th.right { text-align: right; }
   .notes { border: 1px solid #333; padding: 8px 10px; min-height: 50px; margin-bottom: 20px; }
