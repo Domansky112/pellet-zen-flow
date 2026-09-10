@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getWzDocument, prepareWzDocumentData } from "@/lib/wz.functions";
+import { prepareWzDocumentData } from "@/lib/wz.functions";
+import { buildWzPdf, wzFileName } from "@/lib/wz-pdf";
 
 type Props = {
   transportId?: string;
