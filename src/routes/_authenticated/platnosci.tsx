@@ -909,6 +909,7 @@ function LeadPaymentRow({ lead }: { lead: any }) {
           </span>
         </div>
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+          {lead.delivered_at && <span>Dostawa: <strong className="text-foreground">{format(new Date(lead.delivered_at), "dd.MM.yyyy")}</strong> ·</span>}
           <span>{PAYMENT_METHOD_LABEL[lead.payment_method] ?? "brak formy płatności"}</span>
           {lead.invoice_number && <span>· FV: <strong>{lead.invoice_number}</strong></span>}
           {lead.receipt_number && <span>· Paragon: <strong>{lead.receipt_number}</strong></span>}
