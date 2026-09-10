@@ -51,7 +51,6 @@ export function WzDownloadButton({
   const [selected, setSelected] = useState<string[]>([]);
 
   const prepare = useServerFn(prepareWzDocumentData);
-  const fetchFile = useServerFn(getWzDocument);
 
   const openDialog = async () => {
     if (!transportId && !poolId) {
