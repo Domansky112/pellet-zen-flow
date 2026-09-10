@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getWzDocument, prepareWzDocumentData } from "@/lib/wz.functions";
+import { prepareWzDocumentData } from "@/lib/wz.functions";
+import { buildWzPdf, wzFileName } from "@/lib/wz-pdf";
 
 type Props = {
   transportId?: string;
@@ -50,7 +51,6 @@ export function WzDownloadButton({
   const [selected, setSelected] = useState<string[]>([]);
 
   const prepare = useServerFn(prepareWzDocumentData);
-  const fetchFile = useServerFn(getWzDocument);
 
   const openDialog = async () => {
     if (!transportId && !poolId) {
@@ -78,24 +78,12 @@ export function WzDownloadButton({
   const download = async () => {
     setGenerating(true);
     try {
-      const res = await fetchFile({
+      const data = (await prepare({
         data: { transportId, poolId, recipientKeys: selected },
-      });
-      const { file, data } = res as any;
+      })) as any;
 
-      const blob =
-        file.encoding === "base64"
-          ? await (await fetch(`data:${file.mime};base64,${file.content}`)).blob()
-          : new Blob([file.content], { type: file.mime });
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const doc = await buildWzPdf(data);
+      doc.save(wzFileName(data));
 
       toast.success(`WZ wygenerowane: ${data.number}`);
       setOpen(false);
