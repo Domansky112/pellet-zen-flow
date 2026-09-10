@@ -177,15 +177,15 @@ export async function buildReportPdf(
       [
         {
           content: `ZYSK NETTO  ·  marża ${pct(data.kpi.margin)}`,
-          styles: { fontStyle: "bold", fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fontStyle: "bold", fillColor: GRAY_BG, textColor: GRAY },
         },
         {
           content: "—",
-          styles: { fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fillColor: GRAY_BG, textColor: GRAY },
         },
         {
           content: pln(data.kpi.netProfit),
-          styles: { fontStyle: "bold", fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fontStyle: "bold", fillColor: GRAY_BG, textColor: GRAY },
         },
       ],
     ],
@@ -323,7 +323,7 @@ export async function buildReportPdf(
           "",
           { content: pln(sum.gross), styles: { fontStyle: "bold" } },
           { content: pln(sum.transport), styles: { fontStyle: "bold" } },
-          { content: pln(sum.profit), styles: { fontStyle: "bold", textColor: GREEN } },
+          { content: pln(sum.profit), styles: { fontStyle: "bold", textColor: GRAY } },
         ],
       ],
       styles: { font: FONT, fontSize: 7, cellPadding: 1.4, textColor: INK, lineColor: LINE, lineWidth: 0.1 },
