@@ -13,8 +13,8 @@ const FONT = "DejaVu";
 const INK: [number, number, number] = [24, 24, 27];
 const MUTED: [number, number, number] = [113, 113, 122];
 const LINE: [number, number, number] = [214, 214, 219];
-const GREEN: [number, number, number] = [22, 101, 52];
-const GREEN_BG: [number, number, number] = [220, 245, 229];
+const GRAY: [number, number, number] = [68, 68, 68];
+const GRAY_BG: [number, number, number] = [238, 238, 238];
 const HEAD_BG: [number, number, number] = [244, 244, 245];
 
 let fontCache: { regular: string; bold: string } | null = null;
@@ -177,15 +177,15 @@ export async function buildReportPdf(
       [
         {
           content: `ZYSK NETTO  ·  marża ${pct(data.kpi.margin)}`,
-          styles: { fontStyle: "bold", fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fontStyle: "bold", fillColor: GRAY_BG, textColor: GRAY },
         },
         {
           content: "—",
-          styles: { fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fillColor: GRAY_BG, textColor: GRAY },
         },
         {
           content: pln(data.kpi.netProfit),
-          styles: { fontStyle: "bold", fillColor: GREEN_BG, textColor: GREEN },
+          styles: { fontStyle: "bold", fillColor: GRAY_BG, textColor: GRAY },
         },
       ],
     ],
@@ -323,7 +323,7 @@ export async function buildReportPdf(
           "",
           { content: pln(sum.gross), styles: { fontStyle: "bold" } },
           { content: pln(sum.transport), styles: { fontStyle: "bold" } },
-          { content: pln(sum.profit), styles: { fontStyle: "bold", textColor: GREEN } },
+          { content: pln(sum.profit), styles: { fontStyle: "bold", textColor: GRAY } },
         ],
       ],
       styles: { font: FONT, fontSize: 7, cellPadding: 1.4, textColor: INK, lineColor: LINE, lineWidth: 0.1 },
