@@ -13,8 +13,8 @@ const FONT = "DejaVu";
 const INK: [number, number, number] = [24, 24, 27];
 const MUTED: [number, number, number] = [113, 113, 122];
 const LINE: [number, number, number] = [214, 214, 219];
-const GREEN: [number, number, number] = [22, 101, 52];
-const GREEN_BG: [number, number, number] = [220, 245, 229];
+const GRAY: [number, number, number] = [68, 68, 68];
+const GRAY_BG: [number, number, number] = [238, 238, 238];
 const HEAD_BG: [number, number, number] = [244, 244, 245];
 
 let fontCache: { regular: string; bold: string } | null = null;
