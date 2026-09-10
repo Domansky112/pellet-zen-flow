@@ -86,6 +86,7 @@ export async function buildWzPdf(data: WzDocumentData): Promise<jsPDF> {
       margin: { left: M, right: M },
       styles: { ...baseStyles },
       headStyles: { ...headStyles },
+      footStyles: { ...headStyles, fontSize: 9 },
       theme: "grid",
       ...opts,
     });
