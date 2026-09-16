@@ -67,6 +67,7 @@ function CalendarPage() {
   const listFn = useServerFn(listTransports);
   const delFn = useServerFn(deleteTransport);
   const reschedFn = useServerFn(rescheduleTransport);
+  const [historySort, setHistorySort] = useState<"newest" | "oldest">("newest");
 
   const { data: transports = [], isLoading } = useQuery({
     queryKey: ["transports"],
@@ -96,9 +97,13 @@ function CalendarPage() {
   const upcoming = transports.filter(
     (t) => parseISO(t.scheduled_date) >= today,
   );
-  const past = transports.filter(
-    (t) => parseISO(t.scheduled_date) < today,
-  );
+  const past = transports
+    .filter((t) => parseISO(t.scheduled_date) < today)
+    .sort((a, b) => {
+      const da = parseISO(a.scheduled_date).getTime();
+      const db = parseISO(b.scheduled_date).getTime();
+      return historySort === "newest" ? db - da : da - db;
+    });
 
   return (
     <>
@@ -149,11 +154,20 @@ function CalendarPage() {
 
             {past.length > 0 && (
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
                   <CardTitle className="text-muted-foreground">Historia ({past.length})</CardTitle>
+                  <Select value={historySort} onValueChange={(v) => setHistorySort(v as "newest" | "oldest")}>
+                    <SelectTrigger className="w-auto min-w-[160px] text-xs h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Od najnowszych</SelectItem>
+                      <SelectItem value="oldest">Od najstarszych</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {past.slice(0, 20).map((t) => (
+                  {past.slice(0, 50).map((t) => (
                     <TransportRow key={t.id} t={t} onDelete={(id) => del.mutate(id)} muted />
                   ))}
                 </CardContent>
