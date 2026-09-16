@@ -311,8 +311,9 @@ async function prepareFromPool(
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
-      notes: transportRow?.notes ?? p.notes ?? null,
+      notes: cleanCarrierNotes(transportRow?.notes ?? p.notes ?? null),
     },
+
     recipients: recipients.filter(
       (r, idx, arr) => arr.findIndex((x) => x.key === r.key) === idx,
     ),
