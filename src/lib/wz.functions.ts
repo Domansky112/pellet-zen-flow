@@ -221,7 +221,7 @@ async function prepareFromTransport(
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
-      notes: cleanCarrierNotes(t.notes ?? null),
+      notes: t.notes ?? null,
     },
 
     recipients: recipients.length
@@ -299,7 +299,7 @@ async function prepareFromPool(
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
-      notes: cleanCarrierNotes(transportRow?.notes ?? p.notes ?? null),
+      notes: transportRow?.notes ?? p.notes ?? null,
     },
 
     recipients: recipients.filter(
