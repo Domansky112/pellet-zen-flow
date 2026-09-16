@@ -51,6 +51,9 @@ function Dashboard() {
   const leadsFn = useServerFn(listLeads);
   const stockFn = useServerFn(listStockBalance);
   const transportsFn = useServerFn(listTransports);
+  const { roles } = useUserRole();
+  // Handlowiec nie widzi danych magazynowych (stany, bilans, alerty zapasów).
+  const canSeeStock = !roles.includes("sales") || roles.some((r) => ["admin", "logistyk", "warehouse"].includes(r));
 
   // Auto-refresh co 20 s (feed, magazyn, transporty) — bez potrzeby F5.
   const AUTO = { refetchInterval: 20_000, refetchIntervalInBackground: true } as const;
