@@ -167,9 +167,23 @@ function buildItem(product: string, quantityTons: number): WzItem {
   };
 }
 
+/** Czyści notatki transportu przed umieszczeniem na WZ — usuwamy kwoty (np. koszt trasy),
+ *  ponieważ dokument WZ nie powinien zawierać sumy za transport. */
+function cleanCarrierNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  let s = notes
+    .replace(/ · \d[\d\s,.]*\s*zł/g, "")
+    .replace(/\d[\d\s,.]*\s*zł/g, "")
+    .replace(/( · )+/g, " · ")
+    .trim();
+  s = s.replace(/(?:^\s*·\s*|\s*·\s*$)/g, "").trim();
+  return s || null;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Agregatory danych
 // ─────────────────────────────────────────────────────────────
+
 
 async function prepareFromTransport(
   supabase: any,
@@ -219,8 +233,9 @@ async function prepareFromTransport(
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
-      notes: t.notes ?? null,
+      notes: cleanCarrierNotes(t.notes ?? null),
     },
+
     recipients: recipients.length
       ? recipients
       : [
@@ -296,8 +311,9 @@ async function prepareFromPool(
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
-      notes: transportRow?.notes ?? p.notes ?? null,
+      notes: cleanCarrierNotes(transportRow?.notes ?? p.notes ?? null),
     },
+
     recipients: recipients.filter(
       (r, idx, arr) => arr.findIndex((x) => x.key === r.key) === idx,
     ),
