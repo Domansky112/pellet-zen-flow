@@ -250,10 +250,13 @@ export const confirmDraft = createServerFn({ method: "POST" })
     const totalTons = items.reduce((s, i) => s + Number(i.tons ?? 0), 0);
     const noteLines = [
       `${transportNo} · ${d.name}`,
-      d.route_km ? `Trasa: ${d.route_km} km · ${Math.round((d.route_minutes ?? 0) / 60)}h ${(d.route_minutes ?? 0) % 60}m · ${d.route_cost ?? 0} zł` : null,
+      d.route_km
+        ? `Trasa: ${d.route_km} km · ${Math.round((d.route_minutes ?? 0) / 60)}h ${(d.route_minutes ?? 0) % 60}m`
+        : null,
       data.delivery_window ? `Okno dostawy: ${data.delivery_window}` : null,
       d.notes,
     ].filter(Boolean);
+
 
     const { data: transport, error: tErr } = await context.supabase
       .from("transports")
