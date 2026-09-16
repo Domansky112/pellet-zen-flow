@@ -167,18 +167,6 @@ function buildItem(product: string, quantityTons: number): WzItem {
   };
 }
 
-/** Czyści notatki transportu przed umieszczeniem na WZ — usuwamy kwoty (np. koszt trasy),
- *  ponieważ dokument WZ nie powinien zawierać sumy za transport. */
-function cleanCarrierNotes(notes: string | null): string | null {
-  if (!notes) return null;
-  let s = notes
-    .replace(/ · \d[\d\s,.]*\s*zł/g, "")
-    .replace(/\d[\d\s,.]*\s*zł/g, "")
-    .replace(/( · )+/g, " · ")
-    .trim();
-  s = s.replace(/(?:^\s*·\s*|\s*·\s*$)/g, "").trim();
-  return s || null;
-}
 
 // ─────────────────────────────────────────────────────────────
 // Agregatory danych
