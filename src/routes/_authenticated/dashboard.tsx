@@ -18,6 +18,7 @@ import {
 import { listLeads } from "@/lib/leads.functions";
 import { listStockBalance } from "@/lib/stock.functions";
 import { listTransports } from "@/lib/transport-crud.functions";
+import { useUserRole } from "@/hooks/use-user-role";
 import { format, isToday, isYesterday, startOfDay, addDays, differenceInCalendarDays } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -97,20 +98,24 @@ function Dashboard() {
       icon: Inbox,
       tone: "text-primary",
     },
-    {
-      label: "Dostępne palety",
-      value: `${palety.available.toFixed(1)} t`,
-      change: `z ${palety.physical.toFixed(1)} t fizycznie · rez. ${palety.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(palety.available / 1)).toString()} szt.`,
-      icon: Package,
-      tone: "text-info",
-    },
-    {
-      label: "Dostępne Big Bagi",
-      value: `${bigbag.available.toFixed(1)} t`,
-      change: `z ${bigbag.physical.toFixed(1)} t fizycznie · rez. ${bigbag.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(bigbag.available / 1)).toString()} szt.`,
-      icon: Boxes,
-      tone: "text-warning",
-    },
+    ...(canSeeStock
+      ? [
+          {
+            label: "Dostępne palety",
+            value: `${palety.available.toFixed(1)} t`,
+            change: `z ${palety.physical.toFixed(1)} t fizycznie · rez. ${palety.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(palety.available / 1)).toString()} szt.`,
+            icon: Package,
+            tone: "text-info",
+          },
+          {
+            label: "Dostępne Big Bagi",
+            value: `${bigbag.available.toFixed(1)} t`,
+            change: `z ${bigbag.physical.toFixed(1)} t fizycznie · rez. ${bigbag.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(bigbag.available / 1)).toString()} szt.`,
+            icon: Boxes,
+            tone: "text-warning",
+          },
+        ]
+      : []),
     {
       label: "Transporty w tym tygodniu",
       value: String(transportsThisWeek.length),
