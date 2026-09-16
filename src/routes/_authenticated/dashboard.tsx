@@ -18,6 +18,7 @@ import {
 import { listLeads } from "@/lib/leads.functions";
 import { listStockBalance } from "@/lib/stock.functions";
 import { listTransports } from "@/lib/transport-crud.functions";
+import { useUserRole } from "@/hooks/use-user-role";
 import { format, isToday, isYesterday, startOfDay, addDays, differenceInCalendarDays } from "date-fns";
 import { pl } from "date-fns/locale";
 
@@ -51,6 +52,9 @@ function Dashboard() {
   const leadsFn = useServerFn(listLeads);
   const stockFn = useServerFn(listStockBalance);
   const transportsFn = useServerFn(listTransports);
+  const { roles } = useUserRole();
+  // Handlowiec nie widzi danych magazynowych (stany, bilans, alerty zapasów).
+  const canSeeStock = !roles.includes("sales") || roles.some((r) => ["admin", "logistyk", "warehouse"].includes(r));
 
   // Auto-refresh co 20 s (feed, magazyn, transporty) — bez potrzeby F5.
   const AUTO = { refetchInterval: 20_000, refetchIntervalInBackground: true } as const;
@@ -94,20 +98,24 @@ function Dashboard() {
       icon: Inbox,
       tone: "text-primary",
     },
-    {
-      label: "Dostępne palety",
-      value: `${palety.available.toFixed(1)} t`,
-      change: `z ${palety.physical.toFixed(1)} t fizycznie · rez. ${palety.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(palety.available / 1)).toString()} szt.`,
-      icon: Package,
-      tone: "text-info",
-    },
-    {
-      label: "Dostępne Big Bagi",
-      value: `${bigbag.available.toFixed(1)} t`,
-      change: `z ${bigbag.physical.toFixed(1)} t fizycznie · rez. ${bigbag.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(bigbag.available / 1)).toString()} szt.`,
-      icon: Boxes,
-      tone: "text-warning",
-    },
+    ...(canSeeStock
+      ? [
+          {
+            label: "Dostępne palety",
+            value: `${palety.available.toFixed(1)} t`,
+            change: `z ${palety.physical.toFixed(1)} t fizycznie · rez. ${palety.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(palety.available / 1)).toString()} szt.`,
+            icon: Package,
+            tone: "text-info",
+          },
+          {
+            label: "Dostępne Big Bagi",
+            value: `${bigbag.available.toFixed(1)} t`,
+            change: `z ${bigbag.physical.toFixed(1)} t fizycznie · rez. ${bigbag.reserved.toFixed(1)} t · ≈ ${Math.max(0, Math.floor(bigbag.available / 1)).toString()} szt.`,
+            icon: Boxes,
+            tone: "text-warning",
+          },
+        ]
+      : []),
     {
       label: "Transporty w tym tygodniu",
       value: String(transportsThisWeek.length),
@@ -141,9 +149,9 @@ function Dashboard() {
       });
     }
   });
-  if (palety.available < 20)
+  if (canSeeStock && palety.available < 20)
     alerts.push({ text: `Palety: dostępne ${palety.available.toFixed(1)} t (<20 t) — warto uzupełnić`, level: "warning" });
-  if (bigbag.available < 20)
+  if (canSeeStock && bigbag.available < 20)
     alerts.push({ text: `Big Bag: dostępne ${bigbag.available.toFixed(1)} t (<20 t) — warto uzupełnić`, level: "warning" });
   const openB2B = (leads as any[]).filter(
     (l) => l.source === "www_detailed" && ["nowy", "w_kontakcie", "oferta"].includes(l.status),
@@ -237,7 +245,8 @@ function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className={`grid gap-4 ${canSeeStock ? "md:grid-cols-2" : ""}`}>
+          {canSeeStock && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -274,6 +283,7 @@ function Dashboard() {
               })}
             </CardContent>
           </Card>
+          )}
 
           <Card>
             <CardHeader>
