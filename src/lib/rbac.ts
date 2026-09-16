@@ -12,7 +12,7 @@ export const ROLE_LABEL: Record<AppRole, string> = {
 export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/dashboard": ["admin", "sales", "warehouse", "transport", "logistyk"],
   "/crm": ["admin", "sales", "logistyk"],
-  "/magazyn": ["admin", "warehouse", "logistyk", "sales"],
+  "/magazyn": ["admin", "warehouse", "logistyk"],
   "/transport": ["admin", "transport", "logistyk"],
   "/konsolidacja": ["admin", "transport", "logistyk"],
   "/kalendarz": ["admin", "sales", "transport", "logistyk"],
