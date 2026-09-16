@@ -233,8 +233,9 @@ async function prepareFromTransport(
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
-      notes: t.notes ?? null,
+      notes: cleanCarrierNotes(t.notes ?? null),
     },
+
     recipients: recipients.length
       ? recipients
       : [
