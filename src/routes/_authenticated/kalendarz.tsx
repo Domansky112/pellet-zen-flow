@@ -67,6 +67,7 @@ function CalendarPage() {
   const listFn = useServerFn(listTransports);
   const delFn = useServerFn(deleteTransport);
   const reschedFn = useServerFn(rescheduleTransport);
+  const [historySort, setHistorySort] = useState<"newest" | "oldest">("newest");
 
   const { data: transports = [], isLoading } = useQuery({
     queryKey: ["transports"],
@@ -96,9 +97,13 @@ function CalendarPage() {
   const upcoming = transports.filter(
     (t) => parseISO(t.scheduled_date) >= today,
   );
-  const past = transports.filter(
-    (t) => parseISO(t.scheduled_date) < today,
-  );
+  const past = transports
+    .filter((t) => parseISO(t.scheduled_date) < today)
+    .sort((a, b) => {
+      const da = parseISO(a.scheduled_date).getTime();
+      const db = parseISO(b.scheduled_date).getTime();
+      return historySort === "newest" ? db - da : da - db;
+    });
 
   return (
     <>
