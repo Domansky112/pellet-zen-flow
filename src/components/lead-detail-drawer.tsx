@@ -221,7 +221,9 @@ export function LeadDetailDrawer({
           payment_amount_gross: r.payment_amount_gross,
           payment_method: r.payment_method,
           collected_on_site: r.collected_on_site,
-          skip_wydanie: settleMode === "status",
+          // Lead zrealizowany = towar wydany. Wydanie zapisuje się zawsze,
+          // także gdy rozliczenie startuje ze zmiany statusu.
+          skip_wydanie: false,
           // When triggered from a status change → include the status flip in the same DB transaction.
           new_status_key: settleMode === "status" ? pendingStatusKey : null,
           delivered_at: r.delivered_at,
