@@ -735,10 +735,24 @@ export function LeadDetailDrawer({
                   }
 
                   try {
-                    await setStatusFn({ data: { id: lead.id, status_key: v } });
+                    const res: any = await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
                     qc.invalidateQueries({ queryKey: ["reserved-leads"] });
-                    toast.success("Status zaktualizowany");
+                    qc.invalidateQueries({ queryKey: ["stock-balance"] });
+                    qc.invalidateQueries({ queryKey: ["stock-events"] });
+                    if (res?.stock_error) {
+                      toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
+                    } else if (res?.stock?.shortfall > 0) {
+                      toast.warning(
+                        `Wydano ${Number(res.stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(res.stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+                        { duration: 10000 },
+                      );
+                      toast.success("Lead zrealizowany — towar wydany z magazynu");
+                    } else if (res?.stock && !res.stock.already_fulfilled) {
+                      toast.success("Lead zrealizowany — towar wydany z magazynu");
+                    } else {
+                      toast.success("Status zaktualizowany");
+                    }
                   } catch (e) {
                     toast.error((e as Error).message);
                   }
