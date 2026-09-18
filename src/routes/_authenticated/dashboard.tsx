@@ -71,10 +71,11 @@ function Dashboard() {
 
   const balByProduct: Record<string, { physical: number; reserved: number; available: number }> = {};
   for (const b of stock as any[]) {
+    // Stany nigdy nie pokazują wartości ujemnych (wydanie może przekroczyć stan).
     balByProduct[b.product] = {
-      physical: Number(b.physical ?? 0),
-      reserved: Number(b.reserved ?? 0),
-      available: Number(b.available ?? 0),
+      physical: Math.max(0, Number(b.physical ?? 0)),
+      reserved: Math.max(0, Number(b.reserved ?? 0)),
+      available: Math.max(0, Number(b.available ?? 0)),
     };
   }
   const palety = balByProduct["pellet_paleta"] ?? { physical: 0, reserved: 0, available: 0 };
