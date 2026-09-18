@@ -265,9 +265,11 @@ function StockPanel({
   balance: { physical: number; reserved: number };
   openLeads: Array<{ id: string; name: string; city: string | null; product: string | null; quantity: number | null }>;
 }) {
-  const physical = balance.physical;
-  const reserved = balance.reserved;
-  const available = physical - reserved;
+  // Wydania mogą przekroczyć stan (lead zrealizowany = towar wydany),
+  // ale nigdzie nie pokazujemy wartości ujemnych.
+  const physical = Math.max(0, balance.physical);
+  const reserved = Math.max(0, balance.reserved);
+  const available = Math.max(0, physical - reserved);
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">

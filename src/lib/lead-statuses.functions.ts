@@ -83,5 +83,18 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
       .update(patch as any)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    // Lead zrealizowany = towar wydany. Wydanie zapisuje się automatycznie,
+    // bez drugiego kliknięcia. Idempotentne — nie zdubluje istniejącego wydania.
+    let stock: any = null;
+    if (data.status_key === "wygrany") {
+      const { data: res, error: se } = await context.supabase.rpc("fulfill_lead_stock" as any, {
+        _lead_id: data.id,
+      } as any);
+      if (se) {
+        return { ok: true, stock_error: se.message };
+      }
+      stock = res ?? null;
+    }
+    return { ok: true, stock };
   });

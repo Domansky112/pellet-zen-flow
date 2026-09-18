@@ -58,7 +58,7 @@ export function SettlePaymentButton({
           payment_amount_gross: r.payment_amount_gross,
           payment_method: r.payment_method,
           collected_on_site: r.collected_on_site,
-          skip_wydanie: true,
+          skip_wydanie: false,
           new_status_key: null,
           delivered_at: r.delivered_at,
           sales_vat_rate: r.sales_vat_rate,
@@ -66,8 +66,15 @@ export function SettlePaymentButton({
           transport_vat_rate: r.transport_vat_rate,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       toast.success("Płatność zapisana");
+      const stock = res?.stock;
+      if (stock?.shortfall > 0) {
+        toast.warning(
+          `Wydano ${Number(stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+          { duration: 10000 },
+        );
+      }
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["delivery-history"] });
@@ -76,6 +83,9 @@ export function SettlePaymentButton({
       qc.invalidateQueries({ queryKey: ["payments-orphans"] });
       qc.invalidateQueries({ queryKey: ["financial-summary"] });
       qc.invalidateQueries({ queryKey: ["payment-audit"] });
+      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+      qc.invalidateQueries({ queryKey: ["stock-events"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
     },
     onError: (e: Error) => toast.error(e.message || "Nie udało się zapisać płatności"),
   });

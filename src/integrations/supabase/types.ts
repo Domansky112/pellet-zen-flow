@@ -1808,6 +1808,7 @@ export type Database = {
         Args: { _lead_id: string; _reason?: string }
         Returns: undefined
       }
+      fulfill_lead_stock: { Args: { _lead_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

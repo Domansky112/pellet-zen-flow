@@ -221,7 +221,9 @@ export function LeadDetailDrawer({
           payment_amount_gross: r.payment_amount_gross,
           payment_method: r.payment_method,
           collected_on_site: r.collected_on_site,
-          skip_wydanie: settleMode === "status",
+          // Lead zrealizowany = towar wydany. Wydanie zapisuje się zawsze,
+          // także gdy rozliczenie startuje ze zmiany statusu.
+          skip_wydanie: false,
           // When triggered from a status change → include the status flip in the same DB transaction.
           new_status_key: settleMode === "status" ? pendingStatusKey : null,
           delivered_at: r.delivered_at,
@@ -241,6 +243,13 @@ export function LeadDetailDrawer({
       qc.invalidateQueries({ queryKey: ["payments-delivered-no-transport"] });
       qc.invalidateQueries({ queryKey: ["payments-summary"] });
       qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      const stock = res?.stock;
+      if (stock?.shortfall > 0) {
+        toast.warning(
+          `Wydano ${Number(stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+          { duration: 10000 },
+        );
+      }
       if (res?.already_settled) {
         toast.info("Lead był już rozliczony — kwota i status płatności pozostały bez zmian");
         if (settleMode === "wydanie") onOpenChange(false);
@@ -250,7 +259,7 @@ export function LeadDetailDrawer({
         onOpenChange(false);
         toast.success("Wydano z magazynu — rozliczenie zapisane");
       } else {
-        toast.success("Lead oznaczony jako Zrealizowany — rozliczenie zapisane");
+        toast.success("Lead zrealizowany — rozliczenie zapisane i towar wydany z magazynu");
       }
     },
 
@@ -726,10 +735,24 @@ export function LeadDetailDrawer({
                   }
 
                   try {
-                    await setStatusFn({ data: { id: lead.id, status_key: v } });
+                    const res: any = await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
                     qc.invalidateQueries({ queryKey: ["reserved-leads"] });
-                    toast.success("Status zaktualizowany");
+                    qc.invalidateQueries({ queryKey: ["stock-balance"] });
+                    qc.invalidateQueries({ queryKey: ["stock-events"] });
+                    if (res?.stock_error) {
+                      toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
+                    } else if (res?.stock?.shortfall > 0) {
+                      toast.warning(
+                        `Wydano ${Number(res.stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(res.stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+                        { duration: 10000 },
+                      );
+                      toast.success("Lead zrealizowany — towar wydany z magazynu");
+                    } else if (res?.stock && !res.stock.already_fulfilled) {
+                      toast.success("Lead zrealizowany — towar wydany z magazynu");
+                    } else {
+                      toast.success("Status zaktualizowany");
+                    }
                   } catch (e) {
                     toast.error((e as Error).message);
                   }
