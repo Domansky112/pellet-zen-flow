@@ -243,6 +243,13 @@ export function LeadDetailDrawer({
       qc.invalidateQueries({ queryKey: ["payments-delivered-no-transport"] });
       qc.invalidateQueries({ queryKey: ["payments-summary"] });
       qc.invalidateQueries({ queryKey: ["payments-audit"] });
+      const stock = res?.stock;
+      if (stock?.shortfall > 0) {
+        toast.warning(
+          `Wydano ${Number(stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+          { duration: 10000 },
+        );
+      }
       if (res?.already_settled) {
         toast.info("Lead był już rozliczony — kwota i status płatności pozostały bez zmian");
         if (settleMode === "wydanie") onOpenChange(false);
@@ -252,7 +259,7 @@ export function LeadDetailDrawer({
         onOpenChange(false);
         toast.success("Wydano z magazynu — rozliczenie zapisane");
       } else {
-        toast.success("Lead oznaczony jako Zrealizowany — rozliczenie zapisane");
+        toast.success("Lead zrealizowany — rozliczenie zapisane i towar wydany z magazynu");
       }
     },
 
