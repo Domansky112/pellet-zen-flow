@@ -457,6 +457,12 @@ function CrmPage() {
         lead={openLead}
         open={!!openLead}
         onOpenChange={(o) => !o && setOpenLead(null)}
+        onLeadUpdated={(patch) => {
+          setOpenLead((cur) => (cur && cur.id === patch.id ? ({ ...cur, ...patch } as Lead) : cur));
+          queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
+          queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
+        }}
       />
     </>
   );
