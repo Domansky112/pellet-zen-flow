@@ -18,6 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
+import { clearImpersonation } from "@/lib/impersonation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/use-user-role";
