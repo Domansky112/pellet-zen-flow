@@ -244,7 +244,13 @@ export function LeadDetailDrawer({
 
     onSuccess: async (res: any) => {
       setSettleOpen(false);
+      const appliedStatus = settleMode === "status" ? pendingStatusKey : null;
       setPendingStatusKey(null);
+      if (appliedStatus) {
+        setStatusKey(appliedStatus);
+        onLeadUpdated?.({ id: lead!.id, status_key: appliedStatus, status: appliedStatus } as any);
+      }
+
 
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
