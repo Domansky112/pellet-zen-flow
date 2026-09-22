@@ -76,13 +76,34 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status_key: z.string().min(1).max(40) }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Anulowanie statusem = pełne anulowanie leada (zwolnienie rezerwacji,
+    // odpięcie z transportów, trafia do zakładki „Anulowane").
+    if (data.status_key === "przegrany") {
+      const { error: ce } = await context.supabase.rpc("cancel_lead", {
+        _lead_id: data.id,
+        _reason: "Zmiana statusu na Anulowany",
+      } as any);
+      if (ce) throw new Error(ce.message);
+      const { error: ue } = await context.supabase
+        .from("leads")
+        .update({ status_key: "przegrany" } as any)
+        .eq("id", data.id);
+      if (ue) throw new Error(ue.message);
+      return { ok: true, cancelled: true, stock: null };
+    }
+
     const patch: Record<string, unknown> = { status_key: data.status_key };
     if (ENUM_VALUES.has(data.status_key)) patch.status = data.status_key;
+    // Powrót z anulowania — lead wraca do aktywnej pracy.
+    patch.deleted_at = null;
+    patch.deleted_by = null;
+    patch.deleted_reason = null;
     const { error } = await context.supabase
       .from("leads")
       .update(patch as any)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
 
     // Lead zrealizowany = towar wydany. Wydanie zapisuje się automatycznie,
     // bez drugiego kliknięcia. Idempotentne — nie zdubluje istniejącego wydania.
