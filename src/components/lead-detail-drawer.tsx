@@ -66,10 +66,12 @@ export function LeadDetailDrawer({
   lead,
   open,
   onOpenChange,
+  onLeadUpdated,
 }: {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  onLeadUpdated?: (patch: Partial<Lead> & { id: string }) => void;
 }) {
   const qc = useQueryClient();
   const currentUser = useCurrentUser();
