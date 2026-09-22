@@ -497,7 +497,7 @@ function UsersTab() {
         });
       }
       await qc.cancelQueries();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       const { error } = await supabase.auth.verifyOtp({
         type: "magiclink",
         token_hash: res.token_hash,

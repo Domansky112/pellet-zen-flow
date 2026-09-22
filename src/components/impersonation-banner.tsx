@@ -21,7 +21,7 @@ export function ImpersonationBanner() {
     setBusy(true);
     try {
       await qc.cancelQueries();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       const { error } = await supabase.auth.setSession({
         access_token: state.admin_access_token,
         refresh_token: state.admin_refresh_token,
