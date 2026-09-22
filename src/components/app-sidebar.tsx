@@ -84,6 +84,7 @@ export function AppSidebar() {
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
+    clearImpersonation();
     await supabase.auth.signOut();
     toast.success("Wylogowano");
     navigate({ to: "/auth", replace: true });
