@@ -119,6 +119,13 @@ export function LeadDetailDrawer({
   });
   const setStatusFn = useServerFn(setLeadStatusKey);
 
+  // Status pokazywany w karcie — aktualizuje się natychmiast po zmianie.
+  const [statusKey, setStatusKey] = useState<string>("nowy");
+  useEffect(() => {
+    if (lead) setStatusKey((lead.status_key ?? lead.status ?? "nowy") as string);
+  }, [lead?.id, lead?.status_key, lead?.status]);
+
+
   // Editable form state
   const [form, setForm] = useState({
     first_name: "",
