@@ -6,6 +6,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { supabase } from "@/integrations/supabase/client";
+import { saveImpersonation } from "@/lib/impersonation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
