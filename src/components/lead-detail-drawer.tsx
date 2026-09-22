@@ -773,13 +773,14 @@ export function LeadDetailDrawer({
                       toast.success("Status zaktualizowany");
                     }
                   } catch (e) {
+                    setStatusKey(prev);
                     toast.error((e as Error).message);
                   }
                 }}
               >
                 <SelectTrigger className="h-8 w-[190px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
-                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === (lead.status_key ?? lead.status)).map((s) => (
+                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === statusKey).map((s) => (
                     <SelectItem key={s.key} value={s.key}>
                       <span className="inline-flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
