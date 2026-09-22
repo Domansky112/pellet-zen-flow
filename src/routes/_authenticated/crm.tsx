@@ -131,10 +131,7 @@ function CrmPage() {
       }),
   });
 
-  const cancelled = useQuery({
-    ...cancelledLeadsQuery,
-    enabled: tab === "cancelled",
-  });
+  const cancelled = useQuery(cancelledLeadsQuery);
 
   // Active vs closed split for the working "Wszystkie" view.
   const activeLeads = useMemo(() => (leads as Lead[]).filter((l) => !isClosedLead(l)), [leads]);
