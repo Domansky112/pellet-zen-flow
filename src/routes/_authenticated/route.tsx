@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { GlobalSearch } from "@/components/global-search";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { fetchUserRoles } from "@/hooks/use-user-role";
 import { canAccess, defaultRouteFor } from "@/lib/rbac";
 
@@ -48,6 +49,7 @@ function AuthedLayout() {
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
+          <ImpersonationBanner />
           <header className="sticky top-0 z-20 flex h-12 items-center gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur">
             <SidebarTrigger />
             <GlobalSearch className="ml-2 flex-1 max-w-lg" />

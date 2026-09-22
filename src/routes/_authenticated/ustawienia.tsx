@@ -485,6 +485,16 @@ function UsersTab() {
   const impersonate = useMutation({
     mutationFn: async (user_id: string) => {
       const res = await impersonateFn({ data: { user_id } });
+      // Zapamiętaj sesję administratora, żeby dało się wrócić jednym kliknięciem.
+      const { data: cur } = await supabase.auth.getSession();
+      if (cur.session?.refresh_token && cur.session?.access_token) {
+        saveImpersonation({
+          admin_email: cur.session.user?.email ?? "administrator",
+          admin_access_token: cur.session.access_token,
+          admin_refresh_token: cur.session.refresh_token,
+          target_email: res.email,
+        });
+      }
       await qc.cancelQueries();
       await supabase.auth.signOut();
       const { error } = await supabase.auth.verifyOtp({
