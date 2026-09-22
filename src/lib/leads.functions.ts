@@ -27,8 +27,9 @@ export const listCancelledLeads = createServerFn({ method: "GET" })
     let q = context.supabase
       .from("leads")
       .select("*")
-      .not("deleted_at", "is", null)
-      .order("deleted_at", { ascending: false })
+      // Anulowane = usunięte miękko LUB ze statusem „Anulowany".
+      .or("deleted_at.not.is.null,status_key.eq.przegrany,status.eq.przegrany")
+      .order("created_at", { ascending: false })
       .limit(200);
     if (scope.salesOnly) q = q.eq("assigned_to", context.userId);
     const { data, error } = await q;

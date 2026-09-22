@@ -6,6 +6,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { supabase } from "@/integrations/supabase/client";
+import { saveImpersonation } from "@/lib/impersonation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -485,8 +486,18 @@ function UsersTab() {
   const impersonate = useMutation({
     mutationFn: async (user_id: string) => {
       const res = await impersonateFn({ data: { user_id } });
+      // Zapamiętaj sesję administratora, żeby dało się wrócić jednym kliknięciem.
+      const { data: cur } = await supabase.auth.getSession();
+      if (cur.session?.refresh_token && cur.session?.access_token) {
+        saveImpersonation({
+          admin_email: cur.session.user?.email ?? "administrator",
+          admin_access_token: cur.session.access_token,
+          admin_refresh_token: cur.session.refresh_token,
+          target_email: res.email,
+        });
+      }
       await qc.cancelQueries();
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
       const { error } = await supabase.auth.verifyOtp({
         type: "magiclink",
         token_hash: res.token_hash,

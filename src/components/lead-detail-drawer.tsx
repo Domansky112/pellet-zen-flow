@@ -66,10 +66,12 @@ export function LeadDetailDrawer({
   lead,
   open,
   onOpenChange,
+  onLeadUpdated,
 }: {
   lead: Lead | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  onLeadUpdated?: (patch: Partial<Lead> & { id: string }) => void;
 }) {
   const qc = useQueryClient();
   const currentUser = useCurrentUser();
@@ -116,6 +118,13 @@ export function LeadDetailDrawer({
     enabled: open,
   });
   const setStatusFn = useServerFn(setLeadStatusKey);
+
+  // Status pokazywany w karcie — aktualizuje się natychmiast po zmianie.
+  const [statusKey, setStatusKey] = useState<string>("nowy");
+  useEffect(() => {
+    if (lead) setStatusKey((lead.status_key ?? lead.status ?? "nowy") as string);
+  }, [lead?.id, lead?.status_key, lead?.status]);
+
 
   // Editable form state
   const [form, setForm] = useState({
@@ -235,7 +244,13 @@ export function LeadDetailDrawer({
 
     onSuccess: async (res: any) => {
       setSettleOpen(false);
+      const appliedStatus = settleMode === "status" ? pendingStatusKey : null;
       setPendingStatusKey(null);
+      if (appliedStatus) {
+        setStatusKey(appliedStatus);
+        onLeadUpdated?.({ id: lead!.id, status_key: appliedStatus, status: appliedStatus } as any);
+      }
+
 
       invalidateLeads();
       qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
@@ -721,7 +736,7 @@ export function LeadDetailDrawer({
             <span className="flex items-center gap-2 ml-auto">
               <span className="text-xs uppercase tracking-wide">Status:</span>
               <Select
-                value={(lead.status_key ?? lead.status ?? "nowy") as string}
+                value={statusKey}
                 onValueChange={async (v) => {
                   // Intercept "wygrany" (Zrealizowany) — otwieramy modal rozliczenia
                   // TYLKO gdy lead nie ma jeszcze wpisanej kwoty. Gdy kwota już jest,
@@ -734,13 +749,23 @@ export function LeadDetailDrawer({
                     return;
                   }
 
+                  const prev = statusKey;
+                  setStatusKey(v);
                   try {
                     const res: any = await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
+                    qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
                     qc.invalidateQueries({ queryKey: ["reserved-leads"] });
                     qc.invalidateQueries({ queryKey: ["stock-balance"] });
                     qc.invalidateQueries({ queryKey: ["stock-events"] });
-                    if (res?.stock_error) {
+                    onLeadUpdated?.({
+                      id: lead.id,
+                      status_key: v,
+                      ...(res?.cancelled ? { status: "przegrany", deleted_at: new Date().toISOString() } as any : {}),
+                    });
+                    if (res?.cancelled) {
+                      toast.success("Lead anulowany — znajdziesz go w zakładce „Anulowane”");
+                    } else if (res?.stock_error) {
                       toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
                     } else if (res?.stock?.shortfall > 0) {
                       toast.warning(
@@ -754,13 +779,14 @@ export function LeadDetailDrawer({
                       toast.success("Status zaktualizowany");
                     }
                   } catch (e) {
+                    setStatusKey(prev);
                     toast.error((e as Error).message);
                   }
                 }}
               >
                 <SelectTrigger className="h-8 w-[190px]"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
-                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === (lead.status_key ?? lead.status)).map((s) => (
+                  {(statusesQuery.data ?? []).filter((s) => s.is_active || s.key === statusKey).map((s) => (
                     <SelectItem key={s.key} value={s.key}>
                       <span className="inline-flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />

@@ -109,17 +109,20 @@ export const geocodePendingLeads = createServerFn({ method: "POST" })
 export const listWaitlist = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let q = context.supabase
       .from("leads")
       .select(
-        "id, name, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, status, status_key, created_at, assigned_to",
+        "id, name, lead_number, phone, email, city, postal_code, product, quantity, pooling_wait_until, pooling_status, pooling_lat, pooling_lng, pooling_km_from_base, priority, has_unloading_equipment, urgent_no_fuel, status, status_key, created_at, assigned_to",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
-      .not("status_key", "in", "('wygrany','przegrany')")
-      .order("created_at", { ascending: false });
+      .is("deleted_at", null)
+      .not("status_key", "in", "('wygrany','przegrany')");
+    // Handlowiec widzi tylko leady oczekujące na transport.
+    if (scope.salesOnly) q = q.eq("status_key", "wspolny_transport");
+    const { data, error } = await q.order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    const scope = await getUserScope(context.supabase, context.userId);
     if (!scope.salesOnly) return data ?? [];
     return (data ?? []).map((l: any) => maskContact(l, l.assigned_to === context.userId));
 
@@ -149,17 +152,22 @@ export const findPoolSuggestions = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SuggestInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const today = new Date().toISOString().slice(0, 10);
-    const { data: leads } = await context.supabase
+    const scope = await getUserScope(context.supabase, context.userId);
+    let lq = context.supabase
       .from("leads")
       .select(
         "id, name, city, quantity, pooling_lat, pooling_lng, pooling_km_from_base, pooling_wait_until, status_key",
       )
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
+      .is("deleted_at", null)
       .not("pooling_lat", "is", null)
       .not("quantity", "is", null)
-      .not("status_key", "in", "('wygrany','przegrany')")
-      .or(`pooling_wait_until.is.null,pooling_wait_until.gte.${today}`);
+      .not("status_key", "in", "('wygrany','przegrany')");
+    if (scope.salesOnly) lq = lq.eq("status_key", "wspolny_transport");
+    const { data: leads } = await lq.or(
+      `pooling_wait_until.is.null,pooling_wait_until.gte.${today}`,
+    );
 
     const list = (leads as Lead[] | null) ?? [];
     if (list.length === 0) return [];

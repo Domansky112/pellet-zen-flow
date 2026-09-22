@@ -131,10 +131,7 @@ function CrmPage() {
       }),
   });
 
-  const cancelled = useQuery({
-    ...cancelledLeadsQuery,
-    enabled: tab === "cancelled",
-  });
+  const cancelled = useQuery(cancelledLeadsQuery);
 
   // Active vs closed split for the working "Wszystkie" view.
   const activeLeads = useMemo(() => (leads as Lead[]).filter((l) => !isClosedLead(l)), [leads]);
@@ -460,6 +457,12 @@ function CrmPage() {
         lead={openLead}
         open={!!openLead}
         onOpenChange={(o) => !o && setOpenLead(null)}
+        onLeadUpdated={(patch) => {
+          setOpenLead((cur) => (cur && cur.id === patch.id ? ({ ...cur, ...patch } as Lead) : cur));
+          queryClient.invalidateQueries({ queryKey: ["leads"] });
+          queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
+          queryClient.invalidateQueries({ queryKey: ["reserved-leads"] });
+        }}
       />
     </>
   );
@@ -588,6 +591,8 @@ function LeadList({
                     try {
                       await setStatusFn({ data: { id: l.id, status_key: v } });
                       qc.invalidateQueries({ queryKey: ["leads"] });
+                      qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
+                      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
                       toast.success(`Status: ${statusMap.get(v)?.label ?? v}`);
                     } catch (e) {
                       toast.error((e as Error).message);
