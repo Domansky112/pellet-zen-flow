@@ -591,6 +591,8 @@ function LeadList({
                     try {
                       await setStatusFn({ data: { id: l.id, status_key: v } });
                       qc.invalidateQueries({ queryKey: ["leads"] });
+                      qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
+                      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
                       toast.success(`Status: ${statusMap.get(v)?.label ?? v}`);
                     } catch (e) {
                       toast.error((e as Error).message);
