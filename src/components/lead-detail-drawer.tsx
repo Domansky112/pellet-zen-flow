@@ -730,7 +730,7 @@ export function LeadDetailDrawer({
             <span className="flex items-center gap-2 ml-auto">
               <span className="text-xs uppercase tracking-wide">Status:</span>
               <Select
-                value={(lead.status_key ?? lead.status ?? "nowy") as string}
+                value={statusKey}
                 onValueChange={async (v) => {
                   // Intercept "wygrany" (Zrealizowany) — otwieramy modal rozliczenia
                   // TYLKO gdy lead nie ma jeszcze wpisanej kwoty. Gdy kwota już jest,
@@ -743,13 +743,23 @@ export function LeadDetailDrawer({
                     return;
                   }
 
+                  const prev = statusKey;
+                  setStatusKey(v);
                   try {
                     const res: any = await setStatusFn({ data: { id: lead.id, status_key: v } });
                     qc.invalidateQueries({ queryKey: ["leads"] });
+                    qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
                     qc.invalidateQueries({ queryKey: ["reserved-leads"] });
                     qc.invalidateQueries({ queryKey: ["stock-balance"] });
                     qc.invalidateQueries({ queryKey: ["stock-events"] });
-                    if (res?.stock_error) {
+                    onLeadUpdated?.({
+                      id: lead.id,
+                      status_key: v,
+                      ...(res?.cancelled ? { status: "przegrany", deleted_at: new Date().toISOString() } as any : {}),
+                    });
+                    if (res?.cancelled) {
+                      toast.success("Lead anulowany — znajdziesz go w zakładce „Anulowane”");
+                    } else if (res?.stock_error) {
                       toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
                     } else if (res?.stock?.shortfall > 0) {
                       toast.warning(
