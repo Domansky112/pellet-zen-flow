@@ -203,7 +203,7 @@ function TransportRow({
   const item = items[0];
   const leadHref = item?.lead_id ?? null;
   const totalTons = items.reduce((s: number, i: any) => s + Number(i.quantity ?? 0), 0);
-  const transportNo = (t.notes ?? "").match(/#T-\d{4}\/\d{2}\/\d{3}/)?.[0] ?? null;
+  const transportNo = (t.notes ?? "").match(/#T-\d{4}\/\d{2}\/\d{2,3}/)?.[0] ?? null;
   const [expanded, setExpanded] = useState(false);
   return (
     <div
