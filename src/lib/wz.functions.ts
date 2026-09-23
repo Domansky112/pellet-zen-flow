@@ -120,6 +120,28 @@ function formatPlDate(dateStr: string): string {
   return `${d}.${m}.${y}`;
 }
 
+/**
+ * Czyści notatki przewoźnika z informacji o trasie: koszt (zł), dystans (km), czas.
+ * Dotyczy starszych transportów, które mają to jeszcze w notatkach.
+ */
+function cleanCarrierNotes(notes: string | null | undefined): string | null {
+  if (!notes) return null;
+  const cleaned = notes
+    .split("·")
+    .map((part) => part.trim())
+    .filter(
+      (part) =>
+        part.length > 0 &&
+        !/^Trasa:/i.test(part) &&
+        !/^\d+([.,]\d+)?\s*zł$/i.test(part) &&
+        !/^\d+([.,]\d+)?\s*km$/i.test(part) &&
+        !/^\d+h\s*\d+m?$/i.test(part),
+    )
+    .join(" · ")
+    .trim();
+  return cleaned || null;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Mappers
 // ─────────────────────────────────────────────────────────────
@@ -221,7 +243,7 @@ async function prepareFromTransport(
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
-      notes: t.notes ?? null,
+      notes: cleanCarrierNotes(t.notes),
     },
 
     recipients: recipients.length
@@ -299,7 +321,7 @@ async function prepareFromPool(
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
-      notes: transportRow?.notes ?? p.notes ?? null,
+      notes: cleanCarrierNotes(transportRow?.notes ?? p.notes),
     },
 
     recipients: recipients.filter(
