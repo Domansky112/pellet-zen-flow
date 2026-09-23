@@ -49,6 +49,7 @@ export function WzDownloadButton({
   const [generating, setGenerating] = useState(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [includeRouteInfo, setIncludeRouteInfo] = useState(false);
 
   const prepare = useServerFn(prepareWzDocumentData);
 
@@ -79,7 +80,7 @@ export function WzDownloadButton({
     setGenerating(true);
     try {
       const data = (await prepare({
-        data: { transportId, poolId, recipientKeys: selected },
+        data: { transportId, poolId, recipientKeys: selected, includeRouteInfo },
       })) as any;
 
       const doc = await buildWzPdf(data);
