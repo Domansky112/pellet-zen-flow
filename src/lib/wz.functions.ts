@@ -243,7 +243,7 @@ async function prepareFromTransport(
     carrier: {
       driver: t.driver ?? null,
       vehicle: t.vehicle ?? null,
-      notes: cleanCarrierNotes(t.notes),
+      notes: t.notes ?? null,
     },
 
     recipients: recipients.length
@@ -321,7 +321,7 @@ async function prepareFromPool(
     carrier: {
       driver: transportRow?.driver ?? null,
       vehicle: transportRow?.vehicle ?? null,
-      notes: cleanCarrierNotes(transportRow?.notes ?? p.notes),
+      notes: transportRow?.notes ?? p.notes ?? null,
     },
 
     recipients: recipients.filter(
@@ -511,6 +511,8 @@ const inputSchema = z
     transportId: z.string().uuid().optional(),
     poolId: z.string().uuid().optional(),
     recipientKeys: z.array(z.string()).optional(),
+    /** Czy pokazać na dokumencie trasę (km, czas, koszt). Domyślnie ukryte. */
+    includeRouteInfo: z.boolean().optional(),
   })
   .refine((v) => !!v.transportId !== !!v.poolId, {
     message: "Podaj dokładnie jedno: transportId LUB poolId",
@@ -523,6 +525,15 @@ function applyRecipientFilter(dto: WzDocumentData, keys?: string[]): WzDocumentD
   return { ...dto, recipients: filtered.length ? filtered : dto.recipients };
 }
 
+/** Gdy użytkownik nie chce trasy na dokumencie — czyścimy notatki z km/czasu/kosztu. */
+function applyRouteInfo(dto: WzDocumentData, includeRouteInfo?: boolean): WzDocumentData {
+  if (includeRouteInfo) return dto;
+  return {
+    ...dto,
+    carrier: { ...dto.carrier, notes: cleanCarrierNotes(dto.carrier.notes) },
+  };
+}
+
 /** Zwraca sam DTO — do podglądu / wyboru odbiorców. */
 export const prepareWzDocumentData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -533,7 +544,7 @@ export const prepareWzDocumentData = createServerFn({ method: "POST" })
     const dto = data.transportId
       ? await prepareFromTransport(context.supabase, data.transportId, issuer)
       : await prepareFromPool(context.supabase, data.poolId!, issuer);
-    return applyRecipientFilter(dto, data.recipientKeys);
+    return applyRouteInfo(applyRecipientFilter(dto, data.recipientKeys), data.includeRouteInfo);
   });
 
 /** Zwraca gotowy plik + DTO. */
@@ -546,7 +557,7 @@ export const getWzDocument = createServerFn({ method: "POST" })
     const raw = data.transportId
       ? await prepareFromTransport(context.supabase, data.transportId, issuer)
       : await prepareFromPool(context.supabase, data.poolId!, issuer);
-    const dto = applyRecipientFilter(raw, data.recipientKeys);
+    const dto = applyRouteInfo(applyRecipientFilter(raw, data.recipientKeys), data.includeRouteInfo);
     const file = generateWzFile(dto);
     return { data: dto, file };
   });

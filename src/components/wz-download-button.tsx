@@ -49,6 +49,7 @@ export function WzDownloadButton({
   const [generating, setGenerating] = useState(false);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [includeRouteInfo, setIncludeRouteInfo] = useState(false);
 
   const prepare = useServerFn(prepareWzDocumentData);
 
@@ -79,7 +80,7 @@ export function WzDownloadButton({
     setGenerating(true);
     try {
       const data = (await prepare({
-        data: { transportId, poolId, recipientKeys: selected },
+        data: { transportId, poolId, recipientKeys: selected, includeRouteInfo },
       })) as any;
 
       const doc = await buildWzPdf(data);
@@ -139,6 +140,23 @@ export function WzDownloadButton({
                 </label>
               ))}
             </div>
+          )}
+
+          {!loading && (
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50">
+              <Checkbox
+                checked={includeRouteInfo}
+                onCheckedChange={(v) => setIncludeRouteInfo(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium">Pokaż trasę na dokumencie</span>
+                <br />
+                <span className="text-muted-foreground text-xs">
+                  Dystans (km), czas przejazdu i koszt trasy pojawią się w uwagach.
+                </span>
+              </span>
+            </label>
           )}
 
           <DialogFooter>
