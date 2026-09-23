@@ -511,6 +511,8 @@ const inputSchema = z
     transportId: z.string().uuid().optional(),
     poolId: z.string().uuid().optional(),
     recipientKeys: z.array(z.string()).optional(),
+    /** Czy pokazać na dokumencie trasę (km, czas, koszt). Domyślnie ukryte. */
+    includeRouteInfo: z.boolean().optional(),
   })
   .refine((v) => !!v.transportId !== !!v.poolId, {
     message: "Podaj dokładnie jedno: transportId LUB poolId",
