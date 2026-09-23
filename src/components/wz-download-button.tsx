@@ -142,6 +142,23 @@ export function WzDownloadButton({
             </div>
           )}
 
+          {!loading && (
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50">
+              <Checkbox
+                checked={includeRouteInfo}
+                onCheckedChange={(v) => setIncludeRouteInfo(v === true)}
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium">Pokaż trasę na dokumencie</span>
+                <br />
+                <span className="text-muted-foreground text-xs">
+                  Dystans (km), czas przejazdu i koszt trasy pojawią się w uwagach.
+                </span>
+              </span>
+            </label>
+          )}
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Anuluj
