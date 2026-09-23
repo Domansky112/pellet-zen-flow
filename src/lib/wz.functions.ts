@@ -18,9 +18,9 @@ const PRODUCT_LABEL: Record<string, string> = {
 
 // Stałe dane nadawcy (wystawcy dokumentu)
 const ISSUER = {
-  name: "F.H.U. Rolmar",
-  address: "Strzyżówka, nr 14, 21-570 Drelów",
-  nip: "5372252870",
+  name: "GOSPODARSTWO MICHALCZUK SPÓŁKA KOMANDYTOWA",
+  address: "ul. WITOROŻ nr. 70C, 21-570 DRELÓW",
+  nip: "5372656685",
 };
 
 // Stałe miejsce załadunku
