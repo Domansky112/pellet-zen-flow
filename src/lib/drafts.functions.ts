@@ -194,11 +194,15 @@ export const listDraftCandidates = createServerFn({ method: "GET" })
       .select(`${LEAD_SELECT}, lead_batches(id, batch_no, tons, status, transport_id)`)
       .is("deleted_at", null)
       .not("quantity", "is", null)
-      .in("status", ["nowy", "w_kontakcie", "oferta"])
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(400);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    // Liczy się status widoczny w CRM (status_key), a nie techniczny enum.
+    // Dzięki temu lead „Czeka na transport" nie znika z planowania.
+    const CLOSED = new Set(["wygrany", "przegrany"]);
+    return (data ?? []).filter(
+      (l: any) => !CLOSED.has((l.status_key ?? l.status) as string),
+    );
   });
 
 /** Confirm draft → real transport booked in the calendar. */
