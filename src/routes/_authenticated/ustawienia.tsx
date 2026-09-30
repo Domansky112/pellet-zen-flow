@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { supabase } from "@/integrations/supabase/client";
 import { saveImpersonation } from "@/lib/impersonation";
+import { UserActivityDialog } from "@/components/user-activity-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -543,6 +544,8 @@ function UsersTab() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const [logUser, setLogUser] = useState<any | null>(null);
+
   function toggleRole(roles: string[], role: string) {
     return roles.includes(role) ? roles.filter((r) => r !== role) : [...roles, role];
   }
@@ -591,8 +594,11 @@ function UsersTab() {
             {data.map((u: any) => (
               <TableRow key={u.id}>
                 <TableCell className="font-medium">
-                  {u.full_name ? <div>{u.full_name}</div> : null}
-                  <div className={u.full_name ? "text-xs text-muted-foreground" : ""}>{u.email}</div>
+                  <button type="button" className="text-left hover:underline" onClick={() => setLogUser(u)} title="Pokaż historię działań">
+                    {u.full_name ? <div>{u.full_name}</div> : null}
+                    <div className={u.full_name ? "text-xs text-muted-foreground" : ""}>{u.email}</div>
+                    <div className="text-[11px] text-primary">Historia działań →</div>
+                  </button>
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
@@ -640,6 +646,7 @@ function UsersTab() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <UserActivityDialog user={logUser} onClose={() => setLogUser(null)} />
       </CardContent>
     </Card>
   );

@@ -56,10 +56,28 @@ function AuthPage() {
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
+    const LOCK_KEY = "login_attempts";
+    const MAX = 5;
+    const LOCK_MS = 15 * 60 * 1000;
+    let st: { count: number; until: number } = { count: 0, until: 0 };
+    try { st = JSON.parse(localStorage.getItem(LOCK_KEY) ?? "") ?? st; } catch { /* brak */ }
+    if (st.until > Date.now()) {
+      const min = Math.ceil((st.until - Date.now()) / 60000);
+      toast.error(`Zbyt wiele nieudanych prób. Spróbuj ponownie za ${min} min.`);
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) toast.error(error.message);
+    if (error) {
+      const count = (st.until && st.until <= Date.now() ? 0 : st.count) + 1;
+      const until = count >= MAX ? Date.now() + LOCK_MS : 0;
+      localStorage.setItem(LOCK_KEY, JSON.stringify({ count: until ? 0 : count, until }));
+      if (until) toast.error("Zbyt wiele nieudanych prób. Logowanie zablokowane na 15 minut.");
+      else toast.error(`Nieprawidłowy e-mail lub hasło (pozostało prób: ${MAX - count}).`);
+    } else {
+      localStorage.removeItem(LOCK_KEY);
+    }
   }
 
 
