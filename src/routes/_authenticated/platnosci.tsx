@@ -92,12 +92,28 @@ function leadDisplayName(l: any) {
   return l?.invoice_company || [l?.first_name, l?.last_name].filter(Boolean).join(" ").trim() || l?.name || "—";
 }
 
+// Lead podzielony na partie (kilka transportów): kwota jest rozdzielana
+// proporcjonalnie do ton w danym transporcie, żeby nie liczyć jej wielokrotnie.
 function extractLeads(rows: any[]): { transport: any; leads: any[] }[] {
   return (rows ?? []).map((t) => ({
     transport: t,
-    leads: (t.transport_items ?? []).map((i: any) => i.leads).filter(Boolean),
+    leads: (t.transport_items ?? [])
+      .filter((i: any) => i.leads)
+      .map((i: any) => {
+        const l = i.leads;
+        const total = Number(l.quantity ?? 0);
+        const part = Number(i.quantity ?? 0);
+        const full = Number(l.payment_amount_gross ?? 0);
+        const isPart = total > 0 && part > 0 && part < total;
+        return {
+          ...l,
+          _part_qty: isPart ? part : null,
+          _share: isPart ? Math.round((full * part) / total * 100) / 100 : full,
+        };
+      }),
   }));
 }
+const shareAmt = (l: any) => Number(l._share ?? l.payment_amount_gross ?? 0);
 
 function LeadLink({ leadId, children }: { leadId?: string | null; children: React.ReactNode }) {
   if (!leadId) return <>{children}</>;
@@ -385,7 +401,7 @@ function UpcomingTab() {
     if (payFilter !== "all") {
       r = r.filter(({ leads }) => leads.some((l: any) => (payFilter === "paid" ? isPaid(l) : !isPaid(l))));
     }
-    const gross = ({ leads }: any) => leads.reduce((acc: number, l: any) => acc + Number(l.payment_amount_gross ?? 0), 0);
+    const gross = ({ leads }: any) => leads.reduce((acc: number, l: any) => acc + shareAmt(l), 0);
     return [...r].sort((a, b) => {
       switch (sort) {
         case "date_desc": return String(b.transport.scheduled_date ?? "").localeCompare(String(a.transport.scheduled_date ?? ""));
@@ -399,7 +415,7 @@ function UpcomingTab() {
   const totals = useMemo(() => {
     let expected = 0, cash = 0, transfer = 0;
     for (const { leads } of rows) for (const l of leads) {
-      const amt = Number(l.payment_amount_gross ?? 0);
+      const amt = shareAmt(l);
       expected += amt;
       if (l.payment_method === "gotowka" || l.payment_method === "karta_blik") cash += amt;
       else if (l.payment_method) transfer += amt;
@@ -799,7 +815,7 @@ function TransportPaymentCard({ transport, leads, mode }: { transport: any; lead
   const totals = useMemo(() => {
     let gross = 0, cash = 0, transfer = 0, pending = 0;
     for (const l of leads) {
-      const amt = Number(l.payment_amount_gross ?? 0);
+      const amt = shareAmt(l);
       gross += amt;
       if (l.payment_status === "oplacone_gotowka") cash += amt;
       else if (l.payment_status === "oplacone_przelew") transfer += amt;
@@ -938,7 +954,7 @@ function LeadPaymentRow({ lead }: { lead: any }) {
           </LeadLink>
           {lead.urgent_no_fuel && <Badge className="bg-destructive text-destructive-foreground">🚨 PILNE</Badge>}
           <span className="text-xs text-muted-foreground">
-            {lead.quantity ? `${lead.quantity} t` : "—"} · {lead.city ?? "—"}
+            {lead._part_qty ? `partia ${lead._part_qty} t z ${lead.quantity} t` : lead.quantity ? `${lead.quantity} t` : "—"} · {lead.city ?? "—"}
           </span>
         </div>
         <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
@@ -951,7 +967,10 @@ function LeadPaymentRow({ lead }: { lead: any }) {
         </div>
       </div>
       <div className="text-right shrink-0 w-28">
-        <div className="text-sm font-semibold">{fmtPLN(Number(lead.payment_amount_gross ?? 0))}</div>
+        <div className="text-sm font-semibold">{fmtPLN(shareAmt(lead))}</div>
+        {lead._part_qty && (
+          <div className="text-[11px] text-muted-foreground">z {fmtPLN(Number(lead.payment_amount_gross ?? 0))}</div>
+        )}
         <PaymentStatusBadge status={lead.payment_status} />
       </div>
       <div className="flex items-center gap-2 shrink-0">
