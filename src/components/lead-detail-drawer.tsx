@@ -29,6 +29,7 @@ import { listTemplates, renderTemplateBody } from "@/lib/templates.functions";
 import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, releaseReservation, cancelLead, hardDeleteLead, duplicateLead, assignToMe, assignLeadTo } from "@/lib/leads.functions";
 import { listCrmUsers } from "@/lib/admin.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
+import { RealizedLeaveDialog } from "@/components/realized-leave-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { LeadBatchesPanel } from "@/components/lead-batches-panel";
 import { updateLeadPayment } from "@/lib/payments.functions";
@@ -111,6 +112,10 @@ export function LeadDetailDrawer({
   const [settleOpen, setSettleOpen] = useState(false);
   const [settleMode, setSettleMode] = useState<"wydanie" | "status">("wydanie");
   const [pendingStatusKey, setPendingStatusKey] = useState<string | null>(null);
+  // Popup przy opuszczaniu stanu "Zrealizowany": cofnięcie operacji lub duplikat
+  const [realizedLeaveOpen, setRealizedLeaveOpen] = useState(false);
+  const [realizedLeaveStatus, setRealizedLeaveStatus] = useState<string | null>(null);
+  const [realizedLeaveBusy, setRealizedLeaveBusy] = useState(false);
 
   const statusesQuery = useQuery({
     queryKey: ["lead-statuses"],
@@ -407,6 +412,72 @@ export function LeadDetailDrawer({
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // ---- Zmiana statusu (opcjonalnie z decyzją: rollback / duplikat) --------
+  const applyStatus = async (v: string, decision?: "rollback" | "duplicate") => {
+    const prev = statusKey;
+    setStatusKey(v);
+    try {
+      const res: any = await setStatusFn({
+        data: { id: lead!.id, status_key: v, ...(decision ? { decision } : {}) },
+      });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+      qc.invalidateQueries({ queryKey: ["stock-events"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["payments-orphans"] });
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history-consistency"] });
+      onLeadUpdated?.({
+        id: lead!.id,
+        status_key: v,
+        ...(res?.cancelled ? { status: "przegrany", deleted_at: new Date().toISOString() } as any : {}),
+      });
+      if (res?.duplicate_id) {
+        toast.success("Utworzono duplikat (powtórne zamówienie) — status zmieniony");
+      } else if (res?.rolled_back != null) {
+        toast.success(
+          res.rolled_back > 0
+            ? "Cofnięto operacje leada: wydanie z magazynu i rozliczenie płatności"
+            : "Cofnięto rozliczenie płatności — status zmieniony",
+        );
+      }
+      if (res?.cancelled) {
+        toast.success("Lead anulowany — znajdziesz go w zakładce „Anulowane”");
+      } else if (res?.stock_error) {
+        toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
+      } else if (res?.stock?.shortfall > 0) {
+        toast.warning(
+          `Wydano ${Number(res.stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(res.stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
+          { duration: 10000 },
+        );
+        toast.success("Lead zrealizowany — towar wydany z magazynu");
+      } else if (res?.stock && !res.stock.already_fulfilled) {
+        toast.success("Lead zrealizowany — towar wydany z magazynu");
+      } else if (!res?.duplicate_id && res?.rolled_back == null) {
+        toast.success("Status zaktualizowany");
+      }
+    } catch (e) {
+      setStatusKey(prev);
+      toast.error((e as Error).message);
+    }
+  };
+
+  const handleRealizedLeaveDecision = async (decision: "rollback" | "duplicate") => {
+    if (!realizedLeaveStatus) return;
+    setRealizedLeaveBusy(true);
+    try {
+      await applyStatus(realizedLeaveStatus, decision);
+      setRealizedLeaveOpen(false);
+      setRealizedLeaveStatus(null);
+    } finally {
+      setRealizedLeaveBusy(false);
+    }
+  };
 
   // ---- Schedule transport ------------------------------------------------
   const scheduleFn = useServerFn(scheduleTransportForLead);
@@ -749,39 +820,14 @@ export function LeadDetailDrawer({
                     return;
                   }
 
-                  const prev = statusKey;
-                  setStatusKey(v);
-                  try {
-                    const res: any = await setStatusFn({ data: { id: lead.id, status_key: v } });
-                    qc.invalidateQueries({ queryKey: ["leads"] });
-                    qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
-                    qc.invalidateQueries({ queryKey: ["reserved-leads"] });
-                    qc.invalidateQueries({ queryKey: ["stock-balance"] });
-                    qc.invalidateQueries({ queryKey: ["stock-events"] });
-                    onLeadUpdated?.({
-                      id: lead.id,
-                      status_key: v,
-                      ...(res?.cancelled ? { status: "przegrany", deleted_at: new Date().toISOString() } as any : {}),
-                    });
-                    if (res?.cancelled) {
-                      toast.success("Lead anulowany — znajdziesz go w zakładce „Anulowane”");
-                    } else if (res?.stock_error) {
-                      toast.warning(`Status zmieniony, ale nie udało się wydać z magazynu: ${res.stock_error}`, { duration: 10000 });
-                    } else if (res?.stock?.shortfall > 0) {
-                      toast.warning(
-                        `Wydano ${Number(res.stock.quantity).toFixed(1)} t, a w magazynie było tylko ${Number(res.stock.stock_before).toFixed(1)} t — uzupełnij przyjęcie towaru.`,
-                        { duration: 10000 },
-                      );
-                      toast.success("Lead zrealizowany — towar wydany z magazynu");
-                    } else if (res?.stock && !res.stock.already_fulfilled) {
-                      toast.success("Lead zrealizowany — towar wydany z magazynu");
-                    } else {
-                      toast.success("Status zaktualizowany");
-                    }
-                  } catch (e) {
-                    setStatusKey(prev);
-                    toast.error((e as Error).message);
+                  // Opuszczenie stanu "Zrealizowany" wymaga decyzji: cofnij operacje lub duplikat.
+                  if (statusKey === "wygrany" && v !== "wygrany") {
+                    setRealizedLeaveStatus(v);
+                    setRealizedLeaveOpen(true);
+                    return;
                   }
+
+                  await applyStatus(v);
                 }}
               >
                 <SelectTrigger className="h-8 w-[190px]"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -1561,6 +1607,19 @@ export function LeadDetailDrawer({
             : "Zanim oznaczysz leada jako Zrealizowany, potwierdź kwotę i formę płatności — trafi to od razu do modułu Płatności."
         }
         confirmLabel={settleMode === "wydanie" ? "Wydaj i zapisz rozliczenie" : "Zatwierdź i oznacz Zrealizowany"}
+      />
+
+      <RealizedLeaveDialog
+        open={realizedLeaveOpen}
+        onOpenChange={(o) => {
+          setRealizedLeaveOpen(o);
+          if (!o) setRealizedLeaveStatus(null);
+        }}
+        leadLabel={`${(lead as any).lead_number ? `${(lead as any).lead_number} · ` : ""}${[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name}`}
+        quantity={lead.quantity ?? null}
+        paymentAmount={(lead as any).payment_amount_gross ?? null}
+        busy={realizedLeaveBusy}
+        onDecision={handleRealizedLeaveDecision}
       />
     </Dialog>
   );
