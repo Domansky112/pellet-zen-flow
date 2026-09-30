@@ -467,14 +467,30 @@ function CompletedTab() {
   const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => completedFn() });
   const orphans = useQuery({ queryKey: ["payments-orphans"], queryFn: () => orphansFn() });
 
-  const rows = extractLeads(q.data ?? []);
+  const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const isPaid = (l: any) => l?.payment_status === "oplacone_gotowka" || l?.payment_status === "oplacone_przelew";
+  const matchesFilter = (l: any) => payFilter === "all" || (payFilter === "paid" ? isPaid(l) : !isPaid(l));
 
   // odfiltruj z sierot te, które już siedzą w jakimś transporcie
-  const transportLeadIds = new Set<string>(rows.flatMap((r) => r.leads.map((l: any) => l.id)));
-  const standaloneLeads = (orphans.data ?? []).filter((l: any) => !transportLeadIds.has(l.id));
+  const transportLeadIds = new Set<string>(
+    extractLeads(q.data ?? []).flatMap((r) => r.leads.map((l: any) => l.id)),
+  );
+  const rows = extractLeads(q.data ?? []).filter(({ leads }) => leads.some(matchesFilter));
+  const standaloneLeads = (orphans.data ?? []).filter((l: any) => !transportLeadIds.has(l.id) && matchesFilter(l));
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">Pokaż:</span>
+        <Select value={payFilter} onValueChange={(v) => setPayFilter(v as any)}>
+          <SelectTrigger className="h-8 w-52"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Wszystkie</SelectItem>
+            <SelectItem value="paid">Tylko opłacone</SelectItem>
+            <SelectItem value="unpaid">Tylko nieopłacone</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       {(q.isLoading || orphans.isLoading) && <div className="text-sm text-muted-foreground">Ładowanie…</div>}
       {rows.length === 0 && standaloneLeads.length === 0 && !q.isLoading && (
         <Card><CardContent className="py-8 text-center text-muted-foreground">Brak zrealizowanych dostaw.</CardContent></Card>
