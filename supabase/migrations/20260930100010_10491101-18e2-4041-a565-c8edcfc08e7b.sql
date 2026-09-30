@@ -1,0 +1,1 @@
+ALTER VIEW public.stock_balance SET (security_invoker = on);

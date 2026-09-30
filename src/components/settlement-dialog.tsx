@@ -17,7 +17,14 @@ export type SettlementResult = {
   sales_vat_rate: number;
   transport_cost_gross: number;
   transport_vat_rate: number;
+  /** Liczba wydanych Big Bagów (opcjonalna). */
+  sold_units?: number | null;
+  /** Rzeczywisty tonaż sprzedany. */
+  sold_tons?: number | null;
+  /** Cena netto za tonę. */
+  price_per_ton_net?: number | null;
 };
+
 
 const methodLabel: Record<SettlementResult["payment_method"], string> = {
   gotowka: "Gotówka u kierowcy",
@@ -36,8 +43,12 @@ export function SettlementDialog({
   defaultSalesVatRate,
   defaultTransportCost,
   defaultTransportVatRate,
+  product,
+  defaultSoldUnits,
+  defaultPricePerTonNet,
   postalCode,
   city,
+
   submitting,
   onConfirm,
   title = "Rozliczenie zamówienia",
@@ -53,6 +64,10 @@ export function SettlementDialog({
   defaultSalesVatRate?: number | null;
   defaultTransportCost?: number | null;
   defaultTransportVatRate?: number | null;
+  product?: string | null;
+  defaultSoldUnits?: number | null;
+  defaultPricePerTonNet?: number | null;
+
   postalCode?: string | null;
   city?: string | null;
   submitting?: boolean;
@@ -75,20 +90,29 @@ export function SettlementDialog({
   const [salesVat, setSalesVat] = useState<string>("8");
   const [transportCost, setTransportCost] = useState<string>("");
   const [selfPickup, setSelfPickup] = useState<boolean>(false);
-  const [transportVat, setTransportVat] = useState<string>("23");
+  const [transportVat, setTransportVat] = useState<string>("8");
+  const [soldUnits, setSoldUnits] = useState<string>("");
+  const [soldTons, setSoldTons] = useState<string>("");
+  const [priceNet, setPriceNet] = useState<string>("");
+  const [amountTouched, setAmountTouched] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestInfo, setSuggestInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const suggestFn = useServerFn(suggestTransportCost);
+  const isBigBag = product === "pellet_bigbag";
 
   useEffect(() => {
     if (open) {
       setAmount(defaultAmount != null && Number.isFinite(defaultAmount) ? String(defaultAmount) : "");
+      setAmountTouched(defaultAmount != null && Number.isFinite(defaultAmount));
       setMethod(defaultMethod ?? "gotowka");
       setCollected(true);
       setDeliveredAt(todayIso());
       setSalesVat(String(defaultSalesVatRate ?? 8));
-      setTransportVat(String(defaultTransportVatRate ?? 23));
+      setTransportVat(String(defaultTransportVatRate ?? 8));
+      setSoldTons(quantity != null && Number.isFinite(quantity) ? String(quantity) : "");
+      setSoldUnits(defaultSoldUnits != null ? String(defaultSoldUnits) : isBigBag && quantity != null ? String(Math.round(quantity)) : "");
+      setPriceNet(defaultPricePerTonNet != null ? String(defaultPricePerTonNet) : "");
       setTransportCost(
         defaultTransportCost != null && Number.isFinite(defaultTransportCost) ? String(defaultTransportCost) : "",
       );
@@ -96,7 +120,8 @@ export function SettlementDialog({
       setSuggestInfo(null);
       setError(null);
     }
-  }, [open, defaultAmount, defaultMethod, defaultSalesVatRate, defaultTransportCost, defaultTransportVatRate]);
+  }, [open, defaultAmount, defaultMethod, defaultSalesVatRate, defaultTransportCost, defaultTransportVatRate, defaultSoldUnits, defaultPricePerTonNet, quantity, isBigBag]);
+
 
   // Propozycja kosztu transportu na podstawie kodu pocztowego (edytowalna)
   useEffect(() => {
@@ -129,6 +154,17 @@ export function SettlementDialog({
 
   const parseNum = (v: string) => Number(v.trim().replace(/\s+/g, "").replace(",", "."));
 
+  // Kwota sprzedaży liczona z tonażu i ceny netto za tonę — dopóki nie wpiszesz jej ręcznie.
+  useEffect(() => {
+    if (!open || amountTouched) return;
+    const t = parseNum(soldTons || "");
+    const p = parseNum(priceNet || "");
+    if (!Number.isFinite(t) || !Number.isFinite(p) || t <= 0 || p <= 0) return;
+    const gross = t * p * (1 + Number(salesVat) / 100);
+    setAmount(gross.toFixed(2));
+  }, [open, amountTouched, soldTons, priceNet, salesVat]);
+
+
   const submit = async () => {
     const raw = amount.trim().replace(",", ".");
     const n = Number(raw);
@@ -145,6 +181,21 @@ export function SettlementDialog({
       setError("Podaj poprawną datę dostawy.");
       return;
     }
+    const tons = soldTons.trim() === "" ? null : parseNum(soldTons);
+    if (tons != null && (!Number.isFinite(tons) || tons < 0)) {
+      setError("Podaj poprawny tonaż (liczba ≥ 0).");
+      return;
+    }
+    const units = soldUnits.trim() === "" ? null : parseNum(soldUnits);
+    if (units != null && (!Number.isFinite(units) || units < 0)) {
+      setError("Podaj poprawną liczbę Big Bagów.");
+      return;
+    }
+    const pnet = priceNet.trim() === "" ? null : parseNum(priceNet);
+    if (pnet != null && (!Number.isFinite(pnet) || pnet < 0)) {
+      setError("Podaj poprawną cenę netto za tonę.");
+      return;
+    }
     setError(null);
     await onConfirm({
       payment_amount_gross: n,
@@ -154,7 +205,11 @@ export function SettlementDialog({
       sales_vat_rate: Number(salesVat),
       transport_cost_gross: Number(tc.toFixed(2)),
       transport_vat_rate: Number(transportVat),
+      sold_units: units,
+      sold_tons: tons,
+      price_per_ton_net: pnet,
     });
+
   };
 
 
@@ -186,38 +241,54 @@ export function SettlementDialog({
               inputMode="decimal"
               placeholder="0,00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => { setAmountTouched(true); setAmount(e.target.value); }}
               autoFocus
             />
-            {defaultAmount != null && (
-              <p className="text-[11px] text-muted-foreground">
-                Wartość wstępna z kalkulatora / oferty — możesz ją zmienić.
-              </p>
-            )}
+            <p className="text-[11px] text-muted-foreground">
+              {amountTouched
+                ? "Kwota wpisana ręcznie — nie przeliczam jej automatycznie."
+                : "Liczona z tonażu i ceny netto za tonę — możesz ją nadpisać."}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
+            {isBigBag && (
+              <div className="space-y-1.5">
+                <Label htmlFor="sold-units">Wydane Big Bagi (szt.)</Label>
+                <Input
+                  id="sold-units"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={soldUnits}
+                  onChange={(e) => setSoldUnits(e.target.value)}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
-              <Label>Stawka VAT dla towaru</Label>
-              <Select value={salesVat} onValueChange={setSalesVat}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="8">8%</SelectItem>
-                  <SelectItem value="23">23%</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="sold-tons">Sprzedany tonaż (t)</Label>
+              <Input
+                id="sold-tons"
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={soldTons}
+                onChange={(e) => setSoldTons(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>Stawka VAT dla transportu</Label>
-              <Select value={transportVat} onValueChange={setTransportVat}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="23">23%</SelectItem>
-                  <SelectItem value="8">8%</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="price-net">Cena netto za tonę [PLN]</Label>
+              <Input
+                id="price-net"
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={priceNet}
+                onChange={(e) => setPriceNet(e.target.value)}
+              />
             </div>
           </div>
+
 
           <div className="flex items-center justify-between rounded-md border p-3">
             <div className="space-y-0.5">
@@ -305,6 +376,30 @@ export function SettlementDialog({
             </div>
             <Switch id="collected" checked={collected} onCheckedChange={setCollected} />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla towaru</Label>
+              <Select value={salesVat} onValueChange={setSalesVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="8">8%</SelectItem>
+                  <SelectItem value="23">23%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Stawka VAT dla transportu</Label>
+              <Select value={transportVat} onValueChange={setTransportVat}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="8">8%</SelectItem>
+                  <SelectItem value="23">23%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
 
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>

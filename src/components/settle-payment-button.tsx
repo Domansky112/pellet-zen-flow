@@ -18,6 +18,8 @@ type Props = {
   defaultSalesVatRate?: number | null;
   defaultTransportCost?: number | null;
   defaultTransportVatRate?: number | null;
+  product?: string | null;
+
   size?: "sm" | "default";
   variant?: "default" | "outline" | "secondary";
   label?: string;
@@ -41,6 +43,8 @@ export function SettlePaymentButton({
   defaultSalesVatRate,
   defaultTransportCost,
   defaultTransportVatRate,
+  product,
+
   size = "sm",
   variant = "outline",
   label = "Uzupełnij płatność",
@@ -64,6 +68,10 @@ export function SettlePaymentButton({
           sales_vat_rate: r.sales_vat_rate,
           transport_cost_gross: r.transport_cost_gross,
           transport_vat_rate: r.transport_vat_rate,
+          sold_units: r.sold_units ?? null,
+          sold_tons: r.sold_tons ?? null,
+          price_per_ton_net: r.price_per_ton_net ?? null,
+
         },
       }),
     onSuccess: (res: any) => {
@@ -107,7 +115,9 @@ export function SettlePaymentButton({
         defaultMethod={defaultMethod ?? null}
         defaultSalesVatRate={defaultSalesVatRate ?? 8}
         defaultTransportCost={defaultTransportCost ?? null}
-        defaultTransportVatRate={defaultTransportVatRate ?? 23}
+        defaultTransportVatRate={defaultTransportVatRate ?? 8}
+        product={product ?? null}
+
         submitting={m.isPending}
 
         onConfirm={(r) => m.mutate(r)}

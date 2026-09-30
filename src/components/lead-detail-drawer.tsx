@@ -247,6 +247,10 @@ export function LeadDetailDrawer({
           sales_vat_rate: r.sales_vat_rate,
           transport_cost_gross: r.transport_cost_gross,
           transport_vat_rate: r.transport_vat_rate,
+          sold_units: r.sold_units ?? null,
+          sold_tons: r.sold_tons ?? null,
+          price_per_ton_net: r.price_per_ton_net ?? null,
+
         },
       }),
 
@@ -1611,7 +1615,11 @@ export function LeadDetailDrawer({
         city={(lead as any)?.city ?? null}
         defaultSalesVatRate={(lead as any)?.sales_vat_rate ?? 8}
         defaultTransportCost={(lead as any)?.transport_cost_gross ?? null}
-        defaultTransportVatRate={(lead as any)?.transport_vat_rate ?? 23}
+        defaultTransportVatRate={(lead as any)?.transport_vat_rate ?? 8}
+        product={(lead as any)?.product ?? null}
+        defaultSoldUnits={(lead as any)?.sold_units ?? null}
+        defaultPricePerTonNet={(lead as any)?.price_per_ton_net ?? null}
+
         defaultAmount={
           Number.isFinite(vatCalc.sumBr) && vatCalc.sumBr > 0
             ? Number(vatCalc.sumBr.toFixed(2))

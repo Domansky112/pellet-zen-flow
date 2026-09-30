@@ -838,15 +838,6 @@ function TransportPaymentCard({ transport, leads, mode }: { transport: any; lead
     onError: (e: any) => toast.error(e.message),
   });
 
-  const wzFn = useServerFn(getWzDocument);
-  const openWz = async () => {
-    try {
-      const res: any = await wzFn({ data: { transportId: transport.id } });
-      const html = res?.file?.content ?? res?.file?.html ?? "";
-      const w = window.open("", "_blank");
-      if (w) { w.document.write(html); w.document.close(); }
-    } catch (e: any) { toast.error(e.message ?? "Błąd WZ"); }
-  };
 
   return (
     <Card>
@@ -863,7 +854,7 @@ function TransportPaymentCard({ transport, leads, mode }: { transport: any; lead
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={openWz}><FileText className="h-4 w-4 mr-1" />Podgląd WZ</Button>
+            <WzDownloadButton transportId={transport.id} />
             {mode === "completed" && anyCash && (
               <Button size="sm" onClick={() => settleM.mutate()} disabled={settleM.isPending}>
                 <CheckCircle2 className="h-4 w-4 mr-1" />Rozlicz trasę z kierowcą

@@ -31,12 +31,13 @@ export const listStockLots = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("stock_lots")
-      .select("id, product, quantity, remaining_quantity, unit_price, vat_rate, supplier, invoice_number, note, created_at")
+      .select("id, product, quantity, remaining_quantity, units, remaining_units, unit_price, vat_rate, supplier, invoice_number, note, created_at")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
 
 export const addStockEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -45,6 +46,9 @@ export const addStockEvent = createServerFn({ method: "POST" })
       product: productEnum,
       txn_type: txnEnum,
       quantity: z.number().positive(),
+      /** Liczba sztuk opakowań (np. Big Bagów) — opcjonalna, obok tonażu. */
+      units: z.number().min(0).max(100000).optional().nullable(),
+
       reference: z.string().max(120).optional().nullable(),
       note: z.string().max(500).optional().nullable(),
       lead_id: z.string().uuid().optional().nullable(),
@@ -66,6 +70,8 @@ export const addStockEvent = createServerFn({ method: "POST" })
         product: data.product,
         txn_type: data.txn_type,
         quantity: data.quantity,
+        units: data.units ?? null,
+
         reference: data.reference ?? null,
         note: data.note ?? null,
         lead_id: data.lead_id ?? null,
@@ -111,6 +117,9 @@ export const addStockEvent = createServerFn({ method: "POST" })
         product: data.product,
         quantity: data.quantity,
         remaining_quantity: data.quantity,
+        units: data.units ?? null,
+        remaining_units: data.units ?? null,
+
         unit_price: data.unit_price ?? 0,
         vat_rate: data.vat_rate ?? 8,
         supplier: data.supplier ?? null,

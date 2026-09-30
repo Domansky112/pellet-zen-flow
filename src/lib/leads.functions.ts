@@ -264,6 +264,9 @@ const SettleAndWydanieInput = z.object({
   sales_vat_rate: z.number().refine((v) => [0, 8, 23].includes(v)).optional().nullable(),
   transport_cost_gross: z.number().min(0).max(1_000_000).optional().nullable(),
   transport_vat_rate: z.number().refine((v) => [0, 8, 23].includes(v)).optional().nullable(),
+  sold_units: z.number().min(0).max(100_000).optional().nullable(),
+  sold_tons: z.number().min(0).max(100_000).optional().nullable(),
+  price_per_ton_net: z.number().min(0).max(1_000_000).optional().nullable(),
 });
 
 // Atomowe: zapisz rozliczenie płatności + (opcjonalnie) wydaj z magazynu + (opcjonalnie) ustaw status.
@@ -272,7 +275,19 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SettleAndWydanieInput.parse(d))
   .handler(async ({ data, context }) => {
+    // Jednostki i cena netto muszą być zapisane PRZED wydaniem — funkcja
+    // fulfill_lead_stock zdejmuje sztuki na podstawie leads.sold_units.
+    const pre: Record<string, unknown> = {};
+    if (data.sold_units != null) pre.sold_units = data.sold_units;
+    if (data.price_per_ton_net != null) pre.price_per_ton_net = data.price_per_ton_net;
+    if (data.sold_tons != null && data.sold_tons > 0) pre.quantity = data.sold_tons;
+    if (Object.keys(pre).length > 0) {
+      const { error: preErr } = await context.supabase.from("leads").update(pre as any).eq("id", data.lead_id);
+      if (preErr) throw new Error(`Nie udało się zapisać ilości: ${preErr.message}`);
+    }
+
     const { data: res, error } = await context.supabase.rpc("settle_lead_payment", {
+
       _lead_id: data.lead_id,
       _amount: data.payment_amount_gross,
       _method: data.payment_method,
