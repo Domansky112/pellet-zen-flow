@@ -93,7 +93,7 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("leads")
-      .update({ status: data.status })
+      .update({ status: data.status, status_changed_at: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

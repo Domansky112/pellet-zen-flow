@@ -86,13 +86,13 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
       if (ce) throw new Error(ce.message);
       const { error: ue } = await context.supabase
         .from("leads")
-        .update({ status_key: "przegrany" } as any)
+        .update({ status_key: "przegrany", status_changed_at: new Date().toISOString() } as any)
         .eq("id", data.id);
       if (ue) throw new Error(ue.message);
       return { ok: true, cancelled: true, stock: null };
     }
 
-    const patch: Record<string, unknown> = { status_key: data.status_key };
+    const patch: Record<string, unknown> = { status_key: data.status_key, status_changed_at: new Date().toISOString() };
     if (ENUM_VALUES.has(data.status_key)) patch.status = data.status_key;
     // Powrót z anulowania — lead wraca do aktywnej pracy.
     patch.deleted_at = null;

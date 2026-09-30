@@ -238,8 +238,17 @@ function CrmPage() {
 
   function sortItems(items: Lead[]): Lead[] {
     const copy = [...items];
-    const byCreated = (a: Lead, b: Lead) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    // Leady zamknięte (zrealizowane/anulowane) sortują się po dacie zmiany statusu;
+    // aktywne dalej po dacie utworzenia.
+    const sortDate = (l: Lead) => {
+      if (isClosedLead(l)) {
+        const closed = l as Lead & { status_changed_at?: string | null; deleted_at?: string | null };
+        const t = closed.status_changed_at ?? closed.deleted_at;
+        if (t) return new Date(t).getTime();
+      }
+      return new Date(l.created_at).getTime();
+    };
+    const byCreated = (a: Lead, b: Lead) => sortDate(b) - sortDate(a);
     const lastActivity = (l: Lead) =>
       new Date(notesByLead.get(l.id)?.last_at ?? l.created_at).getTime();
 
@@ -333,8 +342,12 @@ function CrmPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="smart">Inteligentnie („W kontakcie" na górze)</SelectItem>
-              <SelectItem value="newest">Data dodania: od najnowszych</SelectItem>
-              <SelectItem value="oldest">Data dodania: od najstarszych</SelectItem>
+              <SelectItem value="newest">
+                {tab === "realized" ? "Data realizacji: od najnowszych" : tab === "cancelled" ? "Data anulowania: od najnowszych" : "Data dodania: od najnowszych"}
+              </SelectItem>
+              <SelectItem value="oldest">
+                {tab === "realized" ? "Data realizacji: od najstarszych" : tab === "cancelled" ? "Data anulowania: od najstarszych" : "Data dodania: od najstarszych"}
+              </SelectItem>
               <SelectItem value="recent_note">Ostatnia notatka / kontakt</SelectItem>
             </SelectContent>
           </Select>

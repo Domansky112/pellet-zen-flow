@@ -833,6 +833,7 @@ export type Database = {
           sales_vat_rate: number
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
+          status_changed_at: string | null
           status_key: string | null
           street: string | null
           transport_cost_gross: number | null
@@ -888,6 +889,7 @@ export type Database = {
           sales_vat_rate?: number
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
+          status_changed_at?: string | null
           status_key?: string | null
           street?: string | null
           transport_cost_gross?: number | null
@@ -943,6 +945,7 @@ export type Database = {
           sales_vat_rate?: number
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
+          status_changed_at?: string | null
           status_key?: string | null
           street?: string | null
           transport_cost_gross?: number | null
@@ -1919,6 +1922,7 @@ export type Database = {
           sales_vat_rate: number
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
+          status_changed_at: string | null
           status_key: string | null
           street: string | null
           transport_cost_gross: number | null
