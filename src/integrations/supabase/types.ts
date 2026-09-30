@@ -825,12 +825,14 @@ export type Database = {
           pooling_status: string
           pooling_wait_until: string | null
           postal_code: string | null
+          price_per_ton_net: number | null
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
           receipt_number: string | null
           reservation_status: string
           sales_vat_rate: number
+          sold_units: number | null
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_changed_at: string | null
@@ -881,12 +883,14 @@ export type Database = {
           pooling_status?: string
           pooling_wait_until?: string | null
           postal_code?: string | null
+          price_per_ton_net?: number | null
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
           receipt_number?: string | null
           reservation_status?: string
           sales_vat_rate?: number
+          sold_units?: number | null
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_changed_at?: string | null
@@ -937,12 +941,14 @@ export type Database = {
           pooling_status?: string
           pooling_wait_until?: string | null
           postal_code?: string | null
+          price_per_ton_net?: number | null
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
           receipt_number?: string | null
           reservation_status?: string
           sales_vat_rate?: number
+          sold_units?: number | null
           source?: Database["public"]["Enums"]["lead_source"]
           status?: Database["public"]["Enums"]["lead_status"]
           status_changed_at?: string | null
@@ -1139,6 +1145,7 @@ export type Database = {
           quantity: number
           reference: string | null
           txn_type: Database["public"]["Enums"]["stock_txn_type"]
+          units: number | null
         }
         Insert: {
           created_at?: string
@@ -1150,6 +1157,7 @@ export type Database = {
           quantity: number
           reference?: string | null
           txn_type: Database["public"]["Enums"]["stock_txn_type"]
+          units?: number | null
         }
         Update: {
           created_at?: string
@@ -1161,6 +1169,7 @@ export type Database = {
           quantity?: number
           reference?: string | null
           txn_type?: Database["public"]["Enums"]["stock_txn_type"]
+          units?: number | null
         }
         Relationships: [
           {
@@ -1243,10 +1252,12 @@ export type Database = {
           product: Database["public"]["Enums"]["product_type"]
           quantity: number
           remaining_quantity: number
+          remaining_units: number | null
           stock_event_id: string | null
           supplier: string | null
           transport_km: number | null
           unit_price: number
+          units: number | null
           updated_at: string
           vat_rate: number
         }
@@ -1262,10 +1273,12 @@ export type Database = {
           product: Database["public"]["Enums"]["product_type"]
           quantity: number
           remaining_quantity?: number
+          remaining_units?: number | null
           stock_event_id?: string | null
           supplier?: string | null
           transport_km?: number | null
           unit_price?: number
+          units?: number | null
           updated_at?: string
           vat_rate?: number
         }
@@ -1281,10 +1294,12 @@ export type Database = {
           product?: Database["public"]["Enums"]["product_type"]
           quantity?: number
           remaining_quantity?: number
+          remaining_units?: number | null
           stock_event_id?: string | null
           supplier?: string | null
           transport_km?: number | null
           unit_price?: number
+          units?: number | null
           updated_at?: string
           vat_rate?: number
         }
@@ -1800,6 +1815,7 @@ export type Database = {
         Row: {
           available: number | null
           physical: number | null
+          physical_units: number | null
           product: Database["public"]["Enums"]["product_type"] | null
           reserved: number | null
         }
@@ -1914,12 +1930,14 @@ export type Database = {
           pooling_status: string
           pooling_wait_until: string | null
           postal_code: string | null
+          price_per_ton_net: number | null
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
           receipt_number: string | null
           reservation_status: string
           sales_vat_rate: number
+          sold_units: number | null
           source: Database["public"]["Enums"]["lead_source"]
           status: Database["public"]["Enums"]["lead_status"]
           status_changed_at: string | null

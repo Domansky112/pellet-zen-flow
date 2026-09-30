@@ -338,6 +338,8 @@ function PhysicalDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState("");
+  const [units, setUnits] = useState("");
+
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [price, setPrice] = useState("");
@@ -355,13 +357,18 @@ function PhysicalDialog({
   const { data: defaults } = useSuspenseQuery(defaultPriceQuery);
   const { data: pickups } = useSuspenseQuery(pickupsQuery);
   const isPz = type === "przyjecie";
+  const isBigBag = product.key === "pellet_bigbag";
+  const showUnits = isPz && isBigBag;
+
 
   useEffect(() => {
     if (open && isPz) {
       setPrice(defaults.pln_per_ton ? String(defaults.pln_per_ton) : "");
       setVat(String(defaults.vat_rate ?? 8));
+      if (showUnits) { setUnits("22"); setQty("22"); }
     }
-  }, [open, isPz, defaults]);
+  }, [open, isPz, showUnits, defaults]);
+
 
   async function runEstimate(locId: string) {
     if (!locId || locId === "none") return;
@@ -393,6 +400,8 @@ function PhysicalDialog({
           product: product.key,
           txn_type: type,
           quantity: q,
+          units: showUnits && Number(units) > 0 ? Number(units) : null,
+
           reference: reference || null,
           note: note || null,
           ...(isPz
@@ -408,8 +417,9 @@ function PhysicalDialog({
             : {}),
         },
       });
-      toast.success(isPz ? `Przyjęto partię ${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
-      setOpen(false); setQty(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
+      toast.success(isPz ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
+      setOpen(false); setQty(""); setUnits(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
+
       qc.invalidateQueries({ queryKey: ["stock"] });
     } catch (err: any) {
       toast.error(err?.message ?? "Błąd — brak uprawnień?");
@@ -431,7 +441,36 @@ function PhysicalDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid gap-1.5"><Label>{isPz ? "Ilość przyjętych ton (t)" : "Ilość (t)"}</Label><Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></div>
+          {showUnits ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-1.5">
+                <Label>Liczba Big Bagów (szt.)</Label>
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={units}
+                  autoFocus
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setUnits(v);
+                    const n = Number(v);
+                    if (Number.isFinite(n) && n > 0) setQty(String(n));
+                  }}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Tonaż łączny (t)</Label>
+                <Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} />
+              </div>
+              <p className="col-span-2 text-xs text-muted-foreground">
+                Tonaż podpowiada się jako 1 t na Big Bag — popraw go ręcznie wg wagi z dokumentu.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-1.5"><Label>{isPz ? "Ilość przyjętych ton (t)" : "Ilość (t)"}</Label><Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} autoFocus /></div>
+          )}
+
           {isPz && (
             <>
               <div className="grid grid-cols-2 gap-2">
@@ -657,8 +696,9 @@ function LotsCard() {
                 <TableRow key={l.id} className={active ? "" : "opacity-60"}>
                   <TableCell className="text-xs text-muted-foreground">{format(new Date(l.created_at), "d MMM yyyy, HH:mm", { locale: pl })}</TableCell>
                   <TableCell>{PRODUCTS.find((p) => p.key === l.product)?.label ?? l.product}</TableCell>
-                  <TableCell className="text-right">{Number(l.quantity).toFixed(2)} t</TableCell>
-                  <TableCell className="text-right font-medium">{remaining.toFixed(2)} t</TableCell>
+                  <TableCell className="text-right">{Number(l.quantity).toFixed(2)} t{l.units ? <span className="block text-xs text-muted-foreground">{Number(l.units)} szt.</span> : null}</TableCell>
+                  <TableCell className="text-right font-medium">{remaining.toFixed(2)} t{l.remaining_units != null ? <span className="block text-xs text-muted-foreground">{Number(l.remaining_units)} szt.</span> : null}</TableCell>
+
                   <TableCell className="text-right">{money(Number(l.unit_price))} <span className="text-xs text-muted-foreground">({Number(l.vat_rate)}%)</span></TableCell>
                   <TableCell className="text-right font-medium">{money(remaining * Number(l.unit_price))}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
