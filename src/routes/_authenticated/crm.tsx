@@ -238,8 +238,8 @@ function CrmPage() {
 
   function sortItems(items: Lead[]): Lead[] {
     const copy = [...items];
-    // Leados fechados (realizados/anulados) ordenam pela data da mudança de status;
-    // leados ativos continuam pela data de criação.
+    // Leady zamknięte (zrealizowane/anulowane) sortują się po dacie zmiany statusu;
+    // aktywne dalej po dacie utworzenia.
     const sortDate = (l: Lead) => {
       if (isClosedLead(l)) {
         const closed = l as Lead & { status_changed_at?: string | null; deleted_at?: string | null };
