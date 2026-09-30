@@ -30,6 +30,7 @@ import { reserveLead, confirmWydanie, settleAndConfirmWydanie, updateLead, relea
 import { listCrmUsers } from "@/lib/admin.functions";
 import { SettlementDialog, type SettlementResult } from "@/components/settlement-dialog";
 import { RealizedLeaveDialog } from "@/components/realized-leave-dialog";
+import { CancelReasonDialog } from "@/components/cancel-reason-dialog";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { LeadBatchesPanel } from "@/components/lead-batches-panel";
 import { updateLeadPayment } from "@/lib/payments.functions";
@@ -116,6 +117,8 @@ export function LeadDetailDrawer({
   const [realizedLeaveOpen, setRealizedLeaveOpen] = useState(false);
   const [realizedLeaveStatus, setRealizedLeaveStatus] = useState<string | null>(null);
   const [realizedLeaveBusy, setRealizedLeaveBusy] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState<string | null>(null);
 
   const statusesQuery = useQuery({
     queryKey: ["lead-statuses"],
@@ -414,13 +417,14 @@ export function LeadDetailDrawer({
   });
 
   // ---- Zmiana statusu (opcjonalnie z decyzją: rollback / duplikat) --------
-  const applyStatus = async (v: string, decision?: "rollback" | "duplicate") => {
+  const applyStatus = async (v: string, decision?: "rollback" | "duplicate", reason?: string) => {
     const prev = statusKey;
     setStatusKey(v);
     try {
       const res: any = await setStatusFn({
-        data: { id: lead!.id, status_key: v, ...(decision ? { decision } : {}) },
+        data: { id: lead!.id, status_key: v, ...(decision ? { decision } : {}), ...(reason ? { reason } : {}) },
       });
+      if (reason) qc.invalidateQueries({ queryKey: ["lead-notes"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
       qc.invalidateQueries({ queryKey: ["reserved-leads"] });
@@ -471,12 +475,24 @@ export function LeadDetailDrawer({
     if (!realizedLeaveStatus) return;
     setRealizedLeaveBusy(true);
     try {
-      await applyStatus(realizedLeaveStatus, decision);
+      await applyStatus(realizedLeaveStatus, decision, cancelReason ?? undefined);
       setRealizedLeaveOpen(false);
       setRealizedLeaveStatus(null);
+      setCancelReason(null);
     } finally {
       setRealizedLeaveBusy(false);
     }
+  };
+
+  const handleCancelConfirm = async (reason: string) => {
+    setCancelOpen(false);
+    if (statusKey === "wygrany") {
+      setCancelReason(reason);
+      setRealizedLeaveStatus("przegrany");
+      setRealizedLeaveOpen(true);
+      return;
+    }
+    await applyStatus("przegrany", undefined, reason);
   };
 
   // ---- Schedule transport ------------------------------------------------
@@ -820,6 +836,11 @@ export function LeadDetailDrawer({
                     return;
                   }
 
+                  // Anulowanie wymaga komentarza.
+                  if (v === "przegrany" && statusKey !== "przegrany") {
+                    setCancelOpen(true);
+                    return;
+                  }
                   // Opuszczenie stanu "Zrealizowany" wymaga decyzji: cofnij operacje lub duplikat.
                   if (statusKey === "wygrany" && v !== "wygrany") {
                     setRealizedLeaveStatus(v);
@@ -1620,6 +1641,12 @@ export function LeadDetailDrawer({
         paymentAmount={(lead as any).payment_amount_gross ?? null}
         busy={realizedLeaveBusy}
         onDecision={handleRealizedLeaveDecision}
+      />
+      <CancelReasonDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        leadLabel={`${(lead as any).lead_number ? `${(lead as any).lead_number} · ` : ""}${[lead.first_name, lead.last_name].filter(Boolean).join(" ") || lead.name}`}
+        onConfirm={handleCancelConfirm}
       />
     </Dialog>
   );
