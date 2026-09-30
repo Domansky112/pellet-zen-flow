@@ -382,6 +382,9 @@ function UpcomingTab() {
         return hay.includes(s);
       });
     }
+    if (payFilter !== "all") {
+      r = r.filter(({ leads }) => leads.some((l: any) => (payFilter === "paid" ? isPaid(l) : !isPaid(l))));
+    }
     const gross = ({ leads }: any) => leads.reduce((acc: number, l: any) => acc + Number(l.payment_amount_gross ?? 0), 0);
     return [...r].sort((a, b) => {
       switch (sort) {
@@ -391,7 +394,7 @@ function UpcomingTab() {
         default: return String(a.transport.scheduled_date ?? "").localeCompare(String(b.transport.scheduled_date ?? ""));
       }
     });
-  }, [allRows, sort, search]);
+  }, [allRows, sort, search, payFilter]);
 
   const totals = useMemo(() => {
     let expected = 0, cash = 0, transfer = 0;
