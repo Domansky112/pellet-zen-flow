@@ -118,7 +118,7 @@ export const listWaitlist = createServerFn({ method: "GET" })
       .eq("pooling_enabled", true)
       .eq("pooling_status", "poczekalnia")
       .is("deleted_at", null)
-      .not("status_key", "in", "('wygrany','przegrany')");
+      .or("status_key.is.null,status_key.not.in.(wygrany,przegrany)");
     // Handlowiec widzi tylko leady oczekujące na transport.
     if (scope.salesOnly) q = q.eq("status_key", "wspolny_transport");
     const { data, error } = await q.order("created_at", { ascending: false });
@@ -163,7 +163,7 @@ export const findPoolSuggestions = createServerFn({ method: "POST" })
       .is("deleted_at", null)
       .not("pooling_lat", "is", null)
       .not("quantity", "is", null)
-      .not("status_key", "in", "('wygrany','przegrany')");
+      .or("status_key.is.null,status_key.not.in.(wygrany,przegrany)");
     if (scope.salesOnly) lq = lq.eq("status_key", "wspolny_transport");
     const { data: leads } = await lq.or(
       `pooling_wait_until.is.null,pooling_wait_until.gte.${today}`,
