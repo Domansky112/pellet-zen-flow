@@ -86,7 +86,7 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
       if (ce) throw new Error(ce.message);
       const { error: ue } = await context.supabase
         .from("leads")
-        .update({ status_key: "przegrany" } as any)
+        .update({ status_key: "przegrany", status_changed_at: new Date().toISOString() } as any)
         .eq("id", data.id);
       if (ue) throw new Error(ue.message);
       return { ok: true, cancelled: true, stock: null };
