@@ -433,6 +433,17 @@ function UpcomingTab() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full sm:w-56 space-y-1">
+            <Label>Płatność</Label>
+            <Select value={payFilter} onValueChange={(v) => setPayFilter(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszystkie</SelectItem>
+                <SelectItem value="paid">Tylko opłacone</SelectItem>
+                <SelectItem value="unpaid">Tylko nieopłacone</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
