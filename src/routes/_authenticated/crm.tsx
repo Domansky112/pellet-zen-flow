@@ -238,8 +238,17 @@ function CrmPage() {
 
   function sortItems(items: Lead[]): Lead[] {
     const copy = [...items];
-    const byCreated = (a: Lead, b: Lead) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    // Leados fechados (realizados/anulados) ordenam pela data da mudança de status;
+    // leados ativos continuam pela data de criação.
+    const sortDate = (l: Lead) => {
+      if (isClosedLead(l)) {
+        const closed = l as Lead & { status_changed_at?: string | null; deleted_at?: string | null };
+        const t = closed.status_changed_at ?? closed.deleted_at;
+        if (t) return new Date(t).getTime();
+      }
+      return new Date(l.created_at).getTime();
+    };
+    const byCreated = (a: Lead, b: Lead) => sortDate(b) - sortDate(a);
     const lastActivity = (l: Lead) =>
       new Date(notesByLead.get(l.id)?.last_at ?? l.created_at).getTime();
 
