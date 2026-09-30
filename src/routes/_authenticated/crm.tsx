@@ -342,8 +342,12 @@ function CrmPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="smart">Inteligentnie („W kontakcie" na górze)</SelectItem>
-              <SelectItem value="newest">Data dodania: od najnowszych</SelectItem>
-              <SelectItem value="oldest">Data dodania: od najstarszych</SelectItem>
+              <SelectItem value="newest">
+                {tab === "realized" ? "Data realizacji: od najnowszych" : tab === "cancelled" ? "Data anulowania: od najnowszych" : "Data dodania: od najnowszych"}
+              </SelectItem>
+              <SelectItem value="oldest">
+                {tab === "realized" ? "Data realizacji: od najstarszych" : tab === "cancelled" ? "Data anulowania: od najstarszych" : "Data dodania: od najstarszych"}
+              </SelectItem>
               <SelectItem value="recent_note">Ostatnia notatka / kontakt</SelectItem>
             </SelectContent>
           </Select>
