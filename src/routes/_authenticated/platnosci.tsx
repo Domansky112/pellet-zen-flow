@@ -364,6 +364,9 @@ function UpcomingTab() {
 
   const [sort, setSort] = useState<"date_asc" | "date_desc" | "value_desc" | "value_asc">("date_desc");
   const [search, setSearch] = useState("");
+  const [payFilter, setPayFilter] = useState<"all" | "paid" | "unpaid">("all");
+
+  const isPaid = (l: any) => l?.payment_status === "oplacone_gotowka" || l?.payment_status === "oplacone_przelew";
 
   const allRows = useMemo(() => extractLeads(q.data ?? []), [q.data]);
 
