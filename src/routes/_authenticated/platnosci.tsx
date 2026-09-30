@@ -40,7 +40,7 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 import { SettlePaymentButton } from "@/components/settle-payment-button";
 import { FinancialReportDialog } from "@/components/financial-report-dialog";
 import { backfillTransportCosts } from "@/lib/transport.functions";
-import { getWzDocument } from "@/lib/wz.functions";
+import { WzDownloadButton } from "@/components/wz-download-button";
 
 export const Route = createFileRoute("/_authenticated/platnosci")({
   head: () => ({
