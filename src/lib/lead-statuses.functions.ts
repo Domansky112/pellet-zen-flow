@@ -186,6 +186,7 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
       id: z.string().uuid(),
       status_key: z.string().min(1).max(40),
       decision: z.enum(["rollback", "duplicate"]).optional().nullable(),
+      reason: z.string().max(1000).optional().nullable(),
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -204,11 +205,19 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
     // Anulowanie statusem = pełne anulowanie leada (zwolnienie rezerwacji,
     // odpięcie z transportów, trafia do zakładki „Anulowane").
     if (data.status_key === "przegrany") {
+      const reason = data.reason?.trim();
       const { error: ce } = await context.supabase.rpc("cancel_lead", {
         _lead_id: data.id,
-        _reason: "Zmiana statusu na Anulowany",
+        _reason: reason || "Zmiana statusu na Anulowany",
       } as any);
       if (ce) throw new Error(ce.message);
+      if (reason) {
+        await context.supabase.from("lead_notes").insert({
+          lead_id: data.id,
+          author_id: context.userId,
+          body: `Anulowano: ${reason}`,
+        } as any);
+      }
       const { error: ue } = await context.supabase
         .from("leads")
         .update({ status_key: "przegrany", status_changed_at: new Date().toISOString() } as any)

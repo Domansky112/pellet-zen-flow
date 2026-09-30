@@ -24,6 +24,7 @@ import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
 import { RealizedLeaveDialog } from "@/components/realized-leave-dialog";
+import { CancelReasonDialog } from "@/components/cancel-reason-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
@@ -503,16 +504,43 @@ function LeadList({
 }) {
   const setStatusFn = useServerFn(setLeadStatusKey);
   // Popup przy opuszczaniu stanu "Zrealizowany": cofnij operacje lub duplikat
-  const [realizedLeave, setRealizedLeave] = useState<{ lead: Lead; target: string } | null>(null);
+  const [realizedLeave, setRealizedLeave] = useState<{ lead: Lead; target: string; reason?: string } | null>(null);
   const [realizedLeaveBusy, setRealizedLeaveBusy] = useState(false);
+  // Popup z komentarzem przy anulowaniu
+  const [cancelFor, setCancelFor] = useState<Lead | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
+  const handleCancelConfirm = async (reason: string) => {
+    if (!cancelFor) return;
+    const l = cancelFor;
+    const cur = (l as any).status_key ?? l.status;
+    if (cur === "wygrany") {
+      setCancelFor(null);
+      setRealizedLeave({ lead: l, target: "przegrany", reason });
+      return;
+    }
+    setCancelBusy(true);
+    try {
+      await setStatusFn({ data: { id: l.id, status_key: "przegrany", reason } });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+      qc.invalidateQueries({ queryKey: ["lead-notes"] });
+      toast.success("Lead anulowany — komentarz zapisany");
+      setCancelFor(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCancelBusy(false);
+    }
+  };
 
   const handleRealizedLeave = async (decision: "rollback" | "duplicate") => {
     if (!realizedLeave) return;
     setRealizedLeaveBusy(true);
     try {
       await setStatusFn({
-        data: { id: realizedLeave.lead.id, status_key: realizedLeave.target, decision },
+        data: { id: realizedLeave.lead.id, status_key: realizedLeave.target, decision, reason: realizedLeave.reason },
       });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
@@ -638,6 +666,11 @@ function LeadList({
                       toast.message("Potwierdź kwotę rozliczenia w karcie leada");
                       return;
                     }
+                    // Anulowanie wymaga komentarza
+                    if (v === "przegrany" && currentKey !== "przegrany") {
+                      setCancelFor(l);
+                      return;
+                    }
                     // Opuszczenie stanu "Zrealizowany" wymaga decyzji: cofnij operacje lub duplikat
                     if (currentKey === "wygrany" && v !== "wygrany") {
                       setRealizedLeave({ lead: l, target: v });
@@ -734,6 +767,13 @@ function LeadList({
       paymentAmount={(realizedLeave?.lead as any)?.payment_amount_gross ?? null}
       busy={realizedLeaveBusy}
       onDecision={handleRealizedLeave}
+    />
+    <CancelReasonDialog
+      open={!!cancelFor}
+      onOpenChange={(o) => !o && setCancelFor(null)}
+      leadLabel={`${(cancelFor as any)?.lead_number ? `${(cancelFor as any).lead_number} · ` : ""}${cancelFor?.name ?? ""}`}
+      busy={cancelBusy}
+      onConfirm={handleCancelConfirm}
     />
     </>
   );
