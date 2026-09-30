@@ -67,15 +67,140 @@ export const deleteLeadStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Cofnięcie operacji zrealizowanego leada:
+// - usuwa wydanie z magazynu (partie zużyte metodą FIFO wracają na stan),
+// - kasuje rozliczenie płatności (kwota, status, faktura/pokwitowanie, data dostawy),
+// - przelicza status rezerwacji na podstawie pozostałych zdarzeń.
+// Wykonane z uprawnieniami serwisowymi, bo usuwanie zdarzeń magazynowych
+// jest zastrzeżone dla admina/magazyniera, a lead może zmieniać też handlowiec.
+async function rollbackRealization(
+  context: { supabase: any; userId: string },
+  leadId: string,
+): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: evs, error: fe } = await supabaseAdmin
+    .from("stock_events")
+    .select("id, txn_type, quantity")
+    .eq("lead_id", leadId);
+  if (fe) throw new Error(fe.message);
+
+  const wydania = (evs ?? []).filter((e: any) => e.txn_type === "wydanie");
+  let reservationStatus: string | null = null;
+  if (wydania.length) {
+    const { error: de } = await supabaseAdmin
+      .from("stock_events")
+      .delete()
+      .in("id", wydania.map((e: any) => e.id));
+    if (de) throw new Error(de.message);
+    // Saldo rezerwacji po usunięciu wydań (wydanie nie wpływa na saldo rezerwacji)
+    const net = (evs ?? []).reduce((s, e: any) => {
+      if (e.txn_type === "rezerwacja") return s + Number(e.quantity);
+      if (e.txn_type === "zwolnienie_rez") return s - Number(e.quantity);
+      return s;
+    }, 0);
+    reservationStatus = net > 0 ? "zarezerwowany" : "zwolniony";
+  }
+
+  const { error: pe } = await supabaseAdmin
+    .from("leads")
+    .update({
+      payment_status: null,
+      payment_amount_gross: null,
+      payment_method: null,
+      invoice_number: null,
+      receipt_number: null,
+      delivered_at: null,
+      ...(reservationStatus ? { reservation_status: reservationStatus } : {}),
+    } as any)
+    .eq("id", leadId);
+  if (pe) throw new Error(pe.message);
+
+  await supabaseAdmin.from("audit_log").insert({
+    actor_id: context.userId,
+    action: "lead.rollback_realization",
+    entity_type: "lead",
+    entity_id: leadId,
+    details: { wydania_removed: wydania.length },
+  } as any);
+
+  return wydania.length;
+}
+
+// Duplikat leada = powtórne zamówienie z danymi klienta (spójne z duplicateLead).
+async function createLeadDuplicate(
+  context: { supabase: any },
+  leadId: string,
+): Promise<{ id: string } | null> {
+  const { data: src, error: se } = await context.supabase
+    .from("leads")
+    .select("first_name, last_name, name, email, phone, city, postal_code, street, invoice_company, invoice_nip, invoice_address, source, has_unloading_equipment, is_b2b_kurnik, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved, assigned_to")
+    .eq("id", leadId)
+    .single();
+  if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
+
+  const { data: row, error } = await context.supabase
+    .from("leads")
+    .insert({
+      first_name: src.first_name,
+      last_name: src.last_name,
+      name: src.name,
+      email: src.email,
+      phone: src.phone,
+      city: src.city,
+      postal_code: src.postal_code,
+      street: (src as any).street ?? null,
+      invoice_company: src.invoice_company,
+      invoice_nip: src.invoice_nip,
+      invoice_address: src.invoice_address,
+      source: src.source ?? "inne",
+      has_unloading_equipment: !!src.has_unloading_equipment,
+      is_b2b_kurnik: !!(src as any).is_b2b_kurnik,
+      cycle_days: (src as any).cycle_days ?? null,
+      delivery_window: (src as any).delivery_window ?? null,
+      access_tight: !!(src as any).access_tight,
+      access_tonnage_limit: (src as any).access_tonnage_limit ?? null,
+      access_unpaved: !!(src as any).access_unpaved,
+      assigned_to: (src as any).assigned_to ?? null,
+      status: "nowy",
+      reservation_status: "brak",
+      pooling_status: "brak",
+      pooling_enabled: false,
+      product: (src as any).product ?? null,
+      quantity: null,
+      notes: `Powtórne zamówienie (duplikat leada ${leadId.slice(0, 8)})`,
+    } as any)
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return (row as any) ?? null;
+}
+
 // Map custom status_key to underlying enum where possible; leaves enum unchanged otherwise.
 const ENUM_VALUES = new Set(["nowy", "w_kontakcie", "oferta", "wygrany", "przegrany"]);
 
 export const setLeadStatusKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.string().uuid(), status_key: z.string().min(1).max(40) }).parse(d),
+    z.object({
+      id: z.string().uuid(),
+      status_key: z.string().min(1).max(40),
+      decision: z.enum(["rollback", "duplicate"]).optional().nullable(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
+    // Opuścień stanu "Zrealizowany": decyzja użytkownika z popupu.
+    // rollback = cofnij operacje (magazyn + płatność); duplicate = powtórne zamówienie.
+    let rolledBack: number | null = null;
+    let duplicateId: string | null = null;
+    if (data.decision === "rollback") {
+      rolledBack = await rollbackRealization(context as any, data.id);
+    }
+    if (data.decision === "duplicate") {
+      const dup = await createLeadDuplicate(context, data.id);
+      duplicateId = dup?.id ?? null;
+    }
+
     // Anulowanie statusem = pełne anulowanie leada (zwolnienie rezerwacji,
     // odpięcie z transportów, trafia do zakładki „Anulowane").
     if (data.status_key === "przegrany") {
@@ -89,7 +214,7 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
         .update({ status_key: "przegrany", status_changed_at: new Date().toISOString() } as any)
         .eq("id", data.id);
       if (ue) throw new Error(ue.message);
-      return { ok: true, cancelled: true, stock: null };
+      return { ok: true, cancelled: true, stock: null, rolled_back: rolledBack, duplicate_id: duplicateId };
     }
 
     const patch: Record<string, unknown> = { status_key: data.status_key, status_changed_at: new Date().toISOString() };
@@ -113,9 +238,9 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
         _lead_id: data.id,
       } as any);
       if (se) {
-        return { ok: true, stock_error: se.message };
+        return { ok: true, stock_error: se.message, rolled_back: rolledBack, duplicate_id: duplicateId };
       }
       stock = res ?? null;
     }
-    return { ok: true, stock };
+    return { ok: true, stock, rolled_back: rolledBack, duplicate_id: duplicateId };
   });

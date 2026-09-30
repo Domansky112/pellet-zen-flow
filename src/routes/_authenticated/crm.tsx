@@ -23,6 +23,7 @@ import { listLeadIdsWithNotes } from "@/lib/notes.functions";
 import { NewLeadDialog } from "@/components/new-lead-dialog";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { LeadDetailDrawer } from "@/components/lead-detail-drawer";
+import { RealizedLeaveDialog } from "@/components/realized-leave-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDistanceToNow } from "date-fns";
@@ -501,6 +502,41 @@ function LeadList({
   notesByLead: Map<string, { last_at: string; body?: string | null }>;
 }) {
   const setStatusFn = useServerFn(setLeadStatusKey);
+  // Popup przy opuszczaniu stanu "Zrealizowany": cofnij operacje lub duplikat
+  const [realizedLeave, setRealizedLeave] = useState<{ lead: Lead; target: string } | null>(null);
+  const [realizedLeaveBusy, setRealizedLeaveBusy] = useState(false);
+
+
+  const handleRealizedLeave = async (decision: "rollback" | "duplicate") => {
+    if (!realizedLeave) return;
+    setRealizedLeaveBusy(true);
+    try {
+      await setStatusFn({
+        data: { id: realizedLeave.lead.id, status_key: realizedLeave.target, decision },
+      });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-cancelled"] });
+      qc.invalidateQueries({ queryKey: ["reserved-leads"] });
+      qc.invalidateQueries({ queryKey: ["stock-balance"] });
+      qc.invalidateQueries({ queryKey: ["stock-events"] });
+      qc.invalidateQueries({ queryKey: ["payments-completed"] });
+      qc.invalidateQueries({ queryKey: ["payments-upcoming"] });
+      qc.invalidateQueries({ queryKey: ["payments-orphans"] });
+      qc.invalidateQueries({ queryKey: ["financial-summary"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history"] });
+      qc.invalidateQueries({ queryKey: ["delivery-history-consistency"] });
+      toast.success(
+        decision === "rollback"
+          ? "Cofnięto operacje leada (wydanie z magazynu i rozliczenie) — status zmieniony"
+          : "Utworzono duplikat (powtórne zamówienie) — status zmieniony",
+      );
+      setRealizedLeave(null);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRealizedLeaveBusy(false);
+    }
+  };
   const assign = useServerFn(assignToMe);
   const cancelFn = useServerFn(cancelLead);
   const qc = useQueryClient();
@@ -514,7 +550,8 @@ function LeadList({
   }
 
   return (
-    <div className="grid gap-3">
+    <>
+      <div className="grid gap-3">
       {items.map((l) => {
         const Icon = channelIcon[l.source] ?? InboxIcon;
         const highPriority = l.priority >= 2;
@@ -601,6 +638,11 @@ function LeadList({
                       toast.message("Potwierdź kwotę rozliczenia w karcie leada");
                       return;
                     }
+                    // Opuszczenie stanu "Zrealizowany" wymaga decyzji: cofnij operacje lub duplikat
+                    if (currentKey === "wygrany" && v !== "wygrany") {
+                      setRealizedLeave({ lead: l, target: v });
+                      return;
+                    }
                     try {
                       await setStatusFn({ data: { id: l.id, status_key: v } });
                       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -682,6 +724,18 @@ function LeadList({
         );
       })}
     </div>
+    <RealizedLeaveDialog
+      open={!!realizedLeave}
+      onOpenChange={(o) => {
+        if (!o && !realizedLeaveBusy) setRealizedLeave(null);
+      }}
+      leadLabel={`${(realizedLeave?.lead as any)?.lead_number ? `${(realizedLeave?.lead as any).lead_number} · ` : ""}${realizedLeave?.lead.name ?? ""}`}
+      quantity={realizedLeave?.lead.quantity ?? null}
+      paymentAmount={(realizedLeave?.lead as any)?.payment_amount_gross ?? null}
+      busy={realizedLeaveBusy}
+      onDecision={handleRealizedLeave}
+    />
+    </>
   );
 }
 
