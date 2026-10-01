@@ -220,19 +220,21 @@ export async function buildReportPdf(
   const wRows = data.warehouse.perProduct.map((p: any) => [
     p.product === "pellet_paleta" ? "Palety" : p.product === "pellet_bigbag" ? "Big Bagi" : "Inne",
     tons(p.available),
+    p.reservedUnits ? `${p.reservedUnits} szt. (${tons(p.reserved)})` : p.reserved ? tons(p.reserved) : "—",
     pln(p.value),
   ]);
   table({
-    head: [["Produkt", "Dostępny tonaż", "Wycena FIFO"]],
+    head: [["Produkt", "Dostępny tonaż", "Zarezerwowane BB", "Wycena FIFO"]],
     body: [
       ...wRows,
       [
         { content: "RAZEM", styles: { fontStyle: "bold" } },
         { content: tons(data.warehouse.totalTons), styles: { fontStyle: "bold" } },
+        { content: data.warehouse.totalReservedUnits ? `${data.warehouse.totalReservedUnits} szt.` : "—", styles: { fontStyle: "bold" } },
         { content: pln(data.warehouse.totalValue), styles: { fontStyle: "bold" } },
       ],
     ],
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
   });
 
   sectionTitle("Struktura płatności i cashflow");

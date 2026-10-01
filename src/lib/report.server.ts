@@ -209,6 +209,16 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     prev.value += q * Number(l.unit_price ?? 0);
     lotByProduct.set(l.product, prev);
   }
+  const { data: resLeads } = await supabase
+    .from("leads")
+    .select("product, quantity, sold_units")
+    .eq("reservation_status", "zarezerwowany")
+    .is("deleted_at", null);
+  const reservedUnitsBy = new Map<string, number>();
+  for (const l of (resLeads ?? []) as any[]) {
+    const u = l.sold_units != null ? Number(l.sold_units) : Math.ceil(Number(l.quantity ?? 0));
+    reservedUnitsBy.set(l.product, (reservedUnitsBy.get(l.product) ?? 0) + u);
+  }
   const warehouse = (bal ?? []).map((r: any) => {
     const physical = Number(r.physical ?? 0);
     const reserved = Number(r.reserved ?? 0);
@@ -218,11 +228,13 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       product: r.product as string,
       physical,
       reserved,
+      reservedUnits: reservedUnitsBy.get(r.product) ?? 0,
       available: physical - reserved,
       value: (lot?.value ?? 0) + uncovered * unitCost,
     };
   });
   const warehouseTons = warehouse.reduce((s: number, r: any) => s + r.available, 0);
+  const warehouseReservedUnits = warehouse.reduce((s: number, r: any) => s + (r.reservedUnits ?? 0), 0);
   const warehouseValue = warehouse.reduce((s: number, r: any) => s + r.value, 0);
 
   // ── WYNIKI ──
@@ -299,7 +311,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       avgPricePaleta: tonsPaleta > 0 ? incomePaleta / tonsPaleta : 0,
       avgPriceBigbag: tonsBigbag > 0 ? incomeBigbag / tonsBigbag : 0,
     },
-    warehouse: { perProduct: warehouse, totalTons: warehouseTons, totalValue: warehouseValue },
+    warehouse: { perProduct: warehouse, totalTons: warehouseTons, totalReservedUnits: warehouseReservedUnits, totalValue: warehouseValue },
     cashflow: { cash, transfer, blik, pending },
     payroll: await (async () => {
       const { data: wl } = await supabase
