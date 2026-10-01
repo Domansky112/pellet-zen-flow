@@ -247,6 +247,35 @@ export async function buildReportPdf(
     columnStyles: { 1: { halign: "right" } },
   });
 
+  sectionTitle("Wynagrodzenia pracowników w okresie");
+  const pr: any[] = data.payroll ?? [];
+  if (!pr.length) {
+    table({ head: [["Pracownik", "Kwota"]], body: [["Brak wpisów w kalendarzu pracowniczym", "—"]] });
+  } else {
+    const tp = pr.reduce((s, r) => s + r.paid, 0);
+    const tu = pr.reduce((s, r) => s + r.unpaid, 0);
+    table({
+      head: [["Pracownik", "Dni", "Wypłacone", "Do wypłaty", "Razem"]],
+      body: [
+        ...pr.map((r) => [
+          r.name,
+          String(r.days),
+          pln(r.paid),
+          r.unpaid > 0 ? `${pln(r.unpaid)} (nie wypłacone)` : pln(0),
+          pln(r.paid + r.unpaid),
+        ]),
+        [
+          { content: "RAZEM", styles: { fontStyle: "bold" } },
+          "",
+          { content: pln(tp), styles: { fontStyle: "bold" } },
+          { content: tu > 0 ? `${pln(tu)} (nie wypłacone)` : pln(0), styles: { fontStyle: "bold" } },
+          { content: pln(tp + tu), styles: { fontStyle: "bold" } },
+        ],
+      ],
+      columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
+    });
+  }
+
   // ── SEKCJA 6: tabela zleceń (tylko raport pełny) ──
   if (variant === "full") {
     if (data.costsByCategory.length) {
