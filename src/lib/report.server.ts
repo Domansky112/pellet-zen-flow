@@ -301,6 +301,24 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     },
     warehouse: { perProduct: warehouse, totalTons: warehouseTons, totalValue: warehouseValue },
     cashflow: { cash, transfer, blik, pending },
+    payroll: await (async () => {
+      const { data: wl } = await supabase
+        .from("employee_work_logs")
+        .select("employee_id, amount, status, employees(full_name)")
+        .gte("work_date", from)
+        .lte("work_date", to)
+        .limit(5000);
+      const m = new Map<string, { name: string; paid: number; unpaid: number; days: number }>();
+      for (const r of (wl ?? []) as any[]) {
+        const amt = Number(r.amount ?? 0);
+        if (amt <= 0) continue;
+        const e = m.get(r.employee_id) ?? { name: r.employees?.full_name ?? "—", paid: 0, unpaid: 0, days: 0 };
+        if (r.status === "wyplacone") e.paid += amt; else e.unpaid += amt;
+        e.days += 1;
+        m.set(r.employee_id, e);
+      }
+      return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name, "pl"));
+    })(),
     costsByCategory: Array.from(costsByCategory.entries()).map(([category, amount]) => ({
       category,
       amount,
