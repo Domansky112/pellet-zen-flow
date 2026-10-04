@@ -9,34 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as FormularzRouteImport } from './routes/formularz'
-import { Route as AuthRouteImport } from './routes/auth'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedUstawieniaRouteImport } from './routes/_authenticated/ustawienia'
-import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
-import { Route as AuthenticatedPlatnosciRouteImport } from './routes/_authenticated/platnosci'
-import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
-import { Route as AuthenticatedKonsolidacjaRouteImport } from './routes/_authenticated/konsolidacja'
-import { Route as AuthenticatedKalendarzRouteImport } from './routes/_authenticated/kalendarz'
-import { Route as AuthenticatedHistoriaRouteImport } from './routes/_authenticated/historia'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FormularzRouteImport } from './routes/formularz'
 import { Route as AuthenticatedBotRouteImport } from './routes/_authenticated/bot'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedHistoriaRouteImport } from './routes/_authenticated/historia'
+import { Route as AuthenticatedKalendarzRouteImport } from './routes/_authenticated/kalendarz'
+import { Route as AuthenticatedKonsolidacjaRouteImport } from './routes/_authenticated/konsolidacja'
+import { Route as AuthenticatedMagazynRouteImport } from './routes/_authenticated/magazyn'
+import { Route as AuthenticatedPlatnosciRouteImport } from './routes/_authenticated/platnosci'
+import { Route as AuthenticatedTransportRouteImport } from './routes/_authenticated/transport'
+import { Route as AuthenticatedUstawieniaRouteImport } from './routes/_authenticated/ustawienia'
 import { Route as ApiPublicLeadsRouteImport } from './routes/api/public/leads'
-import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
-import { Route as ApiPublicHooksTransportRemindersRouteImport } from './routes/api/public/hooks/transport-reminders'
 import { Route as ApiPublicHooksFetchFuelPriceRouteImport } from './routes/api/public/hooks/fetch-fuel-price'
+import { Route as ApiPublicHooksTransportRemindersRouteImport } from './routes/api/public/hooks/transport-reminders'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 
-const FormularzRoute = FormularzRouteImport.update({
-  id: '/formularz',
-  path: '/formularz',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const R403Route = R403RouteImport.update({
@@ -48,29 +43,39 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedUstawieniaRoute = AuthenticatedUstawieniaRouteImport.update({
-  id: '/ustawienia',
-  path: '/ustawienia',
+const FormularzRoute = FormularzRouteImport.update({
+  id: '/formularz',
+  path: '/formularz',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBotRoute = AuthenticatedBotRouteImport.update({
+  id: '/bot',
+  path: '/bot',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
-  id: '/transport',
-  path: '/transport',
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedPlatnosciRoute = AuthenticatedPlatnosciRouteImport.update({
-  id: '/platnosci',
-  path: '/platnosci',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedMagazynRoute = AuthenticatedMagazynRouteImport.update({
-  id: '/magazyn',
-  path: '/magazyn',
+const AuthenticatedHistoriaRoute = AuthenticatedHistoriaRouteImport.update({
+  id: '/historia',
+  path: '/historia',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKalendarzRoute = AuthenticatedKalendarzRouteImport.update({
+  id: '/kalendarz',
+  path: '/kalendarz',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedKonsolidacjaRoute =
@@ -79,29 +84,24 @@ const AuthenticatedKonsolidacjaRoute =
     path: '/konsolidacja',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedKalendarzRoute = AuthenticatedKalendarzRouteImport.update({
-  id: '/kalendarz',
-  path: '/kalendarz',
+const AuthenticatedMagazynRoute = AuthenticatedMagazynRouteImport.update({
+  id: '/magazyn',
+  path: '/magazyn',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedHistoriaRoute = AuthenticatedHistoriaRouteImport.update({
-  id: '/historia',
-  path: '/historia',
+const AuthenticatedPlatnosciRoute = AuthenticatedPlatnosciRouteImport.update({
+  id: '/platnosci',
+  path: '/platnosci',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthenticatedTransportRoute = AuthenticatedTransportRouteImport.update({
+  id: '/transport',
+  path: '/transport',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
-  id: '/crm',
-  path: '/crm',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedBotRoute = AuthenticatedBotRouteImport.update({
-  id: '/bot',
-  path: '/bot',
+const AuthenticatedUstawieniaRoute = AuthenticatedUstawieniaRouteImport.update({
+  id: '/ustawienia',
+  path: '/ustawienia',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const ApiPublicLeadsRoute = ApiPublicLeadsRouteImport.update({
@@ -109,10 +109,10 @@ const ApiPublicLeadsRoute = ApiPublicLeadsRouteImport.update({
   path: '/api/public/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicTelegramWebhookRoute =
-  ApiPublicTelegramWebhookRouteImport.update({
-    id: '/api/public/telegram/webhook',
-    path: '/api/public/telegram/webhook',
+const ApiPublicHooksFetchFuelPriceRoute =
+  ApiPublicHooksFetchFuelPriceRouteImport.update({
+    id: '/api/public/hooks/fetch-fuel-price',
+    path: '/api/public/hooks/fetch-fuel-price',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksTransportRemindersRoute =
@@ -121,10 +121,10 @@ const ApiPublicHooksTransportRemindersRoute =
     path: '/api/public/hooks/transport-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksFetchFuelPriceRoute =
-  ApiPublicHooksFetchFuelPriceRouteImport.update({
-    id: '/api/public/hooks/fetch-fuel-price',
-    path: '/api/public/hooks/fetch-fuel-price',
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -268,18 +268,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/formularz': {
-      id: '/formularz'
-      path: '/formularz'
-      fullPath: '/formularz'
-      preLoaderRoute: typeof FormularzRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/403': {
@@ -296,67 +289,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/ustawienia': {
-      id: '/_authenticated/ustawienia'
-      path: '/ustawienia'
-      fullPath: '/ustawienia'
-      preLoaderRoute: typeof AuthenticatedUstawieniaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/formularz': {
+      id: '/formularz'
+      path: '/formularz'
+      fullPath: '/formularz'
+      preLoaderRoute: typeof FormularzRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/transport': {
-      id: '/_authenticated/transport'
-      path: '/transport'
-      fullPath: '/transport'
-      preLoaderRoute: typeof AuthenticatedTransportRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/platnosci': {
-      id: '/_authenticated/platnosci'
-      path: '/platnosci'
-      fullPath: '/platnosci'
-      preLoaderRoute: typeof AuthenticatedPlatnosciRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/magazyn': {
-      id: '/_authenticated/magazyn'
-      path: '/magazyn'
-      fullPath: '/magazyn'
-      preLoaderRoute: typeof AuthenticatedMagazynRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/konsolidacja': {
-      id: '/_authenticated/konsolidacja'
-      path: '/konsolidacja'
-      fullPath: '/konsolidacja'
-      preLoaderRoute: typeof AuthenticatedKonsolidacjaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/kalendarz': {
-      id: '/_authenticated/kalendarz'
-      path: '/kalendarz'
-      fullPath: '/kalendarz'
-      preLoaderRoute: typeof AuthenticatedKalendarzRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/historia': {
-      id: '/_authenticated/historia'
-      path: '/historia'
-      fullPath: '/historia'
-      preLoaderRoute: typeof AuthenticatedHistoriaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+    '/_authenticated/bot': {
+      id: '/_authenticated/bot'
+      path: '/bot'
+      fullPath: '/bot'
+      preLoaderRoute: typeof AuthenticatedBotRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/crm': {
@@ -366,11 +317,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/bot': {
-      id: '/_authenticated/bot'
-      path: '/bot'
-      fullPath: '/bot'
-      preLoaderRoute: typeof AuthenticatedBotRouteImport
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/historia': {
+      id: '/_authenticated/historia'
+      path: '/historia'
+      fullPath: '/historia'
+      preLoaderRoute: typeof AuthenticatedHistoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kalendarz': {
+      id: '/_authenticated/kalendarz'
+      path: '/kalendarz'
+      fullPath: '/kalendarz'
+      preLoaderRoute: typeof AuthenticatedKalendarzRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/konsolidacja': {
+      id: '/_authenticated/konsolidacja'
+      path: '/konsolidacja'
+      fullPath: '/konsolidacja'
+      preLoaderRoute: typeof AuthenticatedKonsolidacjaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/magazyn': {
+      id: '/_authenticated/magazyn'
+      path: '/magazyn'
+      fullPath: '/magazyn'
+      preLoaderRoute: typeof AuthenticatedMagazynRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/platnosci': {
+      id: '/_authenticated/platnosci'
+      path: '/platnosci'
+      fullPath: '/platnosci'
+      preLoaderRoute: typeof AuthenticatedPlatnosciRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/transport': {
+      id: '/_authenticated/transport'
+      path: '/transport'
+      fullPath: '/transport'
+      preLoaderRoute: typeof AuthenticatedTransportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ustawienia': {
+      id: '/_authenticated/ustawienia'
+      path: '/ustawienia'
+      fullPath: '/ustawienia'
+      preLoaderRoute: typeof AuthenticatedUstawieniaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/leads': {
@@ -380,11 +380,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/telegram/webhook': {
-      id: '/api/public/telegram/webhook'
-      path: '/api/public/telegram/webhook'
-      fullPath: '/api/public/telegram/webhook'
-      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+    '/api/public/hooks/fetch-fuel-price': {
+      id: '/api/public/hooks/fetch-fuel-price'
+      path: '/api/public/hooks/fetch-fuel-price'
+      fullPath: '/api/public/hooks/fetch-fuel-price'
+      preLoaderRoute: typeof ApiPublicHooksFetchFuelPriceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/transport-reminders': {
@@ -394,11 +394,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTransportRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/fetch-fuel-price': {
-      id: '/api/public/hooks/fetch-fuel-price'
-      path: '/api/public/hooks/fetch-fuel-price'
-      fullPath: '/api/public/hooks/fetch-fuel-price'
-      preLoaderRoute: typeof ApiPublicHooksFetchFuelPriceRouteImport
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
