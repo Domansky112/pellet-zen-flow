@@ -100,6 +100,7 @@ function KurnikiPage() {
                               {l.quantity != null && <span className="text-xs">{l.quantity} t</span>}
                               {l.delivered_at && <span className="text-xs text-muted-foreground">dostawa {fmtD(l.delivered_at)}</span>}
                               {l.id === f.rootId && <Badge variant="secondary">pierwsze</Badge>}
+                              {(l.street || l.city) && <span className="text-xs text-muted-foreground">{[l.street, l.postal_code, l.city].filter(Boolean).join(", ")}</span>}
                             </div>
                           </li>
                         ))}
