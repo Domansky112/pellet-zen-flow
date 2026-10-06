@@ -27,9 +27,11 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
     const groups = new Map<string, any[]>();
     const norm = (v: any) => String(v ?? "").toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]/g, "");
     const locKey = (r: any) => {
+      const nip = String(r.invoice_nip ?? "").replace(/\D/g, "");
+      if (nip.length >= 10) return "n:" + nip;
+      if (norm(r.invoice_company)) return "c:" + norm(r.invoice_company);
       const addr = norm(r.street) + "|" + norm(r.postal_code) + "|" + norm(r.city);
       if (norm(r.street) && (norm(r.postal_code) || norm(r.city))) return "a:" + addr;
-      if (norm(r.invoice_nip)) return "n:" + norm(r.invoice_nip);
       return "r:" + rootOf(r);
     };
     const keyRoot = new Map<string, string>();
@@ -48,7 +50,7 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
       return {
         rootId,
         name: root.invoice_company || root.name,
-        city: root.city, phone: root.phone, cycle_days: root.cycle_days,
+        nip: root.invoice_nip, city: root.city, phone: root.phone, cycle_days: root.cycle_days,
         assigned: leads.map((l) => l.assigned_to),
         orders: leads.length,
         delivered: done.length,
