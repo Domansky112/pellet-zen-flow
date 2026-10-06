@@ -36,7 +36,7 @@ function KurnikiPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const list = useMemo(
-    () => farms.filter((f: any) => `${f.name} ${f.city ?? ""} ${f.phone ?? ""}`.toLowerCase().includes(q.toLowerCase())),
+    () => farms.filter((f: any) => `${f.name} ${f.nip ?? ""} ${String(f.nip ?? "").replace(/\D/g, "")} ${f.city ?? ""} ${f.phone ?? ""}`.toLowerCase().includes(q.toLowerCase())),
     [farms, q],
   );
 
@@ -51,7 +51,7 @@ function KurnikiPage() {
         <TabsContent value="farms" className="space-y-3">
           <div className="relative max-w-sm">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="Szukaj fermy, miasta, telefonu…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input className="pl-8" placeholder="Szukaj po firmie, NIP, mieście, telefonie…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {isLoading ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Ładuję…</p>
@@ -70,7 +70,7 @@ function KurnikiPage() {
                         <div>
                           <div className="font-medium">{f.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {f.city ?? "—"}{f.cycle_days ? ` · cykl ${f.cycle_days} dni` : ""}
+                            {f.nip ? `NIP ${f.nip} · ` : ""}{f.city ?? "—"}{f.cycle_days ? ` · cykl ${f.cycle_days} dni` : ""}
                           </div>
                         </div>
                       </div>
