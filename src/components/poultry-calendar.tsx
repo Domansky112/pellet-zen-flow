@@ -61,7 +61,7 @@ export function PoultryCalendar() {
       toast.success(`Utworzono nowe zamówienie ${newLead?.lead_number ?? ""}`);
       qc.invalidateQueries({ queryKey: ["poultry_reminders"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
-      if (newLead?.id) window.location.href = `/crm?lead=${newLead.id}`;
+      if (newLead?.id) window.location.href = `/crm?leadId=${newLead.id}`;
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -208,7 +208,7 @@ export function PoultryCalendar() {
 
                       {lead?.id && (
                         <Button asChild size="sm" variant="outline">
-                          <a href={`/crm?lead=${lead.id}`}>
+                          <a href={`/crm?leadId=${lead.id}`}>
                             <ArrowRight className="h-3 w-3 mr-1" /> Otwórz lead
                           </a>
                         </Button>
@@ -227,7 +227,7 @@ export function PoultryCalendar() {
                       )}
                       {r.new_lead_id && (
                         <Button asChild size="sm" variant="secondary">
-                          <a href={`/crm?lead=${r.new_lead_id}`}>
+                          <a href={`/crm?leadId=${r.new_lead_id}`}>
                             <ArrowRight className="h-3 w-3 mr-1" /> Otwórz nowe zamówienie
                           </a>
                         </Button>
