@@ -88,20 +88,18 @@ function KurnikiPage() {
                       </a>
                     )}
                     {isOpen && (
-                      <ol className="border-l border-border pl-4 space-y-2">
+                      <ol className="border-l border-border pl-4 space-y-2 overflow-x-auto">
                         {f.leads.map((l: any) => (
-                          <li key={l.id} className="text-sm">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{fmtD(l.created_at)}</span>
-                              <Link to="/crm" search={{ lead: l.id } as any} className="font-medium text-primary hover:underline">
-                                {l.lead_number ?? l.id.slice(0, 8)}
-                              </Link>
-                              <Badge variant="outline">{l.status_key ?? l.status}</Badge>
-                              {l.quantity != null && <span className="text-xs">{l.quantity} t</span>}
-                              {l.delivered_at && <span className="text-xs text-muted-foreground">dostawa {fmtD(l.delivered_at)}</span>}
-                              {l.id === f.rootId && <Badge variant="secondary">pierwsze</Badge>}
-                              {(l.street || l.city) && <span className="text-xs text-muted-foreground">{[l.street, l.postal_code, l.city].filter(Boolean).join(", ")}</span>}
-                            </div>
+                          <li key={l.id} className="grid grid-cols-[90px_70px_150px_60px_150px_minmax(0,1fr)_80px] items-center gap-2 text-sm">
+                            <span className="text-xs text-muted-foreground">{fmtD(l.created_at)}</span>
+                            <Link to="/crm" search={{ lead: l.id } as any} className="font-medium text-primary hover:underline">
+                              {l.lead_number ?? l.id.slice(0, 8)}
+                            </Link>
+                            <span><Badge variant="outline">{l.status_key ?? l.status}</Badge></span>
+                            <span className="text-right tabular-nums">{l.quantity != null ? `${l.quantity} t` : "—"}</span>
+                            <span className="text-xs text-muted-foreground">{l.delivered_at ? `dostawa ${fmtD(l.delivered_at)}` : ""}</span>
+                            <span className="truncate text-xs">{[l.street, l.postal_code, l.city].filter(Boolean).join(", ") || "—"}</span>
+                            <span>{l.id === f.rootId && <Badge variant="secondary">pierwsze</Badge>}</span>
                           </li>
                         ))}
                       </ol>
