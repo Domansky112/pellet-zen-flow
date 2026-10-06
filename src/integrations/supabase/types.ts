@@ -813,6 +813,7 @@ export type Database = {
           lead_number: string | null
           name: string
           notes: string | null
+          parent_lead_id: string | null
           payment_amount_gross: number | null
           payment_method: string | null
           payment_reminded_at: string | null
@@ -871,6 +872,7 @@ export type Database = {
           lead_number?: string | null
           name: string
           notes?: string | null
+          parent_lead_id?: string | null
           payment_amount_gross?: number | null
           payment_method?: string | null
           payment_reminded_at?: string | null
@@ -929,6 +931,7 @@ export type Database = {
           lead_number?: string | null
           name?: string
           notes?: string | null
+          parent_lead_id?: string | null
           payment_amount_gross?: number | null
           payment_method?: string | null
           payment_reminded_at?: string | null
@@ -960,6 +963,13 @@ export type Database = {
           urgent_no_fuel?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_parent_lead_id_fkey"
+            columns: ["parent_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_status_key_fkey"
             columns: ["status_key"]
@@ -1918,6 +1928,7 @@ export type Database = {
           lead_number: string | null
           name: string
           notes: string | null
+          parent_lead_id: string | null
           payment_amount_gross: number | null
           payment_method: string | null
           payment_reminded_at: string | null
