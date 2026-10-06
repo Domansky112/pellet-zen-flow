@@ -1,0 +1,2 @@
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS parent_lead_id uuid REFERENCES public.leads(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS leads_parent_lead_id_idx ON public.leads(parent_lead_id);

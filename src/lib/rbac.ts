@@ -18,6 +18,7 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/kalendarz": ["admin", "sales", "transport", "logistyk"],
   "/historia": ["admin", "sales", "warehouse", "logistyk"],
   "/platnosci": ["admin"],
+  "/kurniki": ["admin", "sales", "logistyk"],
   "/bot": ["admin", "warehouse", "logistyk"],
   "/ustawienia": ["admin"],
 };
