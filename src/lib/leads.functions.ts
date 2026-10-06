@@ -525,6 +525,7 @@ export const duplicateLead = createServerFn({ method: "POST" })
         pooling_enabled: false,
         product: (src as any).product ?? null,
         quantity: null,
+        parent_lead_id: data.lead_id,
         notes: `Powtórne zamówienie (duplikat leada ${data.lead_id.slice(0, 8)})`,
       } as any)
       .select()

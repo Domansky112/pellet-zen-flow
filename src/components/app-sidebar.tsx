@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2, Wallet, Wrench, Handshake } from "lucide-react";
+import { Inbox, Warehouse, Truck, CalendarDays, Bot, LayoutDashboard, Flame, LogOut, Users, History, Settings, ChevronRight, Package2, Store, Building2, Settings2, MessageSquare, Users2, Wallet, Wrench, Handshake, Bird } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -32,6 +32,7 @@ const nav = [
   { title: "Wspólny transport", url: "/konsolidacja", icon: Users },
   { title: "Kalendarz", url: "/kalendarz", icon: CalendarDays },
   { title: "Historia dostaw", url: "/historia", icon: History },
+  { title: "Kurniki", url: "/kurniki", icon: Bird },
   { title: "Płatności", url: "/platnosci", icon: Wallet },
   { title: "Bot magazynowy", url: "/bot", icon: Bot },
 ] as const;
@@ -48,7 +49,7 @@ const SETTINGS_SECTIONS = [
   { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
   { value: "statuses", label: "Statusy leadów", icon: Settings2 },
   { value: "assets", label: "Środki trwałe", icon: Wrench },
-  { value: "affiliates", label: "Afiliacje", icon: Handshake },
+  { value: "affiliates", label: "Afiliacje", icon: Handshake, Bird },
 ] as const;
 
 export function AppSidebar() {
