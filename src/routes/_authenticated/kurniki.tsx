@@ -92,7 +92,7 @@ function KurnikiPage() {
                         {f.leads.map((l: any) => (
                           <li key={l.id} className="grid grid-cols-[90px_70px_150px_60px_150px_minmax(0,1fr)_80px] items-center gap-2 text-sm">
                             <span className="text-xs text-muted-foreground">{fmtD(l.created_at)}</span>
-                            <Link to="/crm" search={{ lead: l.id } as any} className="font-medium text-primary hover:underline">
+                            <Link to="/crm" search={{ leadId: l.id } as any} className="font-medium text-primary hover:underline">
                               {l.lead_number ?? l.id.slice(0, 8)}
                             </Link>
                             <span><Badge variant="outline">{l.status_key ?? l.status}</Badge></span>
