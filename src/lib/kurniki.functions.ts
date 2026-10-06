@@ -8,7 +8,7 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
     const scope = await getUserScope(context.supabase, context.userId);
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, lead_number, name, invoice_company, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at")
+      .select("id, lead_number, name, invoice_company, invoice_nip, street, postal_code, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at")
       .eq("is_b2b_kurnik", true)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })
@@ -25,7 +25,21 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
       .from("poultry_reminders").select("lead_id, reminder_date, status")
       .in("status", ["do_zadzwonienia", "w_trakcie"]).order("reminder_date");
     const groups = new Map<string, any[]>();
-    for (const r of rows) { const k = rootOf(r); groups.set(k, [...(groups.get(k) ?? []), r]); }
+    const norm = (v: any) => String(v ?? "").toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]/g, "");
+    const locKey = (r: any) => {
+      const addr = norm(r.street) + "|" + norm(r.postal_code) + "|" + norm(r.city);
+      if (norm(r.street) && (norm(r.postal_code) || norm(r.city))) return "a:" + addr;
+      if (norm(r.invoice_nip)) return "n:" + norm(r.invoice_nip);
+      return "r:" + rootOf(r);
+    };
+    const keyRoot = new Map<string, string>();
+    for (const r of rows) {
+      const root = byId.get(rootOf(r));
+      const k = locKey(root);
+      if (!keyRoot.has(k)) keyRoot.set(k, root.id);
+      const g = keyRoot.get(k)!;
+      groups.set(g, [...(groups.get(g) ?? []), r]);
+    }
     let farms = [...groups.entries()].map(([rootId, leads]) => {
       const root = byId.get(rootId);
       const ids = new Set(leads.map((l) => l.id));
