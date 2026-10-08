@@ -563,9 +563,27 @@ function CommissionsDialog({
           <div className="space-y-1">
             <div className="text-sm font-medium">Historia wypłat</div>
             {settlements.map((s) => (
-              <div key={s.id} className="flex justify-between rounded border px-3 py-1.5 text-sm">
+              <div key={s.id} className="flex items-center justify-between gap-2 rounded border px-3 py-1.5 text-sm">
                 <span>{s.paid_at} · {AFFILIATE_METHODS.find((m) => m.value === s.method)?.label ?? s.method}</span>
-                <span className="font-medium">{zl(Number(s.total_amount))}</span>
+                <span className="ml-auto font-medium">{zl(Number(s.total_amount))}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const { downloadAffiliateSettlementPdf } = await import("@/lib/affiliate-pdf");
+                      await downloadAffiliateSettlementPdf(
+                        partner,
+                        s,
+                        commissions.filter((c) => c.settlement_id === s.id),
+                      );
+                    } catch (e: any) {
+                      toast.error(e?.message ?? "Nie udało się wygenerować PDF");
+                    }
+                  }}
+                >
+                  PDF
+                </Button>
               </div>
             ))}
           </div>
