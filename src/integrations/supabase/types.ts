@@ -213,6 +213,33 @@ export type Database = {
         }
         Relationships: []
       }
+      backups: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          kind: string
+          size_bytes: number | null
+          tables_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          id?: string
+          kind?: string
+          size_bytes?: number | null
+          tables_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          kind?: string
+          size_bytes?: number | null
+          tables_count?: number | null
+        }
+        Relationships: []
+      }
       employee_work_logs: {
         Row: {
           amount: number
@@ -1837,6 +1864,7 @@ export type Database = {
         Args: { _lead_id: string; _reason?: string }
         Returns: undefined
       }
+      create_backup: { Args: { _kind?: string }; Returns: string }
       fulfill_lead_stock: { Args: { _lead_id: string }; Returns: Json }
       has_role: {
         Args: {
