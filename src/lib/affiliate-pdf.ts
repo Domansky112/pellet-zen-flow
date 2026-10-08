@@ -24,20 +24,20 @@ export async function downloadAffiliateSettlementPdf(partner: any, settlement: a
   doc.addFileToVFS("B.ttf", b); doc.addFont("B.ttf", F, "bold");
   const M = 15, W = doc.internal.pageSize.getWidth();
   let y = 20;
-  doc.setFont(F, "bold").setFontSize(14).text("Potwierdzenie wypłaty prowizji afiliacyjnej", M, y);
+  doc.setFont(F, "bold").setFontSize(14).text("Zestawienie transportów afiliacyjnych", M, y);
   y += 6;
   doc.setFont(F, "normal").setFontSize(9).setTextColor(110);
-  doc.text(`Nr rozliczenia: ${String(settlement.id).slice(0, 8).toUpperCase()}`, M, y);
+  doc.text(`Nr zestawienia: ${String(settlement.id).slice(0, 8).toUpperCase()}`, M, y);
   doc.text(`Wygenerowano: ${new Date().toLocaleString("pl-PL")}`, W - M, y, { align: "right" });
   y += 8;
   doc.setTextColor(20).setFontSize(10);
   const left = [
-    ["Wypłacający", "GOSPODARSTWO MICHALCZUK SPÓŁKA KOMANDYTOWA"],
+    ["Wystawca", "GOSPODARSTWO MICHALCZUK SPÓŁKA KOMANDYTOWA"],
     ["", "ul. Witoroż 70C, 21-570 Drelów, NIP 5372656685"],
     ["Partner", partner.full_name],
     ["NIP", partner.nip || "—"],
     ["Rachunek", partner.bank_account || "—"],
-    ["Data wypłaty", dmy(settlement.paid_at)],
+    ["Data rozliczenia", dmy(settlement.paid_at)],
     ["Forma", METHODS[settlement.method] ?? settlement.method],
   ];
   autoTable(doc, {
@@ -69,8 +69,8 @@ export async function downloadAffiliateSettlementPdf(partner: any, settlement: a
   doc.setDrawColor(150);
   doc.line(M, y, M + 65, y); doc.line(W - M - 65, y, W - M, y);
   doc.setFontSize(8).setTextColor(110);
-  doc.text("Wypłacający", M + 32.5, y + 4, { align: "center" });
-  doc.text("Partner (odbiór)", W - M - 32.5, y + 4, { align: "center" });
+  doc.text("Wystawca", M + 32.5, y + 4, { align: "center" });
+  doc.text("Partner", W - M - 32.5, y + 4, { align: "center" });
   const safe = partner.full_name.replace(/[^\p{L}\p{N}]+/gu, "-");
-  doc.save(`potwierdzenie-prowizji-${safe}-${settlement.paid_at}.pdf`);
+  doc.save(`zestawienie-afiliacyjne-${safe}-${settlement.paid_at}.pdf`);
 }
