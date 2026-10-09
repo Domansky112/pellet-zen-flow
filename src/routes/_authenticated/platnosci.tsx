@@ -153,8 +153,8 @@ function PaymentsPage() {
           <TabsTrigger value="expenses">Koszty</TabsTrigger>
           <TabsTrigger value="audit">Dziennik operacji</TabsTrigger>
         </TabsList>
-        <TabsContent value="upcoming"><UpcomingTab /></TabsContent>
-        <TabsContent value="completed"><CompletedTab /></TabsContent>
+        <TabsContent value="upcoming"><UpcomingTab from={from} to={to} /></TabsContent>
+        <TabsContent value="completed"><CompletedTab from={from} to={to} /></TabsContent>
         <TabsContent value="expenses"><ExpensesTab from={from} to={to} /></TabsContent>
         <TabsContent value="audit"><AuditTab from={from} to={to} /></TabsContent>
       </Tabs>
@@ -374,7 +374,7 @@ function BalanceHeader({ from, to, setFrom, setTo }: { from: string; to: string;
 
 
 // ─── Nadchodzące ─────────────────────────────────────────────
-function UpcomingTab() {
+function UpcomingTab({ from, to }: { from: string; to: string }) {
   const upcomingFn = useServerFn(listUpcomingPayments);
   const q = useQuery({ queryKey: ["payments-upcoming"], queryFn: () => upcomingFn() });
 
@@ -387,7 +387,10 @@ function UpcomingTab() {
   const allRows = useMemo(() => extractLeads(q.data ?? []), [q.data]);
 
   const rows = useMemo(() => {
-    let r = allRows;
+    let r = allRows.filter(({ transport }) => {
+      const d = String(transport.scheduled_date ?? "").slice(0, 10);
+      return d >= from && d <= to;
+    });
     const s = search.trim().toLowerCase();
     if (s) {
       r = r.filter(({ transport, leads }) => {
@@ -477,7 +480,7 @@ function UpcomingTab() {
 }
 
 // ─── Wykonane ────────────────────────────────────────────────
-function CompletedTab() {
+function CompletedTab({ from, to }: { from: string; to: string }) {
   const completedFn = useServerFn(listCompletedPayments);
   const orphansFn = useServerFn(listDeliveredLeadsWithoutTransport);
   const q = useQuery({ queryKey: ["payments-completed"], queryFn: () => completedFn() });
@@ -491,8 +494,17 @@ function CompletedTab() {
   const transportLeadIds = new Set<string>(
     extractLeads(q.data ?? []).flatMap((r) => r.leads.map((l: any) => l.id)),
   );
-  const rows = extractLeads(q.data ?? []).filter(({ leads }) => leads.some(matchesFilter));
-  const standaloneLeads = (orphans.data ?? []).filter((l: any) => !transportLeadIds.has(l.id) && matchesFilter(l));
+  const inRange = (d?: string | null) => {
+    if (!d) return false;
+    const day = String(d).slice(0, 10);
+    return day >= from && day <= to;
+  };
+  const rows = extractLeads(q.data ?? []).filter(({ transport, leads }) =>
+    leads.some((l: any) => matchesFilter(l) && inRange(l.delivered_at ?? transport.scheduled_date)),
+  );
+  const standaloneLeads = (orphans.data ?? []).filter(
+    (l: any) => !transportLeadIds.has(l.id) && matchesFilter(l) && inRange(l.delivered_at),
+  );
 
   return (
     <div className="space-y-3">
@@ -506,6 +518,7 @@ function CompletedTab() {
             <SelectItem value="unpaid">Tylko nieopłacone</SelectItem>
           </SelectContent>
         </Select>
+        <span className="text-xs text-muted-foreground">Data dostawy: {from} → {to}</span>
       </div>
       {(q.isLoading || orphans.isLoading) && <div className="text-sm text-muted-foreground">Ładowanie…</div>}
       {rows.length === 0 && standaloneLeads.length === 0 && !q.isLoading && (
