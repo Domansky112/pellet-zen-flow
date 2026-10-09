@@ -413,7 +413,7 @@ function UpcomingTab({ from, to }: { from: string; to: string }) {
         default: return String(a.transport.scheduled_date ?? "").localeCompare(String(b.transport.scheduled_date ?? ""));
       }
     });
-  }, [allRows, sort, search, payFilter]);
+  }, [allRows, sort, search, payFilter, from, to]);
 
   const totals = useMemo(() => {
     let expected = 0, cash = 0, transfer = 0;
