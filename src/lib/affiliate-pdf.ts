@@ -64,13 +64,7 @@ export async function downloadAffiliateSettlementPdf(partner: any, settlement: a
     columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
   });
   y = (doc as any).lastAutoTable.finalY + 8;
-  if (settlement.notes) { doc.setFontSize(9).text(`Uwagi: ${settlement.notes}`, M, y, { maxWidth: W - 2 * M }); y += 10; }
-  y += 15;
-  doc.setDrawColor(150);
-  doc.line(M, y, M + 65, y); doc.line(W - M - 65, y, W - M, y);
-  doc.setFontSize(8).setTextColor(110);
-  doc.text("Wystawca", M + 32.5, y + 4, { align: "center" });
-  doc.text("Partner", W - M - 32.5, y + 4, { align: "center" });
+  if (settlement.notes) { doc.setFontSize(9).text(`Uwagi: ${settlement.notes}`, M, y, { maxWidth: W - 2 * M }); }
   const safe = partner.full_name.replace(/[^\p{L}\p{N}]+/gu, "-");
   doc.save(`zestawienie-afiliacyjne-${safe}-${settlement.paid_at}.pdf`);
 }
