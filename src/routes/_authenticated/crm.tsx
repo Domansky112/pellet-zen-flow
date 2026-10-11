@@ -707,6 +707,7 @@ function LeadList({
                     ))}
                   </SelectContent>
                 </Select>
+                <ReceiptCheckbox leadId={l.id} initial={!!(l as any).receipt_issued} />
               </div>
             </CardHeader>
             <CardContent className="pt-0" onClick={(e) => e.stopPropagation()}>
