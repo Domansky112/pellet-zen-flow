@@ -73,6 +73,11 @@ function isRealizedLead(l: { status?: string | null; status_key?: string | null;
   return key === "wygrany" || l.reservation_status === "wydany";
 }
 
+// Flagę "Paragon wystawiony" czytamy z kolumny leads.receipt_issued.
+function readReceipt(l: unknown): boolean {
+  return !!(l as { receipt_issued?: boolean | null }).receipt_issued;
+}
+
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
     meta: [
