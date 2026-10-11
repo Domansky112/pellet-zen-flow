@@ -56,7 +56,8 @@ const searchSchema = z.object({
   leadId: z.string().uuid().optional(),
   status_key: z.string().optional(),
   has_notes: z.enum(["yes", "no"]).optional(),
-  sort: z.enum(["smart", "newest", "oldest", "recent_note"]).optional(),
+  receipt: z.enum(["yes", "no"]).optional(),
+  sort: z.enum(["smart", "newest", "oldest", "recent_note", "receipt_pending"]).optional(),
   mine: z.enum(["yes"]).optional(),
 });
 
@@ -70,6 +71,11 @@ function isClosedLead(l: { status?: string | null; status_key?: string | null; r
 function isRealizedLead(l: { status?: string | null; status_key?: string | null; reservation_status?: string | null }) {
   const key = (l.status_key ?? l.status ?? "") as string;
   return key === "wygrany" || l.reservation_status === "wydany";
+}
+
+// Flagę "Paragon wystawiony" czytamy z kolumny leads.receipt_issued.
+function readReceipt(l: unknown): boolean {
+  return !!(l as { receipt_issued?: boolean | null }).receipt_issued;
 }
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -112,6 +118,7 @@ function CrmPage() {
   const sort = search.sort ?? "newest";
   const statusFilter = search.status_key ?? "all";
   const hasNotesFilter = search.has_notes ?? "any";
+  const receiptFilter = search.receipt ?? "any";
 
   const statusMap = useMemo(() => {
     const m = new Map<string, LeadStatus>();
@@ -219,7 +226,7 @@ function CrmPage() {
   const mineOnly = search.mine === "yes";
 
   const filtersActive =
-    !!search.status_key || !!search.has_notes || (sort !== "smart") || mineOnly;
+    !!search.status_key || !!search.has_notes || !!search.receipt || (sort !== "smart") || mineOnly;
 
   function applyFilters(items: Lead[]): Lead[] {
     let out = items;
@@ -230,6 +237,11 @@ function CrmPage() {
       out = out.filter((l) => notesByLead.has(l.id));
     } else if (search.has_notes === "no") {
       out = out.filter((l) => !notesByLead.has(l.id));
+    }
+    if (search.receipt === "yes") {
+      out = out.filter((l) => !!readReceipt(l));
+    } else if (search.receipt === "no") {
+      out = out.filter((l) => !readReceipt(l));
     }
     if (mineOnly && currentUser?.id) {
       out = out.filter((l) => (l as Lead & { assigned_to?: string | null }).assigned_to === currentUser.id);
@@ -257,6 +269,8 @@ function CrmPage() {
     if (sort === "newest") copy.sort(byCreated);
     else if (sort === "oldest") copy.sort((a, b) => -byCreated(a, b));
     else if (sort === "recent_note") copy.sort((a, b) => lastActivity(b) - lastActivity(a));
+    else if (sort === "receipt_pending")
+      copy.sort((a, b) => (readReceipt(a) ? 1 : 0) - (readReceipt(b) ? 1 : 0) || byCreated(a, b));
     else {
       // smart: w_kontakcie first (by last activity), then rest by last activity/created
       copy.sort((a, b) => {
@@ -323,6 +337,19 @@ function CrmPage() {
               <SelectItem value="no">Bez notatek</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            value={receiptFilter}
+            onValueChange={(v) => setSearch({ receipt: v === "any" ? undefined : (v as "yes" | "no") })}
+          >
+            <SelectTrigger className="h-8 w-[190px]">
+              <SelectValue placeholder="Paragon" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Paragon: dowolnie</SelectItem>
+              <SelectItem value="yes">Paragon wystawiony</SelectItem>
+              <SelectItem value="no">Bez paragonu</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="mx-2 h-6 w-px bg-border" />
           <Button
             size="sm"
@@ -351,6 +378,7 @@ function CrmPage() {
                 {tab === "realized" ? "Data realizacji: od najstarszych" : tab === "cancelled" ? "Data anulowania: od najstarszych" : "Data dodania: od najstarszych"}
               </SelectItem>
               <SelectItem value="recent_note">Ostatnia notatka / kontakt</SelectItem>
+              <SelectItem value="receipt_pending">Paragon: najpierw bez paragonu</SelectItem>
             </SelectContent>
           </Select>
           {filtersActive && (
@@ -364,6 +392,7 @@ function CrmPage() {
                     ...p,
                     status_key: undefined,
                     has_notes: undefined,
+                    receipt: undefined,
                     sort: undefined,
                     mine: undefined,
                   }),
@@ -828,6 +857,7 @@ function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => v
 }
 
 function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean }) {
+  const queryClient = useQueryClient();
   const [checked, setChecked] = useState(initial);
   const [saving, setSaving] = useState(false);
   useEffect(() => setChecked(initial), [initial]);
@@ -849,6 +879,9 @@ function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean
             setChecked(!next);
             toast.error("Nie zapisano: " + error.message);
           } else {
+            // Odśwież listy, żeby filtr "Paragon" liczył się na aktualnych danych.
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
             toast.success(next ? "Paragon wystawiony" : "Odznaczono paragon");
           }
         }}
