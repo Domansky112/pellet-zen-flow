@@ -857,6 +857,7 @@ export type Database = {
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
+          receipt_issued: boolean
           receipt_number: string | null
           reservation_status: string
           sales_vat_rate: number
@@ -916,6 +917,7 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          receipt_issued?: boolean
           receipt_number?: string | null
           reservation_status?: string
           sales_vat_rate?: number
@@ -975,6 +977,7 @@ export type Database = {
           priority?: number
           product?: Database["public"]["Enums"]["product_type"] | null
           quantity?: number | null
+          receipt_issued?: boolean
           receipt_number?: string | null
           reservation_status?: string
           sales_vat_rate?: number
@@ -1973,6 +1976,7 @@ export type Database = {
           priority: number
           product: Database["public"]["Enums"]["product_type"] | null
           quantity: number | null
+          receipt_issued: boolean
           receipt_number: string | null
           reservation_status: string
           sales_vat_rate: number
