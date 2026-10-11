@@ -857,6 +857,7 @@ function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => v
 }
 
 function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean }) {
+  const queryClient = useQueryClient();
   const [checked, setChecked] = useState(initial);
   const [saving, setSaving] = useState(false);
   useEffect(() => setChecked(initial), [initial]);
@@ -878,6 +879,9 @@ function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean
             setChecked(!next);
             toast.error("Nie zapisano: " + error.message);
           } else {
+            // Odśwież listy, żeby filtr "Paragon" liczył się na aktualnych danych.
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            queryClient.invalidateQueries({ queryKey: ["leads-cancelled"] });
             toast.success(next ? "Paragon wystawiony" : "Odznaczono paragon");
           }
         }}
