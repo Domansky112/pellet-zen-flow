@@ -707,6 +707,7 @@ function LeadList({
                     ))}
                   </SelectContent>
                 </Select>
+                <ReceiptCheckbox leadId={l.id} initial={!!(l as any).receipt_issued} />
               </div>
             </CardHeader>
             <CardContent className="pt-0" onClick={(e) => e.stopPropagation()}>
@@ -823,5 +824,36 @@ function ReservedList({ items, onOpen }: { items: Lead[]; onOpen: (l: Lead) => v
         </Card>
       ))}
     </div>
+  );
+}
+
+function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean }) {
+  const [checked, setChecked] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => setChecked(initial), [initial]);
+  return (
+    <label className="mt-2 flex items-center justify-end gap-2 text-sm cursor-pointer select-none">
+      <input
+        type="checkbox"
+        className="h-4 w-4 accent-primary cursor-pointer"
+        checked={checked}
+        disabled={saving}
+        onChange={async (e) => {
+          const next = e.target.checked;
+          setChecked(next);
+          setSaving(true);
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { error } = await supabase.from("leads").update({ receipt_issued: next } as any).eq("id", leadId);
+          setSaving(false);
+          if (error) {
+            setChecked(!next);
+            toast.error("Nie zapisano: " + error.message);
+          } else {
+            toast.success(next ? "Paragon wystawiony" : "Odznaczono paragon");
+          }
+        }}
+      />
+      Paragon wystawiony
+    </label>
   );
 }
