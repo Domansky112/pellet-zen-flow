@@ -477,8 +477,11 @@ function CrmPage() {
           <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
           <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
           <TabsContent value="realized" className="mt-4">
-            <div className="mb-3 text-sm text-muted-foreground">
-              Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span>Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).</span>
+              <Button variant="outline" size="sm" onClick={() => exportRealizedCsv(applyFilters(realizedLeads))}>
+                Eksportuj do arkusza (CSV)
+              </Button>
             </div>
             <LeadList items={applyFilters(realizedLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
           </TabsContent>
@@ -889,4 +892,52 @@ function ReceiptCheckbox({ leadId, initial }: { leadId: string; initial: boolean
       Paragon wystawiony
     </label>
   );
+}
+
+function exportRealizedCsv(items: Lead[]) {
+  if (!items.length) {
+    toast.error("Brak leadów do eksportu");
+    return;
+  }
+  const num = (v: unknown) => (v == null || v === "" ? "" : String(Number(v)).replace(".", ","));
+  const date = (v: unknown) => (v ? String(v).slice(0, 10) : "");
+  const productLabel = (p: unknown) =>
+    p === "pellet_paleta" ? "Paleta" : p === "pellet_bigbag" ? "Big Bag" : p ? String(p) : "";
+  const header = [
+    "Nr leada", "Data realizacji", "Klient", "Firma", "NIP", "Miejscowość", "Adres",
+    "Czy paleta", "Produkt", "Ilość ton", "Ilość sztuk", "Cena netto / t", "VAT towaru %",
+    "Kwota brutto", "Koszt transportu brutto", "VAT transportu %", "Forma płatności", "Paragon wystawiony",
+  ];
+  const rows = items.map((raw) => {
+    const l = raw as any;
+    return [
+      l.lead_number ?? "",
+      date(l.delivered_at ?? l.status_changed_at ?? l.updated_at),
+      l.name ?? "",
+      l.invoice_company ?? "",
+      l.invoice_nip ?? "",
+      l.city ?? "",
+      [l.street, l.postal_code].filter(Boolean).join(", "),
+      l.product === "pellet_paleta" ? "TAK" : "NIE",
+      productLabel(l.product),
+      num(l.quantity),
+      num(l.sold_units),
+      num(l.price_per_ton_net),
+      num(l.sales_vat_rate),
+      num(l.payment_amount_gross),
+      num(l.transport_cost_gross),
+      num(l.transport_vat_rate),
+      l.payment_method ?? "",
+      l.receipt_issued ? "TAK" : "NIE",
+    ];
+  });
+  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [header, ...rows].map((r) => r.map(esc).join(";")).join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `zrealizowane_leady_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast.success(`Wyeksportowano ${items.length} leadów`);
 }
