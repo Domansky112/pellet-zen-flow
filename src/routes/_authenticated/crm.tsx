@@ -477,8 +477,11 @@ function CrmPage() {
           <TabsContent value="b2b" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => l.source === "b2b"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
           <TabsContent value="nowy" className="mt-4"><LeadList items={applyFilters(activeLeads.filter((l) => (l.status_key ?? l.status) === "nowy"))} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} /></TabsContent>
           <TabsContent value="realized" className="mt-4">
-            <div className="mb-3 text-sm text-muted-foreground">
-              Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <span>Leady zakończone sprzedażą (status <b>Wygrany</b> lub wydanie z magazynu).</span>
+              <Button variant="outline" size="sm" onClick={() => exportRealizedCsv(applyFilters(realizedLeads))}>
+                Eksportuj do arkusza (CSV)
+              </Button>
             </div>
             <LeadList items={applyFilters(realizedLeads)} onOpen={setOpenLead} statusMap={statusMap} statuses={statuses.data ?? []} notesByLead={notesByLead} />
           </TabsContent>
