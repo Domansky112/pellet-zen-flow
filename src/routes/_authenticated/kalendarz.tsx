@@ -28,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Bell, Loader2, Plus, Trash2, Truck, Bird } from "lucide-react";
+import { Bell, Loader2, Plus, Trash2, Truck, Bird, List, LayoutGrid } from "lucide-react";
+import { TransportMonthGrid } from "@/components/transport-month-grid";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -68,6 +69,7 @@ function CalendarPage() {
   const delFn = useServerFn(deleteTransport);
   const reschedFn = useServerFn(rescheduleTransport);
   const [historySort, setHistorySort] = useState<"newest" | "oldest">("newest");
+  const [view, setView] = useState<"list" | "grid">("list");
 
   const { data: transports = [], isLoading } = useQuery({
     queryKey: ["transports"],
@@ -125,13 +127,32 @@ function CalendarPage() {
 
           <TabsContent value="transports" className="space-y-6 mt-4">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
                 <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" /> Nadchodzące ({upcoming.length})
+                  <Truck className="h-5 w-5 text-primary" />
+                  {view === "grid" ? "Kalendarz transportów" : `Nadchodzące (${upcoming.length})`}
                 </CardTitle>
+                <div className="inline-flex rounded-full border border-border bg-muted p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setView("list")}
+                    className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${view === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    <List className="h-3.5 w-3.5" /> Lista
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setView("grid")}
+                    className={`flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${view === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" /> Siatka
+                  </button>
+                </div>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
+                {view === "grid" ? (
+                  <TransportMonthGrid transports={transports as any} />
+                ) : isLoading ? (
                   <p className="text-sm text-muted-foreground">Ładuję…</p>
                 ) : upcoming.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
