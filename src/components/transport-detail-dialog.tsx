@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { getTransportById } from "@/lib/transport-crud.functions";
+import { WzDownloadButton } from "@/components/wz-download-button";
 import { Truck, MapPin, User, Calendar, Package } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -116,6 +117,10 @@ export function TransportDetailDialog({
                 <div className="rounded-md border p-3 whitespace-pre-wrap text-muted-foreground">{t.notes}</div>
               </div>
             )}
+            <div className="flex items-center justify-end gap-2 border-t pt-3">
+              <span className="text-xs text-muted-foreground">Pobierz WZ:</span>
+              <WzDownloadButton transportId={t.id} />
+            </div>
           </div>
         )}
       </DialogContent>
