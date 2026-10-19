@@ -501,7 +501,11 @@ function PhysicalDialog({
             : {}),
         },
       });
-      toast.success(isPz ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
+      toast.success(
+        isPz
+          ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})`
+          : `${label}: ${q} t${showUnits && units ? ` · ${units} szt.` : ""} (${product.label})`,
+      );
       setOpen(false); setQty(""); setUnits(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
 
       qc.invalidateQueries({ queryKey: ["stock"] });
