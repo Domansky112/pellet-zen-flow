@@ -192,7 +192,7 @@ function WarehousePage() {
                       <TableCell><Badge variant="outline">{txnLabel[e.txn_type] ?? e.txn_type}</Badge></TableCell>
                       <TableCell>{PRODUCTS.find((p) => p.key === e.product)?.label ?? e.product}</TableCell>
                       <TableCell className={`text-right font-medium ${positive ? "text-success" : "text-primary"}`}>
-                        {positive ? "+" : "−"}{Number(e.quantity)}
+                        {positive ? "+" : "−"}{Number(e.quantity)} t
                         {Number(e.units ?? 0) > 0 && (
                           <span className="block text-xs font-normal text-muted-foreground">
                             {Math.round(Number(e.units))} {e.product === "pellet_bigbag" ? bagLabel(Number(e.units)) : "szt."}
