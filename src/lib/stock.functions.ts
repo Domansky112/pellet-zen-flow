@@ -19,7 +19,7 @@ export const listStockEvents = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("stock_events")
-      .select("id, product, txn_type, quantity, reference, note, lead_id, created_at, created_by, leads(name)")
+      .select("id, product, txn_type, quantity, units, reference, note, lead_id, created_at, created_by, leads(name)")
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
@@ -242,7 +242,7 @@ export const listOpenLeads = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, name, city, product, quantity, status")
+      .select("id, name, city, product, quantity, status, sold_units, reservation_status")
       .in("status", ["nowy", "w_kontakcie", "oferta"])
       .order("created_at", { ascending: false })
       .limit(200);
@@ -271,7 +271,7 @@ export const deleteStockEvent = createServerFn({ method: "POST" })
     // Load event before delete for audit + downstream lead sync
     const { data: ev, error: le } = await context.supabase
       .from("stock_events")
-      .select("id, product, txn_type, quantity, lead_id, reference, note, created_at")
+      .select("id, product, txn_type, quantity, units, lead_id, reference, note, created_at")
       .eq("id", data.id)
       .single();
     if (le || !ev) throw new Error(le?.message ?? "Zdarzenie nie istnieje");
@@ -292,6 +292,7 @@ export const deleteStockEvent = createServerFn({ method: "POST" })
         product: ev.product,
         txn_type: ev.txn_type,
         quantity: Number(ev.quantity),
+        units: ev.units != null ? Number(ev.units) : null,
         lead_id: ev.lead_id,
         reference: ev.reference,
         note: ev.note,
