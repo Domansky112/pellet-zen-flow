@@ -426,6 +426,7 @@ function PhysicalDialog({
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState("");
   const [units, setUnits] = useState("");
+  const [unitsTouched, setUnitsTouched] = useState(false);
 
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
