@@ -549,6 +549,7 @@ function PhysicalDialog({
                   onChange={(e) => {
                     const v = e.target.value;
                     setUnits(v);
+                    setUnitsTouched(true);
                     const n = Number(v);
                     if (Number.isFinite(n) && n > 0) setQty(String(n));
                   }}
@@ -556,7 +557,21 @@ function PhysicalDialog({
               </div>
               <div className="grid gap-1.5">
                 <Label>Tonaż łączny (t)</Label>
-                <Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={qty}
+                  onChange={(e) => {
+                    setQty(e.target.value);
+                    const n = Number(e.target.value);
+                    // Wydanie: podpowiedz liczbę Big Bagów ze średniego tonażu na sztukę (edytowalne).
+                    if (type === "wydanie" && !unitsTouched && n > 0) {
+                      const r = suggestUnitsPerTon && suggestUnitsPerTon > 0 ? suggestUnitsPerTon : 1;
+                      setUnits(String(Math.max(1, Math.round(n * r))));
+                    }
+                  }}
+                />
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
                 Tonaż podpowiada się jako 1 t na Big Bag — popraw go ręcznie wg wagi z dokumentu.
