@@ -73,6 +73,16 @@ const txnLabel: Record<string, string> = {
   korekta: "Korekta",
 };
 
+/** Polska odmiana: 1 big bag, 2 big bagi, 5 big bagów. */
+function bagLabel(n: number) {
+  const a = Math.abs(Math.round(n));
+  const m10 = a % 10;
+  const m100 = a % 100;
+  if (a === 1) return "big bag";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "big bagi";
+  return "big bagów";
+}
+
 function WarehousePage() {
   const qc = useQueryClient();
   const { data: balance } = useSuspenseQuery(balanceQuery);
@@ -96,8 +106,13 @@ function WarehousePage() {
   }, [qc]);
 
   const byProduct = useMemo(() => {
-    const m = new Map<string, { physical: number; reserved: number }>();
-    for (const r of balance) m.set(r.product as string, { physical: Number(r.physical), reserved: Number(r.reserved) });
+    const m = new Map<string, { physical: number; reserved: number; physicalUnits: number }>();
+    for (const r of balance)
+      m.set(r.product as string, {
+        physical: Number(r.physical),
+        reserved: Number(r.reserved),
+        physicalUnits: Number((r as any).physical_units ?? 0),
+      });
     return m;
   }, [balance]);
 
@@ -134,7 +149,7 @@ function WarehousePage() {
       <div className="p-6 space-y-6">
         <div className="space-y-6">
           {PRODUCTS.map((p) => {
-            const b = byProduct.get(p.key) ?? { physical: 0, reserved: 0 };
+            const b = byProduct.get(p.key) ?? { physical: 0, reserved: 0, physicalUnits: 0 };
             return (
               <StockPanel key={p.key} product={p} balance={b} openLeads={openLeads} />
             );
@@ -178,6 +193,11 @@ function WarehousePage() {
                       <TableCell>{PRODUCTS.find((p) => p.key === e.product)?.label ?? e.product}</TableCell>
                       <TableCell className={`text-right font-medium ${positive ? "text-success" : "text-primary"}`}>
                         {positive ? "+" : "−"}{Number(e.quantity)}
+                        {Number(e.units ?? 0) > 0 && (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            {Math.round(Number(e.units))} {e.product === "pellet_bigbag" ? bagLabel(Number(e.units)) : "szt."}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">
                         {e.lead_id ? (
