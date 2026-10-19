@@ -301,6 +301,8 @@ function StockPanel({
   const physical = Math.max(0, balance.physical);
   const reserved = Math.max(0, balance.reserved);
   const available = Math.max(0, physical - reserved);
+  // Średni tonaż na 1 Big Bag z bieżącego stanu — tylko podpowiedź w wydaniu, nigdy sztywny kurs.
+  const avgUnitsPerTon = balance.physical > 0 && balance.physicalUnits > 0 ? balance.physicalUnits / balance.physical : null;
 
   // Big Bagi pokazujemy też w sztukach: fizycznie z widoku salda,
   // zarezerwowane z leadów, które aktualnie trzymają rezerwację.
@@ -361,8 +363,8 @@ function StockPanel({
           <CardDescription>Rezerwacja spina się z leadem.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2">
-          <PhysicalDialog product={product} type="przyjecie" label="Przyjęcie" icon={<Plus className="mr-2 h-4 w-4" />} />
-          <PhysicalDialog product={product} type="wydanie" label="Wydanie" icon={<Minus className="mr-2 h-4 w-4" />} variant="outline" />
+          <PhysicalDialog product={product} type="przyjecie" label="Przyjęcie" icon={<Plus className="mr-2 h-4 w-4" />} suggestUnitsPerTon={avgUnitsPerTon} />
+          <PhysicalDialog product={product} type="wydanie" label="Wydanie" icon={<Minus className="mr-2 h-4 w-4" />} variant="outline" suggestUnitsPerTon={avgUnitsPerTon} />
           <ReserveDialog product={product} openLeads={openLeads.filter((l) => !l.product || l.product === product.key)} available={available} />
           <ReleaseDialog product={product} openLeads={openLeads.filter((l) => !l.product || l.product === product.key)} />
         </CardContent>
@@ -412,16 +414,19 @@ function PhysicalDialog({
   label,
   icon,
   variant = "default",
+  suggestUnitsPerTon,
 }: {
   product: { key: Product; label: string };
   type: "przyjecie" | "wydanie";
   label: string;
   icon: React.ReactNode;
   variant?: "default" | "outline";
+  suggestUnitsPerTon?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState("");
   const [units, setUnits] = useState("");
+  const [unitsTouched, setUnitsTouched] = useState(false);
 
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
@@ -446,6 +451,7 @@ function PhysicalDialog({
 
 
   useEffect(() => {
+    if (open) setUnitsTouched(false);
     if (open && isPz) {
       setPrice(defaults.pln_per_ton ? String(defaults.pln_per_ton) : "");
       setVat(String(defaults.vat_rate ?? 8));
@@ -475,6 +481,7 @@ function PhysicalDialog({
     e.preventDefault();
     const q = Number(qty);
     if (!q || q <= 0) { toast.error("Podaj ilość > 0"); return; }
+    if (showUnits && !(Number(units) > 0)) { toast.error("Podaj liczbę Big Bagów (szt.)"); return; }
     const p = Number(price);
     if (isPz && (!p || p <= 0)) { toast.error("Podaj cenę zakupu za 1 tonę"); return; }
     setBusy(true);
@@ -542,6 +549,7 @@ function PhysicalDialog({
                   onChange={(e) => {
                     const v = e.target.value;
                     setUnits(v);
+                    setUnitsTouched(true);
                     const n = Number(v);
                     if (Number.isFinite(n) && n > 0) setQty(String(n));
                   }}
@@ -549,7 +557,21 @@ function PhysicalDialog({
               </div>
               <div className="grid gap-1.5">
                 <Label>Tonaż łączny (t)</Label>
-                <Input type="number" step="0.01" min="0" value={qty} onChange={(e) => setQty(e.target.value)} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={qty}
+                  onChange={(e) => {
+                    setQty(e.target.value);
+                    const n = Number(e.target.value);
+                    // Wydanie: podpowiedz liczbę Big Bagów ze średniego tonażu na sztukę (edytowalne).
+                    if (type === "wydanie" && !unitsTouched && n > 0) {
+                      const r = suggestUnitsPerTon && suggestUnitsPerTon > 0 ? suggestUnitsPerTon : 1;
+                      setUnits(String(Math.max(1, Math.round(n * r))));
+                    }
+                  }}
+                />
               </div>
               <p className="col-span-2 text-xs text-muted-foreground">
                 Tonaż podpowiada się jako 1 t na Big Bag — popraw go ręcznie wg wagi z dokumentu.
