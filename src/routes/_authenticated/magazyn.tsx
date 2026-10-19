@@ -301,6 +301,8 @@ function StockPanel({
   const physical = Math.max(0, balance.physical);
   const reserved = Math.max(0, balance.reserved);
   const available = Math.max(0, physical - reserved);
+  // Średni tonaż na 1 Big Bag z bieżącego stanu — tylko podpowiedź w wydaniu, nigdy sztywny kurs.
+  const avgUnitsPerTon = balance.physical > 0 && balance.physicalUnits > 0 ? balance.physicalUnits / balance.physical : null;
 
   // Big Bagi pokazujemy też w sztukach: fizycznie z widoku salda,
   // zarezerwowane z leadów, które aktualnie trzymają rezerwację.
@@ -361,8 +363,8 @@ function StockPanel({
           <CardDescription>Rezerwacja spina się z leadem.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2">
-          <PhysicalDialog product={product} type="przyjecie" label="Przyjęcie" icon={<Plus className="mr-2 h-4 w-4" />} />
-          <PhysicalDialog product={product} type="wydanie" label="Wydanie" icon={<Minus className="mr-2 h-4 w-4" />} variant="outline" />
+          <PhysicalDialog product={product} type="przyjecie" label="Przyjęcie" icon={<Plus className="mr-2 h-4 w-4" />} suggestUnitsPerTon={avgUnitsPerTon} />
+          <PhysicalDialog product={product} type="wydanie" label="Wydanie" icon={<Minus className="mr-2 h-4 w-4" />} variant="outline" suggestUnitsPerTon={avgUnitsPerTon} />
           <ReserveDialog product={product} openLeads={openLeads.filter((l) => !l.product || l.product === product.key)} available={available} />
           <ReleaseDialog product={product} openLeads={openLeads.filter((l) => !l.product || l.product === product.key)} />
         </CardContent>
