@@ -412,12 +412,14 @@ function PhysicalDialog({
   label,
   icon,
   variant = "default",
+  suggestUnitsPerTon,
 }: {
   product: { key: Product; label: string };
   type: "przyjecie" | "wydanie";
   label: string;
   icon: React.ReactNode;
   variant?: "default" | "outline";
+  suggestUnitsPerTon?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState("");
