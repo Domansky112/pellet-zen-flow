@@ -310,7 +310,7 @@ function StockPanel({
     0,
     Math.round(
       openLeads
-        .filter((l) => l.reservation_status === "zarezerwowany")
+        .filter((l) => l.reservation_status === "zarezerwowany" && (!l.product || l.product === product.key))
         .reduce((s, l) => s + (l.sold_units != null ? Number(l.sold_units) : Math.ceil(Number(l.quantity ?? 0))), 0),
     ),
   );
