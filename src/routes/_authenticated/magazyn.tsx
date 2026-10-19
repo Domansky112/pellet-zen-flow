@@ -451,6 +451,7 @@ function PhysicalDialog({
 
 
   useEffect(() => {
+    if (open) setUnitsTouched(false);
     if (open && isPz) {
       setPrice(defaults.pln_per_ton ? String(defaults.pln_per_ton) : "");
       setVat(String(defaults.vat_rate ?? 8));
