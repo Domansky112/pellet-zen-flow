@@ -481,6 +481,7 @@ function PhysicalDialog({
     e.preventDefault();
     const q = Number(qty);
     if (!q || q <= 0) { toast.error("Podaj ilość > 0"); return; }
+    if (showUnits && !(Number(units) > 0)) { toast.error("Podaj liczbę Big Bagów (szt.)"); return; }
     const p = Number(price);
     if (isPz && (!p || p <= 0)) { toast.error("Podaj cenę zakupu za 1 tonę"); return; }
     setBusy(true);
