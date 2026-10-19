@@ -441,7 +441,8 @@ function PhysicalDialog({
   const { data: pickups } = useSuspenseQuery(pickupsQuery);
   const isPz = type === "przyjecie";
   const isBigBag = product.key === "pellet_bigbag";
-  const showUnits = isPz && isBigBag;
+  // Big Bagi zawsze zapisujemy w dwóch jednostkach: sztuki + tonaż (przyjęcie i wydanie).
+  const showUnits = isBigBag;
 
 
   useEffect(() => {
