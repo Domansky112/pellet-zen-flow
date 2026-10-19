@@ -73,6 +73,16 @@ const txnLabel: Record<string, string> = {
   korekta: "Korekta",
 };
 
+/** Polska odmiana: 1 big bag, 2 big bagi, 5 big bagów. */
+function bagLabel(n: number) {
+  const a = Math.abs(Math.round(n));
+  const m10 = a % 10;
+  const m100 = a % 100;
+  if (a === 1) return "big bag";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "big bagi";
+  return "big bagów";
+}
+
 function WarehousePage() {
   const qc = useQueryClient();
   const { data: balance } = useSuspenseQuery(balanceQuery);
@@ -96,8 +106,13 @@ function WarehousePage() {
   }, [qc]);
 
   const byProduct = useMemo(() => {
-    const m = new Map<string, { physical: number; reserved: number }>();
-    for (const r of balance) m.set(r.product as string, { physical: Number(r.physical), reserved: Number(r.reserved) });
+    const m = new Map<string, { physical: number; reserved: number; physicalUnits: number }>();
+    for (const r of balance)
+      m.set(r.product as string, {
+        physical: Number(r.physical),
+        reserved: Number(r.reserved),
+        physicalUnits: Number((r as any).physical_units ?? 0),
+      });
     return m;
   }, [balance]);
 
@@ -134,7 +149,7 @@ function WarehousePage() {
       <div className="p-6 space-y-6">
         <div className="space-y-6">
           {PRODUCTS.map((p) => {
-            const b = byProduct.get(p.key) ?? { physical: 0, reserved: 0 };
+            const b = byProduct.get(p.key) ?? { physical: 0, reserved: 0, physicalUnits: 0 };
             return (
               <StockPanel key={p.key} product={p} balance={b} openLeads={openLeads} />
             );
@@ -177,7 +192,12 @@ function WarehousePage() {
                       <TableCell><Badge variant="outline">{txnLabel[e.txn_type] ?? e.txn_type}</Badge></TableCell>
                       <TableCell>{PRODUCTS.find((p) => p.key === e.product)?.label ?? e.product}</TableCell>
                       <TableCell className={`text-right font-medium ${positive ? "text-success" : "text-primary"}`}>
-                        {positive ? "+" : "−"}{Number(e.quantity)}
+                        {positive ? "+" : "−"}{Number(e.quantity)} t
+                        {Number(e.units ?? 0) > 0 && (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            {Math.round(Number(e.units))} {e.product === "pellet_bigbag" ? bagLabel(Number(e.units)) : "szt."}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">
                         {e.lead_id ? (
@@ -226,7 +246,10 @@ function WarehousePage() {
                 <>
                   Cofniesz zdarzenie:{" "}
                   <b>{txnLabel[deleteEvent.txn_type] ?? deleteEvent.txn_type}</b>{" "}
-                  · {Number(deleteEvent.quantity)} t{" "}
+                  · {Number(deleteEvent.quantity)} t
+                  {Number(deleteEvent.units ?? 0) > 0
+                    ? ` (${Math.round(Number(deleteEvent.units))} ${deleteEvent.product === "pellet_bigbag" ? bagLabel(Number(deleteEvent.units)) : "szt."})`
+                    : ""}{" "}
                   {PRODUCTS.find((p) => p.key === deleteEvent.product)?.label ?? deleteEvent.product}
                   {deleteEvent.leads?.name && <> (lead: {deleteEvent.leads.name})</>}.<br />
                   Stan magazynu zostanie automatycznie przeliczony, a status rezerwacji leada zaktualizowany. Operacja zapisana w logach.
@@ -262,14 +285,36 @@ function StockPanel({
   openLeads,
 }: {
   product: { key: Product; label: string; unit: string };
-  balance: { physical: number; reserved: number };
-  openLeads: Array<{ id: string; name: string; city: string | null; product: string | null; quantity: number | null }>;
+  balance: { physical: number; reserved: number; physicalUnits: number };
+  openLeads: Array<{
+    id: string;
+    name: string;
+    city: string | null;
+    product: string | null;
+    quantity: number | null;
+    sold_units?: number | null;
+    reservation_status?: string | null;
+  }>;
 }) {
   // Wydania mogą przekroczyć stan (lead zrealizowany = towar wydany),
   // ale nigdzie nie pokazujemy wartości ujemnych.
   const physical = Math.max(0, balance.physical);
   const reserved = Math.max(0, balance.reserved);
   const available = Math.max(0, physical - reserved);
+
+  // Big Bagi pokazujemy też w sztukach: fizycznie z widoku salda,
+  // zarezerwowane z leadów, które aktualnie trzymają rezerwację.
+  const isBigBag = product.key === "pellet_bigbag";
+  const physicalUnits = Math.max(0, Math.round(balance.physicalUnits));
+  const reservedUnits = Math.max(
+    0,
+    Math.round(
+      openLeads
+        .filter((l) => l.reservation_status === "zarezerwowany" && (!l.product || l.product === product.key))
+        .reduce((s, l) => s + (l.sold_units != null ? Number(l.sold_units) : Math.ceil(Number(l.quantity ?? 0))), 0),
+    ),
+  );
+  const availableUnits = Math.max(0, physicalUnits - reservedUnits);
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -279,16 +324,34 @@ function StockPanel({
           <CardDescription>Dostępny = fizyczny − zarezerwowany. Wszystko liczone z tabeli zdarzeń.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <StatRow label="Stan fizyczny" value={physical} total={Math.max(physical, 1)} tone="bg-primary" />
+          <StatRow
+            label="Stan fizyczny"
+            value={physical}
+            total={Math.max(physical, 1)}
+            tone="bg-primary"
+            units={isBigBag ? physicalUnits : null}
+          />
           <Link
             to="/crm"
             search={{ tab: "reserved", product: product.key }}
             className="block rounded-md -mx-2 px-2 py-1 hover:bg-muted/60 transition-colors"
             title="Zobacz zarezerwowane leady w CRM"
           >
-            <StatRow label="Zarezerwowane →" value={reserved} total={Math.max(physical, 1)} tone="bg-warning" />
+            <StatRow
+              label="Zarezerwowane →"
+              value={reserved}
+              total={Math.max(physical, 1)}
+              tone="bg-warning"
+              units={isBigBag ? reservedUnits : null}
+            />
           </Link>
-          <StatRow label="Dostępne do sprzedaży" value={available} total={Math.max(physical, 1)} tone="bg-success" />
+          <StatRow
+            label="Dostępne do sprzedaży"
+            value={available}
+            total={Math.max(physical, 1)}
+            tone="bg-success"
+            units={isBigBag ? availableUnits : null}
+          />
         </CardContent>
       </Card>
 
@@ -308,13 +371,33 @@ function StockPanel({
   );
 }
 
-function StatRow({ label, value, total, tone }: { label: string; value: number; total: number; tone: string }) {
+function StatRow({
+  label,
+  value,
+  total,
+  tone,
+  units,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone: string;
+  /** Liczba Big Bagów pokazywana w nawiasie obok tonażu. */
+  units?: number | null;
+}) {
   const pct = Math.min(100, Math.max(0, (value / total) * 100));
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1.5">
         <span className="text-sm font-medium">{label}</span>
-        <span className="font-display text-lg font-semibold">{value} t</span>
+        <span className="font-display text-lg font-semibold">
+          {value} t
+          {units != null && units > 0 && (
+            <span className="ml-1 text-sm font-medium text-muted-foreground">
+              ({units} {bagLabel(units)})
+            </span>
+          )}
+        </span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
         <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
@@ -358,7 +441,8 @@ function PhysicalDialog({
   const { data: pickups } = useSuspenseQuery(pickupsQuery);
   const isPz = type === "przyjecie";
   const isBigBag = product.key === "pellet_bigbag";
-  const showUnits = isPz && isBigBag;
+  // Big Bagi zawsze zapisujemy w dwóch jednostkach: sztuki + tonaż (przyjęcie i wydanie).
+  const showUnits = isBigBag;
 
 
   useEffect(() => {
@@ -417,7 +501,11 @@ function PhysicalDialog({
             : {}),
         },
       });
-      toast.success(isPz ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})` : `${label}: ${q} t (${product.label})`);
+      toast.success(
+        isPz
+          ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})`
+          : `${label}: ${q} t${showUnits && units ? ` · ${units} szt.` : ""} (${product.label})`,
+      );
       setOpen(false); setQty(""); setUnits(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
 
       qc.invalidateQueries({ queryKey: ["stock"] });
