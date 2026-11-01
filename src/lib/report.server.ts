@@ -108,6 +108,13 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   let incomePaleta = 0,
     incomeBigbag = 0;
 
+  const { fuelCostForZeroTransportLeads, FUEL_VAT_RATE } = await import("@/lib/fuel-cost.server");
+  const fuelByLead = await fuelCostForZeroTransportLeads(supabase, leads ?? []);
+  let fuelCosts = 0;
+  for (const [, v] of fuelByLead) fuelCosts += v;
+  transportCosts += fuelCosts;
+  transportCostsNet += fuelCosts / (1 + FUEL_VAT_RATE / 100);
+
   for (const l of leads ?? []) {
     const amt = Number(l.payment_amount_gross ?? 0);
     income += amt;
@@ -251,7 +258,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   // ── POZYCJE ZLECEŃ ──
   const rows = (leads ?? []).map((l: any) => {
     const gross = Number(l.payment_amount_gross ?? 0);
-    const tCost = Number(l.transport_cost_gross ?? 0);
+    const tCost = Number(l.transport_cost_gross ?? 0) > 0 ? Number(l.transport_cost_gross) : fuelByLead.get(l.id) ?? 0;
     const clientName =
       l.invoice_company ||
       [l.first_name, l.last_name].filter(Boolean).join(" ") ||
@@ -287,6 +294,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       cogsNet,
       transportCosts,
       transportCostsNet,
+      fuelCosts,
       manualCosts,
       manualCostsNet,
       capexCosts,
