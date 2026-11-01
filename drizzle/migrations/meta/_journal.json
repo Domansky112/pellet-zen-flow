@@ -15,6 +15,13 @@
       "when": 1791748396377,
       "tag": "0001_lead_receipt_issued",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793554906981,
+      "tag": "0002_create_corrections",
+      "breakpoints": true
     }
   ]
 }

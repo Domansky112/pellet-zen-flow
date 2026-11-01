@@ -240,6 +240,93 @@ export type Database = {
         }
         Relationships: []
       }
+      correction_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          creditor_id: string
+          debtor_id: string
+          description: string
+          entry_date: string
+          id: string
+          settled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          creditor_id: string
+          debtor_id: string
+          description: string
+          entry_date?: string
+          id?: string
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          creditor_id?: string
+          debtor_id?: string
+          description?: string
+          entry_date?: string
+          id?: string
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "correction_entries_creditor_id_fkey"
+            columns: ["creditor_id"]
+            isOneToOne: false
+            referencedRelation: "correction_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "correction_entries_debtor_id_fkey"
+            columns: ["debtor_id"]
+            isOneToOne: false
+            referencedRelation: "correction_people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      correction_people: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employee_work_logs: {
         Row: {
           amount: number
