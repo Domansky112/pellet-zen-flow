@@ -83,6 +83,11 @@ function bagLabel(n: number) {
   return "big bagów";
 }
 
+/** Tonaż zawsze z dwoma miejscami po przecinku, np. 40,90 t. */
+function tons(n: number) {
+  return (Number(n) || 0).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function WarehousePage() {
   const qc = useQueryClient();
   const { data: balance } = useSuspenseQuery(balanceQuery);
@@ -192,7 +197,7 @@ function WarehousePage() {
                       <TableCell><Badge variant="outline">{txnLabel[e.txn_type] ?? e.txn_type}</Badge></TableCell>
                       <TableCell>{PRODUCTS.find((p) => p.key === e.product)?.label ?? e.product}</TableCell>
                       <TableCell className={`text-right font-medium ${positive ? "text-success" : "text-primary"}`}>
-                        {positive ? "+" : "−"}{Number(e.quantity)} t
+                        {positive ? "+" : "−"}{tons(Number(e.quantity))} t
                         {Number(e.units ?? 0) > 0 && (
                           <span className="block text-xs font-normal text-muted-foreground">
                             {Math.round(Number(e.units))} {e.product === "pellet_bigbag" ? bagLabel(Number(e.units)) : "szt."}
@@ -246,7 +251,7 @@ function WarehousePage() {
                 <>
                   Cofniesz zdarzenie:{" "}
                   <b>{txnLabel[deleteEvent.txn_type] ?? deleteEvent.txn_type}</b>{" "}
-                  · {Number(deleteEvent.quantity)} t
+                  · {tons(Number(deleteEvent.quantity))} t
                   {Number(deleteEvent.units ?? 0) > 0
                     ? ` (${Math.round(Number(deleteEvent.units))} ${deleteEvent.product === "pellet_bigbag" ? bagLabel(Number(deleteEvent.units)) : "szt."})`
                     : ""}{" "}
@@ -393,7 +398,7 @@ function StatRow({
       <div className="flex items-baseline justify-between mb-1.5">
         <span className="text-sm font-medium">{label}</span>
         <span className="font-display text-lg font-semibold">
-          {value} t
+          {tons(value)} t
           {units != null && units > 0 && (
             <span className="ml-1 text-sm font-medium text-muted-foreground">
               ({units} {bagLabel(units)})
@@ -510,8 +515,8 @@ function PhysicalDialog({
       });
       toast.success(
         isPz
-          ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${q} t po ${p.toFixed(2)} zł/t (${product.label})`
-          : `${label}: ${q} t${showUnits && units ? ` · ${units} szt.` : ""} (${product.label})`,
+          ? `Przyjęto partię ${showUnits && units ? `${units} szt. · ` : ""}${tons(q)} t po ${p.toFixed(2)} zł/t (${product.label})`
+          : `${label}: ${tons(q)} t${showUnits && units ? ` · ${units} szt.` : ""} (${product.label})`,
       );
       setOpen(false); setQty(""); setUnits(""); setReference(""); setNote(""); setSupplier(""); setInvoiceNo(""); setPickupId("none"); setKm(""); setFuelCost("");
 
@@ -671,7 +676,7 @@ function ReserveDialog({
     setBusy(true);
     try {
       await submit({ data: { lead_id: leadId, product: product.key, quantity: q, note: note || null } });
-      toast.success(`Zarezerwowano ${q} t pod leada`);
+      toast.success(`Zarezerwowano ${tons(q)} t pod leada`);
       setOpen(false); setLeadId(""); setQty(""); setNote("");
       qc.invalidateQueries({ queryKey: ["stock"] });
     } catch (err: any) {
@@ -687,7 +692,7 @@ function ReserveDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Rezerwacja — {product.label}</DialogTitle>
-          <DialogDescription>Dostępne do rezerwacji: <span className="font-semibold text-foreground">{available} t</span></DialogDescription>
+          <DialogDescription>Dostępne do rezerwacji: <span className="font-semibold text-foreground">{tons(available)} t</span></DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="grid gap-1.5">
@@ -696,7 +701,7 @@ function ReserveDialog({
               <SelectTrigger><SelectValue placeholder={openLeads.length ? "Wybierz leada…" : "Brak otwartych leadów"} /></SelectTrigger>
               <SelectContent>
                 {openLeads.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}{l.city ? ` · ${l.city}` : ""}{l.quantity ? ` · ${l.quantity} t` : ""}</SelectItem>
+                  <SelectItem key={l.id} value={l.id}>{l.name}{l.city ? ` · ${l.city}` : ""}{l.quantity ? ` · ${tons(Number(l.quantity))} t` : ""}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -732,7 +737,7 @@ function ReleaseDialog({
     setBusy(true);
     try {
       await submit({ data: { lead_id: leadId, product: product.key, quantity: q, note: note || null } });
-      toast.success(`Zwolniono ${q} t z rezerwacji`);
+      toast.success(`Zwolniono ${tons(q)} t z rezerwacji`);
       setOpen(false); setLeadId(""); setQty(""); setNote("");
       qc.invalidateQueries({ queryKey: ["stock"] });
     } catch (err: any) {
