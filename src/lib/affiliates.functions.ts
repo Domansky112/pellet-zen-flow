@@ -199,12 +199,13 @@ export const searchLeadsForAffiliate = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ q: z.string().trim().max(100) }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    if (!data.q) return { leads: [] };
+    const q = data.q.replace(/[^\p{L}\p{N}\s#\-]/gu, "").trim();
+    if (!q) return { leads: [] };
     const { data: rows, error } = await context.supabase
       .from("leads")
       .select("id, lead_number, name, city")
       .is("deleted_at", null)
-      .or(`name.ilike.%${data.q}%,lead_number.ilike.%${data.q}%`)
+      .or(`name.ilike.%${q}%,lead_number.ilike.%${q}%`)
       .order("created_at", { ascending: false })
       .limit(15);
     if (error) throw new Error(error.message);

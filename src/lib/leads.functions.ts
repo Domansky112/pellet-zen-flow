@@ -1,3 +1,4 @@
+import { assertCanSettleLead } from "@/lib/payments.shared";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { parseISO, parse } from "date-fns";
@@ -191,7 +192,7 @@ export const createLead = createServerFn({ method: "POST" })
       access_tonnage_limit: data.access_tonnage_limit || null,
       access_unpaved: data.access_unpaved,
       payment_method: data.payment_method || null,
-      payment_status: data.payment_status || null,
+      payment_status: scope.roles.includes("admin") ? data.payment_status || null : null,
       urgent_no_fuel: data.urgent_no_fuel,
       is_b2b_kurnik: data.is_b2b_kurnik,
       cycle_days: data.cycle_days ?? null,
@@ -275,6 +276,7 @@ export const settleAndConfirmWydanie = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => SettleAndWydanieInput.parse(d))
   .handler(async ({ data, context }) => {
+    await assertCanSettleLead(context, data.lead_id);
     // Jednostki i cena netto muszą być zapisane PRZED wydaniem — funkcja
     // fulfill_lead_stock zdejmuje sztuki na podstawie leads.sold_units.
     const pre: Record<string, unknown> = {};

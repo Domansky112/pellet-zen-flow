@@ -65,3 +65,18 @@ export async function assertStaff(context: { supabase: any; userId: string }) {
   ]);
   if (!isAdmin && !isSales) throw new Error("Brak uprawnień — wymagana rola admin/sales.");
 }
+
+export async function assertAdminOnly(context: { supabase: any; userId: string }) {
+  const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+  if (!isAdmin) throw new Error("Brak uprawnień — wymagana rola administratora.");
+}
+
+/** Staff (admin/sales/logistyk); handlowiec tylko dla własnych leadów. */
+export async function assertCanSettleLead(context: { supabase: any; userId: string }, leadId: string) {
+  const { data } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
+  const roles = ((data ?? []) as { role: string }[]).map((r) => r.role);
+  if (roles.includes("admin") || roles.includes("logistyk")) return;
+  if (!roles.includes("sales")) throw new Error("Brak uprawnień do rozliczania leadów.");
+  const { data: lead } = await context.supabase.from("leads").select("assigned_to").eq("id", leadId).maybeSingle();
+  if (!lead || lead.assigned_to !== context.userId) throw new Error("Brak uprawnień — lead nie jest przypisany do Ciebie.");
+}
