@@ -65,10 +65,11 @@ import { EmployeeCalendarTab } from "@/components/employee-calendar";
 import { PhysicalWorkersCard } from "@/components/physical-workers-card";
 import { AffiliatesTab } from "@/components/affiliates-tab";
 import { BackupsTab } from "@/components/backups-tab";
+import { CorrectionsTab } from "@/components/corrections-tab";
 import { listPickupLocations, upsertPickupLocation, deletePickupLocation } from "@/lib/pickup.functions";
 
 const settingsSearchSchema = z.object({
-  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees", "affiliates", "pickups", "backups"]).optional(),
+  section: z.enum(["fleet", "users", "products", "warehouses", "carriers", "config", "templates", "statuses", "assets", "employees", "affiliates", "pickups", "backups", "corrections"]).optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/ustawienia")({
@@ -126,6 +127,7 @@ function UstawieniaPage() {
     { value: "assets", label: "Środki trwałe", Icon: Wrench },
     { value: "affiliates", label: "Afiliacje", Icon: Handshake },
     { value: "pickups", label: "Punkty odbioru towaru", Icon: Store },
+    { value: "corrections", label: "Korekty", Icon: Wallet },
     { value: "backups", label: "Kopie zapasowe", Icon: Archive },
   ];
   const current = SECTION_OPTIONS.find((s) => s.value === section) ?? SECTION_OPTIONS[0];
@@ -155,6 +157,7 @@ function UstawieniaPage() {
         {section === "affiliates" && <AffiliatesTab />}
         {section === "pickups" && <PickupLocationsTab />}
         {section === "backups" && <BackupsTab />}
+        {section === "corrections" && <CorrectionsTab />}
 
       </div>
     </div>
