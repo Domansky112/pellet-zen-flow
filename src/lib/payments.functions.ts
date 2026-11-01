@@ -9,6 +9,7 @@ import {
   RangeInput,
   DeleteExpenseInput,
   assertStaff,
+  assertAdminOnly,
 } from "@/lib/payments.shared";
 
 // ─────────────────────────────────────────────────────────────
@@ -264,6 +265,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => RangeInput.parse(d ?? {}))
   .handler(async ({ data, context }) => {
+    await assertAdminOnly(context);
     let leadsQ = context.supabase
       .from("leads")
       .select("id, lead_number, name, first_name, last_name, invoice_company, product, quantity, city, payment_amount_gross, payment_method, payment_status, delivered_at, updated_at, reservation_status, sales_vat_rate, transport_cost_gross, transport_vat_rate")
@@ -552,6 +554,7 @@ export const listPaymentAuditLog = createServerFn({ method: "GET" })
 export const getWarehouseValue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await assertAdminOnly(context);
     const { data: bal, error: be } = await context.supabase
       .from("stock_balance")
       .select("product, physical, reserved");

@@ -1,3 +1,4 @@
+import { assertCanSettleLead } from "@/lib/payments.shared";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -195,6 +196,7 @@ export const setLeadStatusKey = createServerFn({ method: "POST" })
     let rolledBack: number | null = null;
     let duplicateId: string | null = null;
     if (data.decision === "rollback") {
+      await assertCanSettleLead(context as any, data.id);
       rolledBack = await rollbackRealization(context as any, data.id);
     }
     if (data.decision === "duplicate") {

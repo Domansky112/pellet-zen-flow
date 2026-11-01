@@ -6,7 +6,12 @@ const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 const BASE_ADDRESS = "Witoroża, 21-570 Drelów, Polska";
 
 const CalcInput = z.object({
-  destination: z.string().min(2).max(200),
+  destination: z
+    .string()
+    .trim()
+    .min(2)
+    .max(200)
+    .regex(/^[\p{L}\p{N}\s.,\-\/]+$/u, "Nieprawidłowy adres"),
   tons: z.number().positive().max(100).default(24),
   driverDays: z.number().min(0).max(30).default(1),
   fuelPrice: z.number().positive().max(20).default(6.8),
@@ -19,7 +24,12 @@ const CalcInput = z.object({
 export const calculateTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => CalcInput.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { data: roleRows } = await context.supabase.from("user_roles").select("role").eq("user_id", context.userId);
+    const roles = ((roleRows ?? []) as { role: string }[]).map((r) => r.role);
+    if (!roles.some((r) => ["admin", "transport", "logistyk"].includes(r))) {
+      throw new Error("Brak uprawnień do kalkulacji transportu.");
+    }
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     const lovableKey = process.env.LOVABLE_API_KEY;
     if (!apiKey || !lovableKey) throw new Error("Brak konfiguracji Google Maps");
