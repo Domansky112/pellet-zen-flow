@@ -319,6 +319,13 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
     let salesVat = 0, transportVat = 0, transportCosts = 0, transportCostsNet = 0;
     let tonsTotal = 0, tonsPaleta = 0, tonsBigbag = 0, tonsInne = 0;
     let incomePaleta = 0, incomeBigbag = 0, incomeInne = 0;
+    // Transport rozliczony na 0 zł → do kosztów trafia sam koszt paliwa trasy z dnia transportu.
+    const { fuelCostForZeroTransportLeads, FUEL_VAT_RATE } = await import("@/lib/fuel-cost.server");
+    const fuelByLead = await fuelCostForZeroTransportLeads(context.supabase, leads ?? []);
+    let fuelCosts = 0;
+    for (const [, v] of fuelByLead) fuelCosts += v;
+    transportCosts += fuelCosts;
+    transportCostsNet += fuelCosts / (1 + FUEL_VAT_RATE / 100);
     for (const l of leads ?? []) {
       const amt = Number(l.payment_amount_gross ?? 0);
       income += amt;
@@ -437,7 +444,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
       cogsFifo, cogsFifoTons, cogsFallback, cogsFallbackTons,
 
       vatTotal, salesVat, transportVat,
-      transportCosts, transportCostsNet,
+      transportCosts, transportCostsNet, fuelCosts,
       balance: income - totalCosts,
       grossProfit,
       netProfit,
