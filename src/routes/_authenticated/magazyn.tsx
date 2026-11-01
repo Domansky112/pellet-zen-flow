@@ -783,7 +783,7 @@ function LotsCard() {
         <CardTitle>Historia przyjęć (partie FIFO)</CardTitle>
         <CardDescription>
           Wydania zdejmują towar z najstarszych partii. Wartość placu ={" "}
-          <b className="text-foreground">{money(totalValue)}</b> ({totalTons.toFixed(2)} t na stanie w partiach).
+          <b className="text-foreground">{money(totalValue)}</b> ({tons(totalTons)} t na stanie w partiach).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -811,8 +811,8 @@ function LotsCard() {
                 <TableRow key={l.id} className={active ? "" : "opacity-60"}>
                   <TableCell className="text-xs text-muted-foreground">{format(new Date(l.created_at), "d MMM yyyy, HH:mm", { locale: pl })}</TableCell>
                   <TableCell>{PRODUCTS.find((p) => p.key === l.product)?.label ?? l.product}</TableCell>
-                  <TableCell className="text-right">{Number(l.quantity).toFixed(2)} t{l.units ? <span className="block text-xs text-muted-foreground">{Number(l.units)} szt.</span> : null}</TableCell>
-                  <TableCell className="text-right font-medium">{remaining.toFixed(2)} t{l.remaining_units != null ? <span className="block text-xs text-muted-foreground">{Number(l.remaining_units)} szt.</span> : null}</TableCell>
+                  <TableCell className="text-right">{tons(Number(l.quantity))} t{l.units ? <span className="block text-xs text-muted-foreground">{Number(l.units)} szt.</span> : null}</TableCell>
+                  <TableCell className="text-right font-medium">{tons(remaining)} t{l.remaining_units != null ? <span className="block text-xs text-muted-foreground">{Number(l.remaining_units)} szt.</span> : null}</TableCell>
 
                   <TableCell className="text-right">{money(Number(l.unit_price))} <span className="text-xs text-muted-foreground">({Number(l.vat_rate)}%)</span></TableCell>
                   <TableCell className="text-right font-medium">{money(remaining * Number(l.unit_price))}</TableCell>
