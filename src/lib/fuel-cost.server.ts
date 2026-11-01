@@ -8,6 +8,37 @@ type AnyClient = any;
 
 const CONSUMPTION_L_PER_100KM = 30;
 const DEFAULT_FUEL = 6.8;
+const BASE_ADDRESS = "Witoroża, 21-570 Drelów, Polska";
+
+async function routeKmFromBase(destination: string): Promise<number | null> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey || !lovableKey) return null;
+  try {
+    const res = await fetch("https://connector-gateway.lovable.dev/google_maps/routes/directions/v2:computeRoutes", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": apiKey,
+        "Content-Type": "application/json",
+        "X-Goog-FieldMask": "routes.distanceMeters",
+      },
+      body: JSON.stringify({
+        origin: { address: BASE_ADDRESS },
+        destination: { address: destination },
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_UNAWARE",
+        units: "METRIC",
+      }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { routes?: Array<{ distanceMeters?: number }> };
+    const m = json.routes?.[0]?.distanceMeters;
+    return m ? m / 1000 : null;
+  } catch {
+    return null;
+  }
+}
 export const FUEL_VAT_RATE = 23;
 
 /** Zwraca mapę lead_id → koszt paliwa brutto (tylko dla podanych leadów). */
@@ -23,7 +54,7 @@ export async function fuelCostForLeads(supabase: AnyClient, leadIds: string[]): 
   if (!tIds.length) return out;
 
   const [{ data: transports }, { data: items }, { data: drafts }] = await Promise.all([
-    supabase.from("transports").select("id, scheduled_date, status").in("id", tIds),
+    supabase.from("transports").select("id, scheduled_date, status, destination_address, postal_code, city").in("id", tIds),
     supabase
       .from("transport_items")
       .select("transport_id, lead_id, quantity, leads(pooling_km_from_base)")
@@ -49,6 +80,18 @@ export async function fuelCostForLeads(supabase: AnyClient, leadIds: string[]): 
   const draftKm = new Map<string, number>();
   for (const d of drafts ?? []) if (Number(d.route_km) > 0) draftKm.set(d.transport_id, Number(d.route_km));
 
+  // Brak zapisanej trasy → odległość z mapy (w obie strony), liczona równolegle.
+  const kmByAddr = new Map<string, number | null>();
+  const needAddr = new Set<string>();
+  for (const t of transports ?? []) {
+    if (draftKm.has(t.id)) continue;
+    const addr = (t.destination_address || [t.postal_code, t.city].filter(Boolean).join(" ")).trim();
+    if (addr.length >= 3) needAddr.add(addr);
+  }
+  await Promise.all(
+    Array.from(needAddr).map(async (a) => kmByAddr.set(a, await routeKmFromBase(`${a}, Polska`))),
+  );
+
   const leadSet = new Set(leadIds);
   for (const t of transports ?? []) {
     if (t.status === "anulowany") continue;
@@ -58,6 +101,10 @@ export async function fuelCostForLeads(supabase: AnyClient, leadIds: string[]): 
     if (!km) {
       const maxBase = Math.max(0, ...its.map((i: any) => Number(i.leads?.pooling_km_from_base ?? 0)));
       km = maxBase * 2;
+    }
+    if (!km) {
+      const addr = (t.destination_address || [t.postal_code, t.city].filter(Boolean).join(" ")).trim();
+      km = (kmByAddr.get(addr) ?? 0) * 2;
     }
     if (!km) continue;
     const cost = (km / 100) * CONSUMPTION_L_PER_100KM * priceOn(String(t.scheduled_date));
