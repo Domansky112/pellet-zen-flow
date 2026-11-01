@@ -49,7 +49,8 @@ const SETTINGS_SECTIONS = [
   { value: "templates", label: "Szablony wiadomości", icon: MessageSquare },
   { value: "statuses", label: "Statusy leadów", icon: Settings2 },
   { value: "assets", label: "Środki trwałe", icon: Wrench },
-  { value: "affiliates", label: "Afiliacje", icon: Handshake, Bird },
+  { value: "affiliates", label: "Afiliacje", icon: Handshake },
+  { value: "corrections", label: "Korekty", icon: Wallet },
 ] as const;
 
 export function AppSidebar() {
