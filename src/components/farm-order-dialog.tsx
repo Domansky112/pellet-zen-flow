@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createFarmOrder } from "@/lib/kurniki.functions";
 import { listAffiliatePartners } from "@/lib/affiliates.functions";
+import { realLeadNote } from "@/lib/lead-notes";
 
 export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: boolean; onOpenChange: (o: boolean) => void; farm: any; isAdmin: boolean }) {
   const qc = useQueryClient();
@@ -22,7 +23,12 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
   const [tons, setTons] = useState("");
   const [notes, setNotes] = useState("");
   const [partner, setPartner] = useState("none");
-  const latest = farm?.leads?.[farm.leads.length - 1] ?? farm?.leads?.[0];
+  const latest = farm?.leads?.[0] ?? farm?.leads?.[farm.leads.length - 1];
+  const copiedNote = realLeadNote(latest?.notes);
+
+  useEffect(() => {
+    if (open) setNotes(copiedNote);
+  }, [open, copiedNote]);
 
   const m = useMutation({
     mutationFn: () => {
@@ -73,7 +79,12 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
           )}
           <div>
             <Label>Notatka</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="np. dostawa w poniedziałek rano" />
+            {copiedNote && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Przepisano z poprzedniego zgłoszenia{latest?.lead_number ? ` ${latest.lead_number}` : ""} — możesz edytować.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
