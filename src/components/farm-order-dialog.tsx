@@ -26,9 +26,10 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
   const latest = farm?.leads?.[0] ?? farm?.leads?.[farm.leads.length - 1];
   const copiedNote = realLeadNote(latest?.notes);
 
+  const farmAffiliate: string | null = (farm?.leads ?? []).find((l: any) => l?.affiliate_partner_id)?.affiliate_partner_id ?? null;
   useEffect(() => {
-    if (open) setNotes(copiedNote);
-  }, [open, copiedNote]);
+    if (open) { setNotes(copiedNote); setPartner(farmAffiliate ?? "none"); }
+  }, [open, copiedNote, farmAffiliate]);
 
   const m = useMutation({
     mutationFn: () => {

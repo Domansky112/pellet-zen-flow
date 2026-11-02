@@ -29,6 +29,13 @@
       "when": 1793640011109,
       "tag": "0003_auto_affiliate_commissions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793640818500,
+      "tag": "0004_inherit_farm_affiliate",
+      "breakpoints": true
     }
   ]
 }

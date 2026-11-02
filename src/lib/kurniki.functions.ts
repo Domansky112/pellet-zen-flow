@@ -9,7 +9,7 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
     const scope = await getUserScope(context.supabase, context.userId);
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, lead_number, name, invoice_company, invoice_nip, street, postal_code, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at, notes")
+      .select("id, lead_number, name, invoice_company, invoice_nip, street, postal_code, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at, notes, affiliate_partner_id")
       .eq("is_b2b_kurnik", true)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })
