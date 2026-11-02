@@ -328,6 +328,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       affiliateCostsNet,
       affiliateCostsPending,
       affiliateTons,
+      payrollCosts,
       totalCosts,
       totalCostsNet,
       grossProfit,
