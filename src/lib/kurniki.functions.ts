@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getUserScope } from "@/lib/scope";
+import { realLeadNote } from "@/lib/lead-notes";
 
 export const listPoultryFarms = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -109,7 +110,7 @@ export const createFarmOrder = createServerFn({ method: "POST" })
         quantity: data.quantity ?? null,
         parent_lead_id: data.source_lead_id,
         affiliate_partner_id: affiliate,
-        notes: data.notes?.trim() || src.notes?.trim() || "Nowe zgłoszenie z modułu Kurniki",
+        notes: realLeadNote(data.notes) || realLeadNote(src.notes) || "Nowe zgłoszenie z modułu Kurniki",
       } as any)
       .select("id, lead_number")
       .single();

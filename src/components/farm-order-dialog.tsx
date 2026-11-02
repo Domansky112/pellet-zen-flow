@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createFarmOrder } from "@/lib/kurniki.functions";
 import { listAffiliatePartners } from "@/lib/affiliates.functions";
+import { realLeadNote } from "@/lib/lead-notes";
 
 export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: boolean; onOpenChange: (o: boolean) => void; farm: any; isAdmin: boolean }) {
   const qc = useQueryClient();
@@ -23,7 +24,7 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
   const [notes, setNotes] = useState("");
   const [partner, setPartner] = useState("none");
   const latest = farm?.leads?.[0] ?? farm?.leads?.[farm.leads.length - 1];
-  const copiedNote = String(latest?.notes ?? "").trim();
+  const copiedNote = realLeadNote(latest?.notes);
 
   useEffect(() => {
     if (open) setNotes(copiedNote);
