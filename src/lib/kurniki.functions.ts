@@ -8,7 +8,7 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
     const scope = await getUserScope(context.supabase, context.userId);
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, lead_number, name, invoice_company, invoice_nip, street, postal_code, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at")
+      .select("id, lead_number, name, invoice_company, invoice_nip, street, postal_code, city, phone, status_key, status, quantity, sold_units, payment_amount_gross, cycle_days, created_at, delivered_at, parent_lead_id, assigned_to, deleted_at, notes")
       .eq("is_b2b_kurnik", true)
       .is("deleted_at", null)
       .order("created_at", { ascending: true })
@@ -82,7 +82,7 @@ export const createFarmOrder = createServerFn({ method: "POST" })
     const scope = await getUserScope(context.supabase, context.userId);
     const { data: src, error: se } = await context.supabase
       .from("leads")
-      .select("first_name, last_name, name, email, phone, city, postal_code, street, invoice_company, invoice_nip, invoice_address, has_unloading_equipment, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved, assigned_to, pooling_lat, pooling_lng, pooling_km_from_base")
+      .select("first_name, last_name, name, email, phone, city, postal_code, street, invoice_company, invoice_nip, invoice_address, has_unloading_equipment, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved, assigned_to, pooling_lat, pooling_lng, pooling_km_from_base, notes")
       .eq("id", data.source_lead_id)
       .single();
     if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
@@ -109,7 +109,7 @@ export const createFarmOrder = createServerFn({ method: "POST" })
         quantity: data.quantity ?? null,
         parent_lead_id: data.source_lead_id,
         affiliate_partner_id: affiliate,
-        notes: data.notes || "Nowe zgłoszenie z modułu Kurniki",
+        notes: data.notes?.trim() || src.notes?.trim() || "Nowe zgłoszenie z modułu Kurniki",
       } as any)
       .select("id, lead_number")
       .single();
