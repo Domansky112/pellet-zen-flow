@@ -590,8 +590,8 @@ function PhysicalDialog({
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="grid gap-1.5">
-                  <Label>Cena zakupu za 1 t (brutto)</Label>
-                  <Input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="np. 762" />
+                  <Label>Cena zakupu za 1 t (netto)</Label>
+                  <Input type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="np. 730" />
                 </div>
                 <div className="grid gap-1.5">
                   <Label>Stawka VAT zakupu</Label>
@@ -607,8 +607,8 @@ function PhysicalDialog({
               </div>
               {Number(price) > 0 && Number(qty) > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Wartość partii: <b>{(Number(price) * Number(qty)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</b> brutto ·
-                  netto {(Number(price) * Number(qty) / (1 + Number(vat) / 100)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
+                  Wartość partii: <b>{(Number(price) * Number(qty)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</b> netto ·
+                  brutto {(Number(price) * Number(qty) * (1 + Number(vat) / 100)).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2">
