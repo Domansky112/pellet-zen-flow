@@ -64,3 +64,55 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
     if (scope.salesOnly) farms = farms.filter((f) => f.assigned.includes(scope.userId));
     return farms.sort((a, b) => (a.next_reminder ?? "9999").localeCompare(b.next_reminder ?? "9999"));
   });
+
+import { z } from "zod";
+
+const FarmOrderInput = z.object({
+  source_lead_id: z.string().uuid(),
+  quantity: z.number().positive().max(10000).nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  affiliate_partner_id: z.string().uuid().nullable().optional(),
+});
+
+/** Nowe zgłoszenie dla fermy: kopiuje dane z ostatniego leada fermy i opcjonalnie przypina afilianta. */
+export const createFarmOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => FarmOrderInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const scope = await getUserScope(context.supabase, context.userId);
+    const { data: src, error: se } = await context.supabase
+      .from("leads")
+      .select("first_name, last_name, name, email, phone, city, postal_code, street, invoice_company, invoice_nip, invoice_address, has_unloading_equipment, cycle_days, product, delivery_window, access_tight, access_tonnage_limit, access_unpaved, assigned_to, pooling_lat, pooling_lng, pooling_km_from_base")
+      .eq("id", data.source_lead_id)
+      .single();
+    if (se || !src) throw new Error(se?.message ?? "Lead źródłowy nie istnieje");
+    if (scope.salesOnly && src.assigned_to !== context.userId) throw new Error("Brak dostępu do tej fermy");
+
+    let affiliate: string | null = null;
+    if (data.affiliate_partner_id) {
+      const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+      if (!isAdmin) throw new Error("Tylko administrator może przypisać afilianta.");
+      affiliate = data.affiliate_partner_id;
+    }
+
+    const { data: row, error } = await context.supabase
+      .from("leads")
+      .insert({
+        ...src,
+        assigned_to: scope.salesOnly ? context.userId : src.assigned_to,
+        source: "b2b",
+        is_b2b_kurnik: true,
+        status: "nowy",
+        reservation_status: "brak",
+        pooling_status: "brak",
+        pooling_enabled: false,
+        quantity: data.quantity ?? null,
+        parent_lead_id: data.source_lead_id,
+        affiliate_partner_id: affiliate,
+        notes: data.notes || "Nowe zgłoszenie z modułu Kurniki",
+      } as any)
+      .select("id, lead_number")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });

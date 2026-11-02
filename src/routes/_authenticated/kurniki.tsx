@@ -12,6 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoultryCalendar } from "@/components/poultry-calendar";
 import { listPoultryFarms } from "@/lib/kurniki.functions";
+import { FarmOrderDialog } from "@/components/farm-order-dialog";
+import { Button } from "@/components/ui/button";
+import { useUserRole } from "@/hooks/use-user-role";
+import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kurniki")({
   head: () => ({
@@ -35,6 +39,9 @@ function KurnikiPage() {
   const { data: farms = [], isLoading } = useQuery({ queryKey: ["poultry_farms"], queryFn: () => fn() });
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [orderFarm, setOrderFarm] = useState<any>(null);
+  const { roles } = useUserRole();
+  const isAdmin = roles.includes("admin");
   const list = useMemo(
     () => farms.filter((f: any) => `${f.name} ${f.nip ?? ""} ${String(f.nip ?? "").replace(/\D/g, "")} ${f.city ?? ""} ${f.phone ?? ""}`.toLowerCase().includes(q.toLowerCase())),
     [farms, q],
@@ -82,11 +89,16 @@ function KurnikiPage() {
                         <Stat label="Następne wstawienie" value={fmtD(f.next_reminder)} />
                       </div>
                     </button>
-                    {f.phone && (
-                      <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                        <Phone className="h-3 w-3" /> {f.phone}
-                      </a>
-                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      {f.phone ? (
+                        <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <Phone className="h-3 w-3" /> {f.phone}
+                        </a>
+                      ) : <span />}
+                      <Button size="sm" variant="outline" onClick={() => setOrderFarm(f)}>
+                        <Plus className="h-4 w-4" /> Nowe zgłoszenie
+                      </Button>
+                    </div>
                     {isOpen && (
                       <ol className="border-l border-border pl-4 space-y-2 overflow-x-auto">
                         {f.leads.map((l: any) => (
@@ -112,6 +124,7 @@ function KurnikiPage() {
         </TabsContent>
         <TabsContent value="reminders"><PoultryCalendar /></TabsContent>
       </Tabs>
+      <FarmOrderDialog open={!!orderFarm} onOpenChange={(o) => !o && setOrderFarm(null)} farm={orderFarm} isAdmin={isAdmin} />
     </div>
   );
 }

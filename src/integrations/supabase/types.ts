@@ -98,6 +98,7 @@ export type Database = {
           nip: string | null
           notes: string | null
           phone: string | null
+          rate_per_ton: number | null
           status: string
           updated_at: string
         }
@@ -111,6 +112,7 @@ export type Database = {
           nip?: string | null
           notes?: string | null
           phone?: string | null
+          rate_per_ton?: number | null
           status?: string
           updated_at?: string
         }
@@ -124,6 +126,7 @@ export type Database = {
           nip?: string | null
           notes?: string | null
           phone?: string | null
+          rate_per_ton?: number | null
           status?: string
           updated_at?: string
         }
@@ -903,6 +906,7 @@ export type Database = {
           access_tight: boolean
           access_tonnage_limit: string | null
           access_unpaved: boolean
+          affiliate_partner_id: string | null
           assigned_to: string | null
           city: string | null
           created_at: string
@@ -963,6 +967,7 @@ export type Database = {
           access_tight?: boolean
           access_tonnage_limit?: string | null
           access_unpaved?: boolean
+          affiliate_partner_id?: string | null
           assigned_to?: string | null
           city?: string | null
           created_at?: string
@@ -1023,6 +1028,7 @@ export type Database = {
           access_tight?: boolean
           access_tonnage_limit?: string | null
           access_unpaved?: boolean
+          affiliate_partner_id?: string | null
           assigned_to?: string | null
           city?: string | null
           created_at?: string
@@ -1080,6 +1086,13 @@ export type Database = {
           urgent_no_fuel?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_affiliate_partner_id_fkey"
+            columns: ["affiliate_partner_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_partners"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_parent_lead_id_fkey"
             columns: ["parent_lead_id"]
@@ -2022,6 +2035,7 @@ export type Database = {
           access_tight: boolean
           access_tonnage_limit: string | null
           access_unpaved: boolean
+          affiliate_partner_id: string | null
           assigned_to: string | null
           city: string | null
           created_at: string

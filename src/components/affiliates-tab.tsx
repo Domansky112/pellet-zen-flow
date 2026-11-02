@@ -103,6 +103,9 @@ export function AffiliatesTab() {
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="font-medium">{p.full_name}</div>
+                    {p.rate_per_ton != null && (
+                      <div className="text-xs text-muted-foreground">{Number(p.rate_per_ton)} zł/t</div>
+                    )}
                     {p.status !== "aktywny" && (
                       <Badge variant="outline" className="mt-1">nieaktywny</Badge>
                     )}
@@ -224,6 +227,12 @@ function PartnerDialog({
             </div>
           </div>
           <div>
+            <Label>Prowizja (zł za tonę)</Label>
+            <Input inputMode="decimal" placeholder="np. 20" value={value.rate_per_ton ?? ""} onChange={(e) => set("rate_per_ton", e.target.value)} />
+            <p className="mt-1 text-xs text-muted-foreground">Naliczana automatycznie po każdej dostawie leada z tym afiliantem. Wcześniejsze prowizje się nie zmieniają.</p>
+          </div>
+          <div>
+
             <Label>Status</Label>
             <Select value={value.status} onValueChange={(v) => set("status", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -252,6 +261,7 @@ function PartnerDialog({
                 bank_account: value.bank_account || null,
                 notes: value.notes || null,
                 status: value.status,
+                rate_per_ton: value.rate_per_ton === "" || value.rate_per_ton == null ? null : value.rate_per_ton,
               })
             }
           >
