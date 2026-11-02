@@ -84,7 +84,7 @@ function KurnikiPage() {
                           <div className="text-xs text-muted-foreground">
                             {f.nip ? `NIP ${f.nip} · ` : ""}{f.city ?? "—"}{(f.settings?.cycle_days ?? f.cycle_days) ? ` · cykl ${f.settings?.cycle_days ?? f.cycle_days} dni` : ""}
                           </div>
-                          {f.settings && (
+                          {f.settings && !isAdmin && (
                             <div className="text-xs text-muted-foreground">
                               {[f.settings.price_per_ton_net != null && `Cena: ${Number(f.settings.price_per_ton_net)} zł/t netto`, f.settings.default_tons != null && `Standard: ${Number(f.settings.default_tons)} t`, f.settings.affiliate_partner_id && "Afiliacja przypięta"].filter(Boolean).join(" · ")}
                             </div>
@@ -100,11 +100,21 @@ function KurnikiPage() {
                       </div>
                     </button>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      {f.phone ? (
-                        <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          <Phone className="h-3 w-3" /> {f.phone}
-                        </a>
-                      ) : <span />}
+                      <div className="flex flex-wrap items-center gap-3">
+                        {f.phone ? (
+                          <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                            <Phone className="h-3 w-3" /> {f.phone}
+                          </a>
+                        ) : <span />}
+                        {isAdmin && (
+                          <FarmConditionsEditor
+                            farmKey={f.farmKey}
+                            settings={f.settings}
+                            fallbackCycle={f.cycle_days != null ? Number(f.cycle_days) : null}
+                            partners={partners}
+                          />
+                        )}
+                      </div>
                       <Button size="sm" variant="outline" onClick={() => setOrderFarm(f)}>
                         <Plus className="h-4 w-4" /> Nowe zgłoszenie
                       </Button>
