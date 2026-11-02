@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoultryCalendar } from "@/components/poultry-calendar";
 import { listPoultryFarms } from "@/lib/kurniki.functions";
 import { FarmOrderDialog } from "@/components/farm-order-dialog";
+import { FarmConditionsEditor } from "@/components/farm-conditions-editor";
+import { listAffiliatePartners } from "@/lib/affiliates.functions";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/use-user-role";
 import { Plus } from "lucide-react";
@@ -42,6 +44,9 @@ function KurnikiPage() {
   const [orderFarm, setOrderFarm] = useState<any>(null);
   const { roles } = useUserRole();
   const isAdmin = roles.includes("admin");
+  const listP = useServerFn(listAffiliatePartners);
+  const { data: aff } = useQuery({ queryKey: ["affiliate_partners"], queryFn: () => listP(), enabled: isAdmin });
+  const partners = (aff?.partners ?? []).filter((p: any) => p.status === "aktywny");
   const list = useMemo(
     () => farms.filter((f: any) => `${f.name} ${f.nip ?? ""} ${String(f.nip ?? "").replace(/\D/g, "")} ${f.city ?? ""} ${f.phone ?? ""}`.toLowerCase().includes(q.toLowerCase())),
     [farms, q],
