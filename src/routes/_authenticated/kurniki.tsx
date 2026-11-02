@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PoultryCalendar } from "@/components/poultry-calendar";
 import { listPoultryFarms } from "@/lib/kurniki.functions";
 import { FarmOrderDialog } from "@/components/farm-order-dialog";
+import { FarmConditionsEditor } from "@/components/farm-conditions-editor";
+import { listAffiliatePartners } from "@/lib/affiliates.functions";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/use-user-role";
 import { Plus } from "lucide-react";
@@ -33,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/kurniki")({
 
 const fmtD = (d: string | null) => (d ? format(parseISO(d), "d LLL yyyy", { locale: pl }) : "—");
 const zl = (n: number) => n.toLocaleString("pl-PL", { maximumFractionDigits: 0 }) + " zł";
+const ton = (n: number) => n.toLocaleString("pl-PL", { maximumFractionDigits: 2 }) + " t";
 
 function KurnikiPage() {
   const fn = useServerFn(listPoultryFarms);
@@ -42,6 +45,9 @@ function KurnikiPage() {
   const [orderFarm, setOrderFarm] = useState<any>(null);
   const { roles } = useUserRole();
   const isAdmin = roles.includes("admin");
+  const listP = useServerFn(listAffiliatePartners);
+  const { data: aff } = useQuery({ queryKey: ["affiliate_partners"], queryFn: () => listP(), enabled: isAdmin });
+  const partners = (aff?.partners ?? []).filter((p: any) => p.status === "aktywny");
   const list = useMemo(
     () => farms.filter((f: any) => `${f.name} ${f.nip ?? ""} ${String(f.nip ?? "").replace(/\D/g, "")} ${f.city ?? ""} ${f.phone ?? ""}`.toLowerCase().includes(q.toLowerCase())),
     [farms, q],
@@ -79,7 +85,7 @@ function KurnikiPage() {
                           <div className="text-xs text-muted-foreground">
                             {f.nip ? `NIP ${f.nip} · ` : ""}{f.city ?? "—"}{(f.settings?.cycle_days ?? f.cycle_days) ? ` · cykl ${f.settings?.cycle_days ?? f.cycle_days} dni` : ""}
                           </div>
-                          {f.settings && (
+                          {f.settings && !isAdmin && (
                             <div className="text-xs text-muted-foreground">
                               {[f.settings.price_per_ton_net != null && `Cena: ${Number(f.settings.price_per_ton_net)} zł/t netto`, f.settings.default_tons != null && `Standard: ${Number(f.settings.default_tons)} t`, f.settings.affiliate_partner_id && "Afiliacja przypięta"].filter(Boolean).join(" · ")}
                             </div>
@@ -88,18 +94,28 @@ function KurnikiPage() {
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs">
                         <Stat label="Zamówienia" value={`${f.delivered}/${f.orders}`} />
-                        <Stat label="Tonaż" value={`${f.tons} t`} />
+                        <Stat label="Tonaż" value={ton(f.tons)} />
                         <Stat label="Przychód" value={zl(f.revenue)} />
                         <Stat label="Ostatnia dostawa" value={fmtD(f.last_delivery)} />
                         <Stat label="Następne wstawienie" value={fmtD(f.next_reminder)} />
                       </div>
                     </button>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      {f.phone ? (
-                        <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          <Phone className="h-3 w-3" /> {f.phone}
-                        </a>
-                      ) : <span />}
+                      <div className="flex flex-wrap items-center gap-3">
+                        {f.phone ? (
+                          <a href={`tel:${f.phone}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                            <Phone className="h-3 w-3" /> {f.phone}
+                          </a>
+                        ) : <span />}
+                        {isAdmin && (
+                          <FarmConditionsEditor
+                            farmKey={f.farmKey}
+                            settings={f.settings}
+                            fallbackCycle={f.cycle_days != null ? Number(f.cycle_days) : null}
+                            partners={partners}
+                          />
+                        )}
+                      </div>
                       <Button size="sm" variant="outline" onClick={() => setOrderFarm(f)}>
                         <Plus className="h-4 w-4" /> Nowe zgłoszenie
                       </Button>
