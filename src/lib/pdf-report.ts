@@ -335,7 +335,7 @@ export async function buildReportPdf(
       { tons: 0, gross: 0, transport: 0, profit: 0 },
     );
     table({
-      head: [["Data", "Nr zlecenia", "Klient", "Miasto / kod", "Tonaż", "Forma", "Przychód brutto", "Koszt transportu", "Zysk"]],
+      head: [["Data", "Nr zlecenia", "Klient", "Miasto / kod", "Tonaż", "Forma", "Przychód brutto", "Koszt transportu", "Zysk netto"]],
       body: [
         ...data.rows.map((r: any) => [
           dmy(r.date),

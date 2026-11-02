@@ -259,7 +259,12 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   // ── POZYCJE ZLECEŃ ──
   const rows = (leads ?? []).map((l: any) => {
     const gross = Number(l.payment_amount_gross ?? 0);
-    const tCost = Number(l.transport_cost_gross ?? 0) > 0 ? Number(l.transport_cost_gross) : fuelByLead.get(l.id) ?? 0;
+    const realT = Number(l.transport_cost_gross ?? 0);
+    const tCost = realT > 0 ? realT : fuelByLead.get(l.id) ?? 0;
+    // Zysk liczony wyłącznie na kwotach NETTO: przychód netto − koszt surowca netto − transport netto.
+    const grossNet = gross / (1 + Number(l.sales_vat_rate ?? 8) / 100);
+    const tCostNet =
+      realT > 0 ? realT / (1 + Number(l.transport_vat_rate ?? 23) / 100) : tCost / (1 + FUEL_VAT_RATE / 100);
     const clientName =
       l.invoice_company ||
       [l.first_name, l.last_name].filter(Boolean).join(" ") ||
@@ -275,7 +280,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
         l.product === "pellet_paleta" ? "Paleta" : l.product === "pellet_bigbag" ? "Big Bag" : "Inne",
       gross,
       transportCost: tCost,
-      profit: gross - tCost - (cogsByLead.get(l.id) ?? 0),
+      profit: grossNet - tCostNet - (cogsByLead.get(l.id) ?? 0),
     };
   });
 
