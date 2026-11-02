@@ -1105,11 +1105,11 @@ function ConfigTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Wallet className="h-5 w-5" /> Koszt jednostkowy pelletu</CardTitle>
-          <CardDescription>Cena kosztowa 1 tony pelletu (PLN, brutto) oraz jej stawka VAT. Używana do wyceny magazynu i kosztu surowca (COGS) w module Płatności.</CardDescription>
+          <CardDescription>Cena kosztowa 1 tony pelletu (PLN, netto) oraz jej stawka VAT. Używana do wyceny magazynu i kosztu surowca (COGS) w module Płatności.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[160px] max-w-xs">
-            <Label>Cena [PLN / tona] (brutto)</Label>
+            <Label>Cena [PLN / tona] (netto)</Label>
             <Input
               type="number" step="1" min="0"
               defaultValue={String(unitCost?.value?.pln_per_ton ?? 0)}
@@ -1127,7 +1127,7 @@ function ConfigTab() {
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Netto: {(Number(unitCostValue || unitCost?.value?.pln_per_ton || 0) / (1 + Number(unitCostVat) / 100)).toFixed(2)} zł/t
+              Brutto: {(Number(unitCostValue || unitCost?.value?.pln_per_ton || 0) * (1 + Number(unitCostVat) / 100)).toFixed(2)} zł/t
             </p>
           </div>
           <Button
@@ -1137,7 +1137,7 @@ function ConfigTab() {
                 pln_per_ton: Number(unitCostValue || unitCost?.value?.pln_per_ton || 0),
                 vat_rate: Number(unitCostVat),
               },
-              description: "Koszt jednostkowy 1 tony pelletu w PLN (brutto) wraz ze stawką VAT — wycena magazynu i COGS.",
+              description: "Koszt jednostkowy 1 tony pelletu w PLN (netto) wraz ze stawką VAT — wycena magazynu i COGS.",
             })}
           >Zapisz</Button>
         </CardContent>

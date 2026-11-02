@@ -409,7 +409,7 @@ export const getFinancialSummary = createServerFn({ method: "GET" })
 
     const cogsTons = cogsFifoTons + cogsFallbackTons;
     const cogs = cogsFifo + cogsFallback;
-    const cogsNet = cogs / (1 + cogsVatRate / 100);
+    const cogsNet = cogs; // ceny zakupu są netto
 
 
     const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;

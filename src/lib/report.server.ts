@@ -200,7 +200,8 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     cogs += c;
   }
 
-  const cogsNet = cogs / (1 + cogsVatRate / 100);
+  // Ceny zakupu (PZ i Ustawienia) są cenami NETTO — koszt surowca netto = wartość FIFO.
+  const cogsNet = cogs;
 
   // ── MAGAZYN (stan na koniec okresu — bieżący stan FIFO) ──
   const { data: bal } = await supabase.from("stock_balance").select("product, physical, reserved");
