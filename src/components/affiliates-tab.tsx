@@ -103,6 +103,9 @@ export function AffiliatesTab() {
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="font-medium">{p.full_name}</div>
+                    {p.rate_per_ton != null && (
+                      <div className="text-xs text-muted-foreground">{Number(p.rate_per_ton)} zł/t</div>
+                    )}
                     {p.status !== "aktywny" && (
                       <Badge variant="outline" className="mt-1">nieaktywny</Badge>
                     )}
