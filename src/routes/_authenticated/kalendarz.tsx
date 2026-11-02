@@ -334,10 +334,13 @@ function TransportRow({
                 ))}
                 <a
                   className="mt-1 inline-block text-xs text-primary underline"
-                  href={`https://www.google.com/maps/dir/${encodeURIComponent("Witoroża, 21-570 Drelów")}/${items
-                    .map((i: any) => encodeURIComponent(i.address ?? ""))
-                    .filter(Boolean)
-                    .join("/")}`}
+                  href={`https://graphhopper.com/maps/?${[
+                    "Witoroż 70C, 21-570 Drelów",
+                    ...items.map((i: any) => i.address ?? "").filter(Boolean),
+                    "Witoroż 70C, 21-570 Drelów",
+                  ]
+                    .map((s) => `point=${encodeURIComponent(s)}`)
+                    .join("&")}&profile=car&locale=pl`}
                   target="_blank"
                   rel="noreferrer"
                 >
