@@ -35,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/kurniki")({
 
 const fmtD = (d: string | null) => (d ? format(parseISO(d), "d LLL yyyy", { locale: pl }) : "—");
 const zl = (n: number) => n.toLocaleString("pl-PL", { maximumFractionDigits: 0 }) + " zł";
+const ton = (n: number) => n.toLocaleString("pl-PL", { maximumFractionDigits: 2 }) + " t";
 
 function KurnikiPage() {
   const fn = useServerFn(listPoultryFarms);
