@@ -438,9 +438,6 @@ export function DraftTransportBuilder() {
                         return [l.invoice_address, l.postal_code, l.city].filter(Boolean).join(" ");
                       }).filter(Boolean);
                       if (stops.length === 0) return null;
-                      const url =
-                        "https://www.google.com/maps/dir/" +
-                        [base, ...stops, base].map((s) => encodeURIComponent(s)).join("/");
                       const ghUrl =
                         "https://graphhopper.com/maps/?" +
                         [base, ...stops, base]
@@ -448,20 +445,12 @@ export function DraftTransportBuilder() {
                           .join("&") +
                         "&profile=car&locale=pl";
                       return (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          <Button asChild variant="outline">
-                            <a href={url} target="_blank" rel="noopener noreferrer">
-                              <RouteIcon className="mr-2 h-4 w-4" />
-                              Google Maps
-                            </a>
-                          </Button>
-                          <Button asChild variant="outline">
-                            <a href={ghUrl} target="_blank" rel="noopener noreferrer">
-                              <RouteIcon className="mr-2 h-4 w-4" />
-                              OpenStreetMap (GraphHopper)
-                            </a>
-                          </Button>
-                        </div>
+                        <Button asChild variant="outline" className="w-full">
+                          <a href={ghUrl} target="_blank" rel="noopener noreferrer">
+                            <RouteIcon className="mr-2 h-4 w-4" />
+                            Otwórz trasę na mapie (OpenStreetMap)
+                          </a>
+                        </Button>
                       );
                     })()}
                   </div>
