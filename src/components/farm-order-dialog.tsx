@@ -22,7 +22,12 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
   const [tons, setTons] = useState("");
   const [notes, setNotes] = useState("");
   const [partner, setPartner] = useState("none");
-  const latest = farm?.leads?.[farm.leads.length - 1] ?? farm?.leads?.[0];
+  const latest = farm?.leads?.[0] ?? farm?.leads?.[farm.leads.length - 1];
+  const copiedNote = String(latest?.notes ?? "").trim();
+
+  useEffect(() => {
+    if (open) setNotes(copiedNote);
+  }, [open, copiedNote]);
 
   const m = useMutation({
     mutationFn: () => {
@@ -73,7 +78,12 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
           )}
           <div>
             <Label>Notatka</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="np. dostawa w poniedziałek rano" />
+            {copiedNote && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Przepisano z poprzedniego zgłoszenia{latest?.lead_number ? ` ${latest.lead_number}` : ""} — możesz edytować.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
