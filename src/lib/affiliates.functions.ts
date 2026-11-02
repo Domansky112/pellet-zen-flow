@@ -28,6 +28,7 @@ const PartnerInput = z.object({
   bank_account: z.string().trim().max(64).nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
   status: z.enum(["aktywny", "nieaktywny"]).default("aktywny"),
+  rate_per_ton: Amount.nullable().optional(),
 });
 
 const CommissionInput = z.object({
@@ -57,6 +58,7 @@ export type AffiliatePartnerRow = {
   email: string | null;
   nip: string | null;
   bank_account: string | null;
+  rate_per_ton: number | null;
   notes: string | null;
   status: string;
   pending_total: number;
@@ -71,7 +73,7 @@ export const listAffiliatePartners = createServerFn({ method: "GET" })
     const [{ data: partners, error }, { data: comms, error: e2 }] = await Promise.all([
       context.supabase
         .from("affiliate_partners")
-        .select("id, full_name, phone, email, nip, bank_account, notes, status")
+        .select("id, full_name, phone, email, nip, bank_account, notes, status, rate_per_ton")
         .order("full_name", { ascending: true })
         .limit(500),
       context.supabase.from("affiliate_commissions").select("partner_id, amount, status").limit(5000),
