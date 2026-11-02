@@ -36,6 +36,13 @@
       "when": 1793640818500,
       "tag": "0004_inherit_farm_affiliate",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793643719308,
+      "tag": "0005_poultry_farm_settings",
+      "breakpoints": true
     }
   ]
 }
