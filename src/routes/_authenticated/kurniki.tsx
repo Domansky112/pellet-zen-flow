@@ -94,7 +94,7 @@ function KurnikiPage() {
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs">
                         <Stat label="Zamówienia" value={`${f.delivered}/${f.orders}`} />
-                        <Stat label="Tonaż" value={`${f.tons} t`} />
+                        <Stat label="Tonaż" value={ton(f.tons)} />
                         <Stat label="Przychód" value={zl(f.revenue)} />
                         <Stat label="Ostatnia dostawa" value={fmtD(f.last_delivery)} />
                         <Stat label="Następne wstawienie" value={fmtD(f.next_reminder)} />
