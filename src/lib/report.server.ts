@@ -245,13 +245,33 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
   const warehouseReservedUnits = warehouse.reduce((s: number, r: any) => s + (r.reservedUnits ?? 0), 0);
   const warehouseValue = warehouse.reduce((s: number, r: any) => s + r.value, 0);
 
+  // ── WYNAGRODZENIA PRACOWNIKÓW (okres raportu) ──
+  const { data: wl } = await supabase
+    .from("employee_work_logs")
+    .select("employee_id, amount, status, employees(full_name)")
+    .gte("work_date", from)
+    .lte("work_date", to)
+    .limit(5000);
+  const payrollMap = new Map<string, { name: string; paid: number; unpaid: number; days: number }>();
+  for (const r of (wl ?? []) as any[]) {
+    const amt = Number(r.amount ?? 0);
+    if (amt <= 0) continue;
+    const e = payrollMap.get(r.employee_id) ?? { name: r.employees?.full_name ?? "—", paid: 0, unpaid: 0, days: 0 };
+    if (r.status === "wyplacone") e.paid += amt; else e.unpaid += amt;
+    e.days += 1;
+    payrollMap.set(r.employee_id, e);
+  }
+  const payroll = Array.from(payrollMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pl"));
+  // Wynagrodzenia to koszt bez VAT — kwota netto = brutto.
+  const payrollCosts = payroll.reduce((s, r) => s + r.paid + r.unpaid, 0);
+
   // ── WYNIKI ──
   const vatTotal = salesVat + transportVat;
   const incomeNet = income - vatTotal;
   // Prowizje afiliacyjne traktujemy bez VAT (0%) — kwota netto = brutto.
   const affiliateCostsNet = affiliateCosts;
-  const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts;
-  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet;
+  const totalCosts = manualCosts + cogs + transportCosts + affiliateCosts + payrollCosts;
+  const totalCostsNet = cogsNet + manualCostsNet + transportCostsNet + affiliateCostsNet + payrollCosts;
   const grossProfit = income - totalCosts;
   const netProfit = incomeNet - totalCostsNet;
   const margin = incomeNet > 0 ? (netProfit / incomeNet) * 100 : 0;
@@ -308,6 +328,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
       affiliateCostsNet,
       affiliateCostsPending,
       affiliateTons,
+      payrollCosts,
       totalCosts,
       totalCostsNet,
       grossProfit,
@@ -327,24 +348,7 @@ export async function buildFinancialReport(supabase: AnyClient, opts: ReportOpti
     },
     warehouse: { perProduct: warehouse, totalTons: warehouseTons, totalReservedUnits: warehouseReservedUnits, totalValue: warehouseValue },
     cashflow: { cash, transfer, blik, pending },
-    payroll: await (async () => {
-      const { data: wl } = await supabase
-        .from("employee_work_logs")
-        .select("employee_id, amount, status, employees(full_name)")
-        .gte("work_date", from)
-        .lte("work_date", to)
-        .limit(5000);
-      const m = new Map<string, { name: string; paid: number; unpaid: number; days: number }>();
-      for (const r of (wl ?? []) as any[]) {
-        const amt = Number(r.amount ?? 0);
-        if (amt <= 0) continue;
-        const e = m.get(r.employee_id) ?? { name: r.employees?.full_name ?? "—", paid: 0, unpaid: 0, days: 0 };
-        if (r.status === "wyplacone") e.paid += amt; else e.unpaid += amt;
-        e.days += 1;
-        m.set(r.employee_id, e);
-      }
-      return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name, "pl"));
-    })(),
+    payroll,
     costsByCategory: Array.from(costsByCategory.entries()).map(([category, amount]) => ({
       category,
       amount,
