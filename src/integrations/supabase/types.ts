@@ -1181,6 +1181,36 @@ export type Database = {
         }
         Relationships: []
       }
+      poultry_farm_settings: {
+        Row: {
+          affiliate_partner_id: string | null
+          cycle_days: number | null
+          default_tons: number | null
+          farm_key: string
+          price_per_ton_net: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          affiliate_partner_id?: string | null
+          cycle_days?: number | null
+          default_tons?: number | null
+          farm_key: string
+          price_per_ton_net?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          affiliate_partner_id?: string | null
+          cycle_days?: number | null
+          default_tons?: number | null
+          farm_key?: string
+          price_per_ton_net?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       poultry_reminders: {
         Row: {
           assigned_to: string | null

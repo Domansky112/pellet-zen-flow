@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createFarmOrder } from "@/lib/kurniki.functions";
+import { createFarmOrder, saveFarmSettings } from "@/lib/kurniki.functions";
 import { listAffiliatePartners } from "@/lib/affiliates.functions";
 import { realLeadNote } from "@/lib/lead-notes";
 
@@ -23,18 +23,37 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
   const [tons, setTons] = useState("");
   const [notes, setNotes] = useState("");
   const [partner, setPartner] = useState("none");
+  const [price, setPrice] = useState("");
+  const [cycle, setCycle] = useState("");
+  const [saveDefaults, setSaveDefaults] = useState(false);
+  const saveS = useServerFn(saveFarmSettings);
+  const st = farm?.settings ?? null;
+  const num = (v: string) => (v.trim() ? Number(v.replace(",", ".")) : null);
   const latest = farm?.leads?.[0] ?? farm?.leads?.[farm.leads.length - 1];
   const copiedNote = realLeadNote(latest?.notes);
 
   const farmAffiliate: string | null = (farm?.leads ?? []).find((l: any) => l?.affiliate_partner_id)?.affiliate_partner_id ?? null;
   useEffect(() => {
-    if (open) { setNotes(copiedNote); setPartner(farmAffiliate ?? "none"); }
-  }, [open, copiedNote, farmAffiliate]);
+    if (open) {
+      setNotes(copiedNote);
+      setPartner(st?.affiliate_partner_id ?? farmAffiliate ?? "none");
+      setTons(st?.default_tons != null ? String(st.default_tons) : "");
+      setPrice(st?.price_per_ton_net != null ? String(st.price_per_ton_net) : "");
+      setCycle(st?.cycle_days != null ? String(st.cycle_days) : farm?.cycle_days ? String(farm.cycle_days) : "");
+      setSaveDefaults(false);
+    }
+  }, [open, copiedNote, farmAffiliate, st, farm?.cycle_days]);
 
   const m = useMutation({
-    mutationFn: () => {
-      const q = tons.trim() ? Number(tons.replace(",", ".")) : null;
-      return create({ data: { source_lead_id: latest.id, quantity: q, notes: notes || null, affiliate_partner_id: partner === "none" ? null : partner } });
+    mutationFn: async () => {
+      const q = num(tons);
+      const pr = num(price);
+      const aff = partner === "none" ? null : partner;
+      if (isAdmin && saveDefaults) {
+        const cd = num(cycle);
+        await saveS({ data: { farm_key: farm.farmKey, affiliate_partner_id: aff, price_per_ton_net: pr, default_tons: q, cycle_days: cd != null ? Math.round(cd) : null } });
+      }
+      return create({ data: { source_lead_id: latest.id, quantity: q, notes: notes || null, affiliate_partner_id: aff, price_per_ton_net: pr } });
     },
     onSuccess: (row: any) => {
       toast.success(`Utworzono zgłoszenie ${row?.lead_number ?? ""}`);
@@ -58,6 +77,18 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
           <div>
             <Label>Ilość (t)</Label>
             <Input inputMode="decimal" value={tons} onChange={(e) => setTons(e.target.value)} placeholder="np. 24" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Cena netto (zł/t)</Label>
+              <Input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="np. 750" />
+            </div>
+            {isAdmin && (
+              <div>
+                <Label>Cykl (dni)</Label>
+                <Input inputMode="numeric" value={cycle} onChange={(e) => setCycle(e.target.value)} placeholder="np. 35" />
+              </div>
+            )}
           </div>
           {isAdmin && (
             <div>
@@ -87,6 +118,12 @@ export function FarmOrderDialog({ open, onOpenChange, farm, isAdmin }: { open: b
               </p>
             )}
           </div>
+          {isAdmin && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={saveDefaults} onChange={(e) => setSaveDefaults(e.target.checked)} />
+              Zapisz tonaż, cenę, cykl i afiliację jako stałe warunki tej fermy
+            </label>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Anuluj</Button>

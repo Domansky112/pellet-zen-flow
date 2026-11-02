@@ -77,8 +77,13 @@ function KurnikiPage() {
                         <div>
                           <div className="font-medium">{f.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {f.nip ? `NIP ${f.nip} · ` : ""}{f.city ?? "—"}{f.cycle_days ? ` · cykl ${f.cycle_days} dni` : ""}
+                            {f.nip ? `NIP ${f.nip} · ` : ""}{f.city ?? "—"}{(f.settings?.cycle_days ?? f.cycle_days) ? ` · cykl ${f.settings?.cycle_days ?? f.cycle_days} dni` : ""}
                           </div>
+                          {f.settings && (
+                            <div className="text-xs text-muted-foreground">
+                              {[f.settings.price_per_ton_net != null && `Cena: ${Number(f.settings.price_per_ton_net)} zł/t netto`, f.settings.default_tons != null && `Standard: ${Number(f.settings.default_tons)} t`, f.settings.affiliate_partner_id && "Afiliacja przypięta"].filter(Boolean).join(" · ")}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs">

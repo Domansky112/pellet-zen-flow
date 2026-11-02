@@ -43,13 +43,18 @@ export const listPoultryFarms = createServerFn({ method: "GET" })
       const g = keyRoot.get(k)!;
       groups.set(g, [...(groups.get(g) ?? []), r]);
     }
+    const { data: settingsRows } = await context.supabase.from("poultry_farm_settings" as any).select("*");
+    const settingsMap = new Map(((settingsRows as any[]) ?? []).map((s) => [s.farm_key, s]));
     let farms = [...groups.entries()].map(([rootId, leads]) => {
       const root = byId.get(rootId);
+      const farmKey = locKey(root);
       const ids = new Set(leads.map((l) => l.id));
       const next = (rem ?? []).find((x: any) => ids.has(x.lead_id));
       const done = leads.filter((l) => l.status_key === "wygrany" || l.status === "wygrany");
       return {
         rootId,
+        farmKey,
+        settings: settingsMap.get(farmKey) ?? null,
         name: root.invoice_company || root.name,
         nip: root.invoice_nip, city: root.city, phone: root.phone, cycle_days: root.cycle_days,
         assigned: leads.map((l) => l.assigned_to),
@@ -73,7 +78,29 @@ const FarmOrderInput = z.object({
   quantity: z.number().positive().max(10000).nullable().optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
   affiliate_partner_id: z.string().uuid().nullable().optional(),
+  price_per_ton_net: z.number().min(0).max(1_000_000).nullable().optional(),
 });
+
+const FarmSettingsInput = z.object({
+  farm_key: z.string().min(2).max(300),
+  affiliate_partner_id: z.string().uuid().nullable(),
+  price_per_ton_net: z.number().min(0).max(1_000_000).nullable(),
+  default_tons: z.number().min(0).max(10000).nullable(),
+  cycle_days: z.number().int().min(0).max(1000).nullable(),
+});
+
+/** Stałe warunki fermy (afiliant, cena netto, standardowy tonaż, cykl). Tylko admin. */
+export const saveFarmSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => FarmSettingsInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Tylko administrator może zmieniać warunki fermy.");
+    const { error } = await context.supabase.from("poultry_farm_settings" as any)
+      .upsert({ ...data, updated_at: new Date().toISOString(), updated_by: context.userId } as any, { onConflict: "farm_key" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 /** Nowe zgłoszenie dla fermy: kopiuje dane z ostatniego leada fermy i opcjonalnie przypina afilianta. */
 export const createFarmOrder = createServerFn({ method: "POST" })
@@ -108,6 +135,7 @@ export const createFarmOrder = createServerFn({ method: "POST" })
         pooling_status: "brak",
         pooling_enabled: false,
         quantity: data.quantity ?? null,
+        ...(data.price_per_ton_net != null ? { price_per_ton_net: data.price_per_ton_net } : {}),
         parent_lead_id: data.source_lead_id,
         affiliate_partner_id: affiliate,
         notes: realLeadNote(data.notes) || realLeadNote(src.notes) || "Nowe zgłoszenie z modułu Kurniki",
