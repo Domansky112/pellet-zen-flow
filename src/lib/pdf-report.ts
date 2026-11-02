@@ -165,6 +165,7 @@ export async function buildReportPdf(
       ["Koszt surowca (COGS, FIFO)", pln(data.kpi.cogs), pln(data.kpi.cogsNet)],
       ["Koszty logistyki i transportu", pln(data.kpi.transportCosts), pln(data.kpi.transportCostsNet)],
       ["Koszty dodatkowe / eksploatacja / robocizna", pln(data.kpi.manualCosts), pln(data.kpi.manualCostsNet)],
+      ["Wynagrodzenia pracowników (wypłacone + niewypłacone)", pln(data.kpi.payrollCosts ?? 0), pln(data.kpi.payrollCosts ?? 0)],
       [
         `Prowizje afiliacyjne (naliczone${
           data.kpi.affiliateCostsPending > 0 ? `, w tym niewypłacone ${pln(data.kpi.affiliateCostsPending)}` : ""
