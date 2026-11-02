@@ -429,6 +429,27 @@ export function DraftTransportBuilder() {
                         </div>
                       ))
                     )}
+                    {items.length > 0 && (() => {
+                      const base = "Witoroż 70C, 21-570 Drelów";
+                      const stops = items.map((it: any) => {
+                        const l = it.leads ?? {};
+                        if (l.pooling_lat != null && l.pooling_lng != null)
+                          return `${l.pooling_lat},${l.pooling_lng}`;
+                        return [l.invoice_address, l.postal_code, l.city].filter(Boolean).join(" ");
+                      }).filter(Boolean);
+                      if (stops.length === 0) return null;
+                      const url =
+                        "https://www.google.com/maps/dir/" +
+                        [base, ...stops, base].map((s) => encodeURIComponent(s)).join("/");
+                      return (
+                        <Button asChild variant="outline" className="w-full">
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            <RouteIcon className="mr-2 h-4 w-4" />
+                            Otwórz trasę w Google Maps
+                          </a>
+                        </Button>
+                      );
+                    })()}
                   </div>
 
                   {/* Candidates */}
