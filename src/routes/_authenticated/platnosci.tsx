@@ -95,16 +95,30 @@ function leadDisplayName(l: any) {
 // Lead podzielony na partie (kilka transportów): kwota jest rozdzielana
 // proporcjonalnie do ton w danym transporcie, żeby nie liczyć jej wielokrotnie.
 function extractLeads(rows: any[]): { transport: any; leads: any[] }[] {
+  // Suma ton i liczba transportów per lead — dzielimy tylko, gdy lead
+  // faktycznie jedzie kilkoma transportami. Jeden transport = pełna kwota.
+  const sums = new Map<string, { qty: number; count: number }>();
+  for (const t of rows ?? []) {
+    for (const i of t.transport_items ?? []) {
+      const id = i.leads?.id ?? i.lead_id;
+      if (!id) continue;
+      const s = sums.get(id) ?? { qty: 0, count: 0 };
+      s.qty += Number(i.quantity ?? 0);
+      s.count += 1;
+      sums.set(id, s);
+    }
+  }
   return (rows ?? []).map((t) => ({
     transport: t,
     leads: (t.transport_items ?? [])
       .filter((i: any) => i.leads)
       .map((i: any) => {
         const l = i.leads;
-        const total = Number(l.quantity ?? 0);
+        const s = sums.get(l.id ?? i.lead_id);
+        const total = s?.qty ?? 0;
         const part = Number(i.quantity ?? 0);
         const full = Number(l.payment_amount_gross ?? 0);
-        const isPart = total > 0 && part > 0 && part < total;
+        const isPart = (s?.count ?? 0) > 1 && total > 0 && part > 0 && part < total;
         return {
           ...l,
           _part_qty: isPart ? part : null,
