@@ -300,6 +300,19 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
 }) {
   const closed = wagon.status === "zamkniety";
   const today = new Date().toISOString().slice(0, 10);
+  const fleet = useQuery({
+    queryKey: ["import-fleet"],
+    queryFn: async () => {
+      const [v, d] = await Promise.all([
+        supabase.from("fleet_vehicles").select("id, registration, brand, model").order("registration"),
+        supabase.from("fleet_drivers").select("id, first_name, last_name").order("last_name"),
+      ]);
+      return {
+        vehicles: (v.data ?? []).map((x) => [x.registration, x.brand].filter(Boolean).join(" · ")),
+        drivers: (d.data ?? []).map((x) => `${x.first_name} ${x.last_name}`.trim()),
+      };
+    },
+  });
   const empty = { haul_date: today, vehicle: "", driver: "", units: "", tons: "", post: false };
   const [h, setH] = useState(empty);
   const [file, setFile] = useState<File | null>(null);
@@ -373,8 +386,8 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
       {!closed && (
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7 items-end rounded-md bg-muted/50 p-3">
           <div className="space-y-1"><Label className="text-xs">Data</Label><Input type="date" value={h.haul_date} onChange={(e) => setH({ ...h, haul_date: e.target.value })} /></div>
-          <div className="space-y-1"><Label className="text-xs">Auto</Label><Input value={h.vehicle} onChange={(e) => setH({ ...h, vehicle: e.target.value })} /></div>
-          <div className="space-y-1"><Label className="text-xs">Kierowca</Label><Input value={h.driver} onChange={(e) => setH({ ...h, driver: e.target.value })} /></div>
+          <div className="space-y-1"><Label className="text-xs">Auto</Label><Select value={h.vehicle || "__none"} onValueChange={(v) => setH({ ...h, vehicle: v === "__none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger><SelectContent><SelectItem value="__none">— brak —</SelectItem>{(fleet.data?.vehicles ?? []).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label className="text-xs">Kierowca</Label><Select value={h.driver || "__none"} onValueChange={(v) => setH({ ...h, driver: v === "__none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger><SelectContent><SelectItem value="__none">— brak —</SelectItem>{(fleet.data?.drivers ?? []).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label className="text-xs">Big Bagi (szt.)</Label><Input inputMode="numeric" value={h.units} onChange={(e) => setH({ ...h, units: e.target.value })} /></div>
           <div className="space-y-1"><Label className="text-xs">Tonaż (t)</Label><Input inputMode="decimal" value={h.tons} onChange={(e) => setH({ ...h, tons: e.target.value })} /></div>
           <div className="space-y-1"><Label className="text-xs">Raport wagowy</Label><Input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
