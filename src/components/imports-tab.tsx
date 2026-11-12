@@ -350,15 +350,19 @@ export function ImportsTab() {
               <div className="space-y-1"><Label>Kurs do PLN (opcjonalnie)</Label><Input inputMode="decimal" placeholder="np. 4,28" value={pay.exchange_rate} onChange={(e) => setPay({ ...pay, exchange_rate: e.target.value })} /></div>
             )}
             <div className="space-y-1"><Label>Tytuł / nr przelewu</Label><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></div>
-            <div className="space-y-1">
-              <Label>Potwierdzenie 1 (PDF/zdjęcie)</Label>
-              <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile(e.target.files?.[0] ?? null)} />
-              {editPay?.file_path && !payFile && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path)}>Zachowuję obecny plik — podgląd</button>}
-            </div>
-            <div className="space-y-1">
-              <Label>Potwierdzenie 2 (opcjonalnie)</Label>
-              <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile2(e.target.files?.[0] ?? null)} />
-              {editPay?.file_path_2 && !payFile2 && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path_2)}>Zachowuję obecny plik — podgląd</button>}
+            <div className="space-y-1 md:col-span-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Potwierdzenie 1 (PDF/zdjęcie)</Label>
+                  <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile(e.target.files?.[0] ?? null)} />
+                  {editPay?.file_path && !payFile && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path)}>Zachowuję obecny plik — podgląd</button>}
+                </div>
+                <div className="space-y-1">
+                  <Label>Potwierdzenie 2 (opcjonalnie)</Label>
+                  <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile2(e.target.files?.[0] ?? null)} />
+                  {editPay?.file_path_2 && !payFile2 && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path_2)}>Zachowuję obecny plik — podgląd</button>}
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2">
