@@ -847,6 +847,7 @@ export type Database = {
           currency: string
           exchange_rate: number | null
           file_path: string | null
+          file_path_2: string | null
           id: string
           notes: string | null
           paid_at: string
@@ -862,6 +863,7 @@ export type Database = {
           currency?: string
           exchange_rate?: number | null
           file_path?: string | null
+          file_path_2?: string | null
           id?: string
           notes?: string | null
           paid_at?: string
@@ -877,6 +879,7 @@ export type Database = {
           currency?: string
           exchange_rate?: number | null
           file_path?: string | null
+          file_path_2?: string | null
           id?: string
           notes?: string | null
           paid_at?: string
