@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Pencil, X, Lock, LockOpen, Paperclip, Train, Truck, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { addStockEvent } from "@/lib/stock.functions";
+import { estimateInboundFuelCost } from "@/lib/pickup.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +60,8 @@ export function ImportsTab() {
   const payments = q("imp-payments", "import_payments", "paid_at");
   const wagons = q("imp-wagons", "import_wagons", "arrival_date");
   const hauls = q("imp-hauls", "import_hauls", "haul_date");
-  const refresh = () => ["imp-suppliers", "imp-payments", "imp-wagons", "imp-hauls"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  const wcosts = q("imp-wcosts", "import_wagon_costs", "created_at");
+  const refresh = () => ["imp-suppliers", "imp-payments", "imp-wagons", "imp-hauls", "imp-wcosts"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   const supName = (id: string) => suppliers.data?.find((s) => s.id === id)?.name ?? "—";
 
   // ---------- Dostawcy ----------
@@ -143,12 +145,17 @@ export function ImportsTab() {
     onError: (e: any) => toast.error(e.message),
   });
   const toggleWag = useMutation({
-    mutationFn: async (w: any) => {
+    mutationFn: async ({ w, perTon }: { w: any; perTon: number }) => {
       const close = w.status !== "zamkniety";
       const { error } = await (supabase as any).from("import_wagons").update({ status: close ? "zamkniety" : "otwarty", closed_at: close ? new Date().toISOString() : null }).eq("id", w.id);
       if (error) throw error;
+      if (close && perTon > 0) {
+        const { error: e2 } = await (supabase as any).rpc("apply_import_wagon_cost", { _wagon_id: w.id, _cost_per_ton: perTon });
+        if (e2) throw e2;
+      }
+      return { close, perTon };
     },
-    onSuccess: refresh,
+    onSuccess: (r) => { refresh(); if (r.close && r.perTon > 0) toast.success(`Wagon zamknięty — koszt ${money(r.perTon, "zł")}/t naliczony do FIFO`); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -286,7 +293,8 @@ export function ImportsTab() {
             <WagonCard key={w.id} wagon={w} supplierName={supName(w.supplier_id)}
               hauls={(hauls.data ?? []).filter((h) => h.wagon_id === w.id)}
               plnPerTon={balances.find((b) => b.s.id === w.supplier_id)?.plnPerTon ?? 0}
-              onToggle={() => toggleWag.mutate(w)}
+              costs={(wcosts.data ?? []).filter((c) => c.wagon_id === w.id)}
+              onToggle={(perTon: number) => toggleWag.mutate({ w, perTon })}
               onDelete={() => confirm("Usunąć wagon razem z kursami? Przyjęcia na magazyn zostaną.") && delRow.mutate({ table: "import_wagons", id: w.id })}
               onDeleteHaul={(id) => confirm("Usunąć kurs? Jeśli był zaksięgowany, przyjęcie w magazynie zostanie — usuń je ręcznie.") && delRow.mutate({ table: "import_hauls", id })}
               addStock={addStock} refresh={refresh} />
@@ -298,9 +306,9 @@ export function ImportsTab() {
   );
 }
 
-function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, onDeleteHaul, addStock, refresh }: {
-  wagon: any; supplierName: string; hauls: any[]; plnPerTon: number;
-  onToggle: () => void; onDelete: () => void; onDeleteHaul: (id: string) => void;
+function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onDelete, onDeleteHaul, addStock, refresh }: {
+  wagon: any; supplierName: string; hauls: any[]; costs: any[]; plnPerTon: number;
+  onToggle: (perTon: number) => void; onDelete: () => void; onDeleteHaul: (id: string) => void;
   addStock: any; refresh: () => void;
 }) {
   const closed = wagon.status === "zamkniety";
@@ -344,6 +352,10 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
   const cancelEdit = () => { setEditing(null); setH(empty); setFile(null); };
   const sumT = hauls.reduce((a, x) => a + Number(x.tons), 0);
   const sumU = hauls.reduce((a, x) => a + Number(x.units), 0);
+  const realPerTon = sumT > 0
+    ? (plnPerTon * sumT + costs.reduce((a, x) => a + Number(x.amount) * (x.currency === "PLN" ? 1 : Number(x.exchange_rate ?? 0)), 0)
+       + (Number(wagon.fuel_cost_per_haul ?? 0) || 0) * hauls.length) / sumT
+    : 0;
 
   const addHaul = useMutation({
     mutationFn: async () => {
@@ -406,7 +418,7 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
         )}
         <div className="flex items-center gap-2 text-sm">
           <span>Zwiezione: <b>{t2(sumT)} ({bb(sumU)})</b>{wagon.declared_tons ? ` z ${t2(Number(wagon.declared_tons))}` : ""}</span>
-          <Button size="sm" variant={closed ? "outline" : "default"} onClick={onToggle}>
+          <Button size="sm" variant={closed ? "outline" : "default"} onClick={() => onToggle(realPerTon)}>
             {closed ? <><LockOpen className="h-4 w-4 mr-1" />Otwórz do korekty</> : <><Lock className="h-4 w-4 mr-1" />Zamknij wagon</>}
           </Button>
           <Button size="icon" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
@@ -452,6 +464,139 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
           </div>
         </div>
       )}
+      {open && <WagonCosts wagon={wagon} costs={costs} sumT={sumT} haulsCount={hauls.length} plnPerTon={plnPerTon} refresh={refresh} />}
+    </div>
+  );
+}
+
+const COST_KINDS: Record<string, string> = { clo: "Cło", obsluga: "Obsługa wagonu", przeladunek: "Przeładunek", inne: "Inny koszt" };
+const pln = (n: number) => money(n, "zł");
+const costPln = (c: any) => Number(c.amount) * (c.currency === "PLN" ? 1 : Number(c.exchange_rate ?? 0));
+
+function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
+  wagon: any; costs: any[]; sumT: number; haulsCount: number; plnPerTon: number; refresh: () => void;
+}) {
+  const closed = wagon.status === "zamkniety";
+  const estimate = useServerFn(estimateInboundFuelCost);
+  const locs = useQuery({
+    queryKey: ["import-pickup-locs"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("pickup_locations").select("id, name, default_km").eq("is_active", true).order("name");
+      return (data ?? []) as any[];
+    },
+  });
+  const empty = { kind: "clo", description: "", amount: "", currency: "PLN", exchange_rate: "" };
+  const [c, setC] = useState(empty);
+  const [file, setFile] = useState<File | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
+  const [fuel, setFuel] = useState<string>(wagon.fuel_cost_per_haul != null ? String(wagon.fuel_cost_per_haul) : "");
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const amount = num(c.amount);
+      if (!(amount > 0)) throw new Error("Podaj kwotę");
+      if (c.currency !== "PLN" && !(num(c.exchange_rate) > 0)) throw new Error("Podaj kurs do PLN");
+      const file_path = file ? await uploadFile(`wagony/${wagon.id}/koszty`, file) : (editing?.file_path ?? null);
+      const row = { wagon_id: wagon.id, kind: c.kind, description: c.description.trim() || null, amount, currency: c.currency,
+        exchange_rate: c.currency === "PLN" ? null : num(c.exchange_rate), file_path };
+      const { error } = editing
+        ? await (supabase as any).from("import_wagon_costs").update({ ...row, updated_at: new Date().toISOString() }).eq("id", editing.id)
+        : await (supabase as any).from("import_wagon_costs").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: () => { setC(empty); setFile(null); setEditing(null); refresh(); toast.success("Zapisano koszt"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const del = useMutation({
+    mutationFn: async (id: string) => { const { error } = await (supabase as any).from("import_wagon_costs").delete().eq("id", id); if (error) throw error; },
+    onSuccess: refresh, onError: (e: any) => toast.error(e.message),
+  });
+  const saveWagon = async (patch: any) => {
+    const { error } = await (supabase as any).from("import_wagons").update(patch).eq("id", wagon.id);
+    if (error) return toast.error(error.message);
+    refresh();
+  };
+  const calcFuel = async (locId: string) => {
+    await saveWagon({ pickup_location_id: locId || null });
+    if (!locId) return;
+    try {
+      const r: any = await estimate({ data: { pickup_location_id: locId, consumption: 30 } });
+      if (r?.cost == null) return toast.warning("Nie udało się wyliczyć trasy — wpisz koszt paliwa ręcznie");
+      setFuel(String(r.cost));
+      await saveWagon({ fuel_cost_per_haul: r.cost });
+      toast.success(`Paliwo: ${r.km} km (tam i z powrotem) · ${pln(r.cost)} na kurs`);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const extra = costs.reduce((a, x) => a + costPln(x), 0);
+  const fuelTotal = (Number(wagon.fuel_cost_per_haul ?? 0) || 0) * haulsCount;
+  const goods = plnPerTon * sumT;
+  const total = goods + extra + fuelTotal;
+  const perTon = sumT > 0 ? total / sumT : 0;
+
+  return (
+    <div className="rounded-md border p-3 space-y-3">
+      <div className="text-sm font-semibold">Koszty wagonu</div>
+      {costs.length > 0 && (
+        <Table>
+          <TableHeader><TableRow><TableHead>Rodzaj</TableHead><TableHead>Opis</TableHead><TableHead className="text-right">Kwota</TableHead><TableHead className="text-right">W PLN</TableHead><TableHead /></TableRow></TableHeader>
+          <TableBody>
+            {costs.map((x) => (
+              <TableRow key={x.id}>
+                <TableCell>{COST_KINDS[x.kind] ?? x.kind}</TableCell>
+                <TableCell>{x.description ?? ""}</TableCell>
+                <TableCell className="text-right">{money(Number(x.amount), x.currency)}</TableCell>
+                <TableCell className="text-right">{pln(costPln(x))}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  {x.file_path && <Button size="icon" variant="ghost" title="Faktura" onClick={() => openFile(x.file_path)}><Paperclip className="h-4 w-4" /></Button>}
+                  {!closed && <Button size="icon" variant="ghost" title="Edytuj" onClick={() => { setEditing(x); setC({ kind: x.kind, description: x.description ?? "", amount: String(x.amount), currency: x.currency, exchange_rate: x.exchange_rate != null ? String(x.exchange_rate) : "" }); setFile(null); }}><Pencil className="h-4 w-4" /></Button>}
+                  {!closed && <Button size="icon" variant="ghost" onClick={() => confirm("Usunąć koszt?") && del.mutate(x.id)}><Trash2 className="h-4 w-4" /></Button>}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {!closed && (
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7 items-end rounded-md bg-muted/50 p-3">
+          <div className="space-y-1"><Label className="text-xs">Rodzaj</Label>
+            <Select value={c.kind} onValueChange={(v) => setC({ ...c, kind: v })}><SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{Object.entries(COST_KINDS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label className="text-xs">Opis</Label><Input value={c.description} onChange={(e) => setC({ ...c, description: e.target.value })} /></div>
+          <div className="space-y-1"><Label className="text-xs">Kwota</Label><Input inputMode="decimal" value={c.amount} onChange={(e) => setC({ ...c, amount: e.target.value })} /></div>
+          <div className="space-y-1"><Label className="text-xs">Waluta</Label>
+            <Select value={c.currency} onValueChange={(v) => setC({ ...c, currency: v })}><SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{CURRENCIES.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label className="text-xs">Kurs do PLN</Label><Input inputMode="decimal" disabled={c.currency === "PLN"} value={c.currency === "PLN" ? "" : c.exchange_rate} onChange={(e) => setC({ ...c, exchange_rate: e.target.value })} /></div>
+          <div className="space-y-1"><Label className="text-xs">Faktura</Label><Input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
+          <div className="space-y-2">
+            <Button className="w-full" size="sm" onClick={() => save.mutate()} disabled={save.isPending}><Plus className="h-4 w-4 mr-1" />{editing ? "Zapisz koszt" : "Dodaj koszt"}</Button>
+            {editing && <Button className="w-full" size="sm" variant="ghost" onClick={() => { setEditing(null); setC(empty); }}><X className="h-4 w-4 mr-1" />Anuluj</Button>}
+          </div>
+        </div>
+      )}
+      <div className="grid gap-2 sm:grid-cols-3 items-end">
+        <div className="space-y-1"><Label className="text-xs">Paliwo — miejsce odbioru (np. Małaszewicze)</Label>
+          <Select value={wagon.pickup_location_id ?? "__none"} disabled={closed} onValueChange={(v) => calcFuel(v === "__none" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger>
+            <SelectContent><SelectItem value="__none">— brak —</SelectItem>{(locs.data ?? []).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent>
+          </Select></div>
+        <div className="space-y-1"><Label className="text-xs">Paliwo na 1 kurs (zł)</Label>
+          <Input inputMode="decimal" disabled={closed} value={fuel} onChange={(e) => setFuel(e.target.value)}
+            onBlur={() => { const v = fuel.trim() ? num(fuel) : null; if (v !== (wagon.fuel_cost_per_haul != null ? Number(wagon.fuel_cost_per_haul) : null)) saveWagon({ fuel_cost_per_haul: v }); }} /></div>
+        <div className="text-sm text-muted-foreground">Paliwo razem: <b className="text-foreground">{pln(fuelTotal)}</b> ({kursy(haulsCount)})</div>
+      </div>
+      <div className="rounded-md bg-muted/50 p-3 text-sm grid gap-1 sm:grid-cols-2">
+        <div>Pellet (śr. z przelewów {pln(plnPerTon)}/t): <b>{pln(goods)}</b></div>
+        <div>Cło, obsługa, przeładunek, inne: <b>{pln(extra)}</b></div>
+        <div>Paliwo z miejsca odbioru: <b>{pln(fuelTotal)}</b></div>
+        <div>Razem: <b>{pln(total)}</b></div>
+        <div className="sm:col-span-2 text-base">
+          {closed
+            ? <>Realny koszt za tonę: <b>{pln(Number(wagon.real_cost_per_ton ?? perTon))}/t</b> <span className="text-xs text-muted-foreground">— naliczony do FIFO</span></>
+            : <>Szacowany koszt za tonę: <b>{pln(perTon)}/t</b> <span className="text-xs text-muted-foreground">— trafi do FIFO po zamknięciu wagonu</span></>}
+        </div>
+      </div>
     </div>
   );
 }

@@ -57,6 +57,13 @@
       "when": 1794513790565,
       "tag": "0007_create_imports",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794515091908,
+      "tag": "0008_import_wagon_costs",
+      "breakpoints": true
     }
   ]
 }

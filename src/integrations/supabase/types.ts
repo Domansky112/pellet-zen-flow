@@ -928,6 +928,56 @@ export type Database = {
         }
         Relationships: []
       }
+      import_wagon_costs: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string | null
+          exchange_rate: number | null
+          file_path: string | null
+          id: string
+          kind: string
+          updated_at: string
+          wagon_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          exchange_rate?: number | null
+          file_path?: string | null
+          id?: string
+          kind?: string
+          updated_at?: string
+          wagon_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string | null
+          exchange_rate?: number | null
+          file_path?: string | null
+          id?: string
+          kind?: string
+          updated_at?: string
+          wagon_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_wagon_costs_wagon_id_fkey"
+            columns: ["wagon_id"]
+            isOneToOne: false
+            referencedRelation: "import_wagons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_wagons: {
         Row: {
           arrival_date: string
@@ -935,8 +985,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           declared_tons: number | null
+          fuel_cost_per_haul: number | null
           id: string
           notes: string | null
+          pickup_location_id: string | null
+          real_cost_per_ton: number | null
           status: string
           supplier_id: string
           updated_at: string
@@ -948,8 +1001,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           declared_tons?: number | null
+          fuel_cost_per_haul?: number | null
           id?: string
           notes?: string | null
+          pickup_location_id?: string | null
+          real_cost_per_ton?: number | null
           status?: string
           supplier_id: string
           updated_at?: string
@@ -961,14 +1017,24 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           declared_tons?: number | null
+          fuel_cost_per_haul?: number | null
           id?: string
           notes?: string | null
+          pickup_location_id?: string | null
+          real_cost_per_ton?: number | null
           status?: string
           supplier_id?: string
           updated_at?: string
           wagon_number?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "import_wagons_pickup_location_id_fkey"
+            columns: ["pickup_location_id"]
+            isOneToOne: false
+            referencedRelation: "pickup_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "import_wagons_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -2198,6 +2264,10 @@ export type Database = {
       }
     }
     Functions: {
+      apply_import_wagon_cost: {
+        Args: { _cost_per_ton: number; _wagon_id: string }
+        Returns: number
+      }
       cancel_lead: {
         Args: { _lead_id: string; _reason?: string }
         Returns: undefined
