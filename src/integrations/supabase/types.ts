@@ -773,6 +773,211 @@ export type Database = {
         }
         Relationships: []
       }
+      import_hauls: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          driver: string | null
+          haul_date: string
+          id: string
+          notes: string | null
+          post_to_stock: boolean
+          stock_event_id: string | null
+          tons: number
+          units: number
+          updated_at: string
+          vehicle: string | null
+          wagon_id: string
+          weight_report_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          driver?: string | null
+          haul_date?: string
+          id?: string
+          notes?: string | null
+          post_to_stock?: boolean
+          stock_event_id?: string | null
+          tons: number
+          units?: number
+          updated_at?: string
+          vehicle?: string | null
+          wagon_id: string
+          weight_report_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          driver?: string | null
+          haul_date?: string
+          id?: string
+          notes?: string | null
+          post_to_stock?: boolean
+          stock_event_id?: string | null
+          tons?: number
+          units?: number
+          updated_at?: string
+          vehicle?: string | null
+          wagon_id?: string
+          weight_report_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_hauls_stock_event_id_fkey"
+            columns: ["stock_event_id"]
+            isOneToOne: false
+            referencedRelation: "stock_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_hauls_wagon_id_fkey"
+            columns: ["wagon_id"]
+            isOneToOne: false
+            referencedRelation: "import_wagons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          exchange_rate: number | null
+          file_path: string | null
+          id: string
+          notes: string | null
+          paid_at: string
+          reference: string | null
+          supplier_id: string
+          tons: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          exchange_rate?: number | null
+          file_path?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          reference?: string | null
+          supplier_id: string
+          tons: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          exchange_rate?: number | null
+          file_path?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          reference?: string | null
+          supplier_id?: string
+          tons?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "import_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_suppliers: {
+        Row: {
+          country: string | null
+          created_at: string
+          created_by: string | null
+          default_currency: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_currency?: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_currency?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      import_wagons: {
+        Row: {
+          arrival_date: string
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          declared_tons: number | null
+          id: string
+          notes: string | null
+          status: string
+          supplier_id: string
+          updated_at: string
+          wagon_number: string
+        }
+        Insert: {
+          arrival_date?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          declared_tons?: number | null
+          id?: string
+          notes?: string | null
+          status?: string
+          supplier_id: string
+          updated_at?: string
+          wagon_number: string
+        }
+        Update: {
+          arrival_date?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          declared_tons?: number | null
+          id?: string
+          notes?: string | null
+          status?: string
+          supplier_id?: string
+          updated_at?: string
+          wagon_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_wagons_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "import_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_batches: {
         Row: {
           batch_no: number
