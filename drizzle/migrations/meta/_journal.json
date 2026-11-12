@@ -43,6 +43,13 @@
       "when": 1793643719308,
       "tag": "0005_poultry_farm_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794512822967,
+      "tag": "0006_restrict_farm_settings_read",
+      "breakpoints": true
     }
   ]
 }
