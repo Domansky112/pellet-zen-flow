@@ -45,6 +45,37 @@ async function openFile(path: string) {
   window.open(data.signedUrl, "_blank");
 }
 
+function FileSlot({ path, label, onPick, busy }: { path?: string | null; label: string; onPick: (f: File) => void; busy?: boolean }) {
+  if (path) {
+    return (
+      <Button size="icon" variant="ghost" className="h-8 w-8" title={`${label} — otwórz`} onClick={() => openFile(path)}>
+        <Paperclip className="h-4 w-4" />
+      </Button>
+    );
+  }
+  return (
+    <label
+      title={`${label} — dodaj plik`}
+      className={
+        "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-dashed text-muted-foreground hover:bg-accent hover:text-foreground" +
+        (busy ? " pointer-events-none opacity-50" : "")
+      }
+    >
+      <Paperclip className="h-4 w-4" />
+      <input
+        type="file"
+        accept=".pdf,image/*"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.currentTarget.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
 export function ImportsTab() {
   const qc = useQueryClient();
   const addStock = useServerFn(addStockEvent);
@@ -138,6 +169,17 @@ export function ImportsTab() {
       if (error) throw error;
     },
     onSuccess: () => { resetPayForm(); refresh(); toast.success(editPay ? "Zaktualizowano przelew" : "Zapisano przelew"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const attachPay = useMutation({
+    mutationFn: async ({ id, slot, file }: { id: string; slot: 1 | 2; file: File }) => {
+      const path = await uploadFile("przelewy", file);
+      const col = slot === 1 ? "file_path" : "file_path_2";
+      const { error } = await (supabase as any).from("import_payments").update({ [col]: path }).eq("id", id);
+      if (error) throw error;
+      return slot;
+    },
+    onSuccess: (slot) => { refresh(); toast.success(`Dodano potwierdzenie ${slot} do przelewu`); },
     onError: (e: any) => toast.error(e.message),
   });
   const delRow = useMutation({
@@ -338,10 +380,12 @@ export function ImportsTab() {
                   <TableCell className="text-right">{money(Number(p.amount) / Number(p.tons), p.currency)}</TableCell>
                   <TableCell>{p.reference ?? ""}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    {p.file_path && <Button size="icon" variant="ghost" title="Potwierdzenie 1" onClick={() => openFile(p.file_path)}><Paperclip className="h-4 w-4" /></Button>}
-                    {p.file_path_2 && <Button size="icon" variant="ghost" title="Potwierdzenie 2" onClick={() => openFile(p.file_path_2)}><Paperclip className="h-4 w-4 text-muted-foreground" /></Button>}
-                    <Button size="icon" variant="ghost" title="Edytuj" onClick={() => startEditPay(p)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDelPay(p)}><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <FileSlot path={p.file_path} label="Potwierdzenie 1" busy={attachPay.isPending} onPick={(f) => attachPay.mutate({ id: p.id, slot: 1, file: f })} />
+                      <FileSlot path={p.file_path_2} label="Potwierdzenie 2" busy={attachPay.isPending} onPick={(f) => attachPay.mutate({ id: p.id, slot: 2, file: f })} />
+                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Edytuj" onClick={() => startEditPay(p)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" title="Usuń" onClick={() => setDelPay(p)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
