@@ -465,6 +465,7 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onD
         </div>
       )}
       {open && <WagonCosts wagon={wagon} costs={costs} sumT={sumT} haulsCount={hauls.length} plnPerTon={plnPerTon} refresh={refresh} />}
+      <WagonSummary wagon={wagon} costs={costs} sumT={sumT} haulsCount={hauls.length} plnPerTon={plnPerTon} />
     </div>
   );
 }
@@ -586,6 +587,18 @@ function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
             onBlur={() => { const v = fuel.trim() ? num(fuel) : null; if (v !== (wagon.fuel_cost_per_haul != null ? Number(wagon.fuel_cost_per_haul) : null)) saveWagon({ fuel_cost_per_haul: v }); }} /></div>
         <div className="text-sm text-muted-foreground">Paliwo razem: <b className="text-foreground">{pln(fuelTotal)}</b> ({kursy(haulsCount)})</div>
       </div>
+    </div>
+  );
+}
+
+function WagonSummary({ wagon, costs, sumT, haulsCount, plnPerTon }: { wagon: any; costs: any[]; sumT: number; haulsCount: number; plnPerTon: number }) {
+  const closed = wagon.status === "zamkniety";
+  const extra = costs.reduce((a, x) => a + costPln(x), 0);
+  const fuelTotal = (Number(wagon.fuel_cost_per_haul ?? 0) || 0) * haulsCount;
+  const goods = plnPerTon * sumT;
+  const total = goods + extra + fuelTotal;
+  const perTon = sumT > 0 ? total / sumT : 0;
+  return (
       <div className="rounded-md bg-muted/50 p-3 text-sm grid gap-1 sm:grid-cols-2">
         <div>Pellet (śr. z przelewów {pln(plnPerTon)}/t): <b>{pln(goods)}</b></div>
         <div>Cło, obsługa, przeładunek, inne: <b>{pln(extra)}</b></div>
@@ -597,6 +610,5 @@ function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
             : <>Szacowany koszt za tonę: <b>{pln(perTon)}/t</b> <span className="text-xs text-muted-foreground">— trafi do FIFO po zamknięciu wagonu</span></>}
         </div>
       </div>
-    </div>
   );
 }
