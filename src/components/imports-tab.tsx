@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, X, Lock, LockOpen, Paperclip, Train, Truck } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Lock, LockOpen, Paperclip, Train, Truck, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { addStockEvent } from "@/lib/stock.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,11 @@ const bb = (n: number) => {
   const m10 = r % 10, m100 = r % 100;
   const w = r === 1 ? "big bag" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "big bagi" : "big bagów";
   return `${r} ${w}`;
+};
+const kursy = (n: number) => {
+  const m10 = n % 10, m100 = n % 100;
+  const w = n === 1 ? "kurs" : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? "kursy" : "kursów";
+  return `${n} ${w}`;
 };
 
 async function uploadFile(folder: string, file: File) {
@@ -299,6 +304,7 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
   addStock: any; refresh: () => void;
 }) {
   const closed = wagon.status === "zamkniety";
+  const [open, setOpen] = useState(false);
   const [ew, setEw] = useState<{ wagon_number: string; arrival_date: string; declared_tons: string } | null>(null);
   const saveWagon = useMutation({
     mutationFn: async () => {
@@ -386,11 +392,16 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
             <Button size="sm" variant="ghost" onClick={() => setEw(null)}><X className="h-4 w-4" /></Button>
           </div>
         ) : (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold">Wagon {wagon.wagon_number}</span>
-          <span className="text-sm text-muted-foreground">{supplierName} · {wagon.arrival_date}</span>
+        <div className="flex items-center gap-1 flex-wrap">
+          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+            className="flex items-center gap-2 flex-wrap rounded-md px-1 -ml-1 py-1 text-left hover:bg-muted/60">
+            <ChevronRight className={"h-4 w-4 shrink-0 text-muted-foreground transition-transform" + (open ? " rotate-90" : "")} />
+            <span className="font-semibold">Wagon {wagon.wagon_number}</span>
+            <span className="text-sm text-muted-foreground">{supplierName} · {wagon.arrival_date}</span>
+            {closed ? <Badge variant="secondary">Zamknięty</Badge> : <Badge variant="outline">Otwarty</Badge>}
+            <span className="text-xs text-muted-foreground">{kursy(hauls.length)}</span>
+          </button>
           <Button size="icon" variant="ghost" title="Edytuj wagon" onClick={() => setEw({ wagon_number: wagon.wagon_number ?? "", arrival_date: wagon.arrival_date, declared_tons: wagon.declared_tons != null ? String(wagon.declared_tons) : "" })}><Pencil className="h-4 w-4" /></Button>
-          {closed ? <Badge variant="secondary">Zamknięty</Badge> : <Badge variant="outline">Otwarty</Badge>}
         </div>
         )}
         <div className="flex items-center gap-2 text-sm">
@@ -401,7 +412,7 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
           <Button size="icon" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
         </div>
       </div>
-      {hauls.length > 0 && (
+      {open && hauls.length > 0 && (
         <Table>
           <TableHeader><TableRow>
             <TableHead>Data</TableHead><TableHead>Auto / kierowca</TableHead><TableHead className="text-right">Tonaż</TableHead>
@@ -424,7 +435,7 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
           </TableBody>
         </Table>
       )}
-      {!closed && (
+      {open && !closed && (
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7 items-end rounded-md bg-muted/50 p-3">
           <div className="space-y-1"><Label className="text-xs">Data</Label><Input type="date" value={h.haul_date} onChange={(e) => setH({ ...h, haul_date: e.target.value })} /></div>
           <div className="space-y-1"><Label className="text-xs">Auto</Label><Select value={h.vehicle || "__none"} onValueChange={(v) => setH({ ...h, vehicle: v === "__none" ? "" : v })}><SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger><SelectContent><SelectItem value="__none">— brak —</SelectItem>{(fleet.data?.vehicles ?? []).map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
