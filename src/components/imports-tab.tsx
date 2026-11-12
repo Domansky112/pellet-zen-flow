@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, X, Lock, LockOpen, Paperclip, Train, Truck, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { addStockEvent } from "@/lib/stock.functions";
+import { addStockEvent, deleteStockEvent } from "@/lib/stock.functions";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { estimateInboundFuelCost } from "@/lib/pickup.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ async function openFile(path: string) {
 export function ImportsTab() {
   const qc = useQueryClient();
   const addStock = useServerFn(addStockEvent);
+  const delStock = useServerFn(deleteStockEvent);
   const q = (key: string, table: string, order: string) =>
     useQuery({
       queryKey: [key],
@@ -104,6 +106,7 @@ export function ImportsTab() {
   const emptyPay = { supplier_id: "", paid_at: today, amount: "", currency: "EUR", tons: "", exchange_rate: "", reference: "", notes: "" };
   const [pay, setPay] = useState(emptyPay);
   const [payFile, setPayFile] = useState<File | null>(null);
+  const [delPay, setDelPay] = useState<any | null>(null);
   const perTon = num(pay.amount) > 0 && num(pay.tons) > 0 ? num(pay.amount) / num(pay.tons) : 0;
   const addPay = useMutation({
     mutationFn: async () => {
@@ -122,13 +125,62 @@ export function ImportsTab() {
     onError: (e: any) => toast.error(e.message),
   });
   const delRow = useMutation({
-    mutationFn: async ({ table, id }: { table: string; id: string }) => {
+    mutationFn: async ({ table, id, before }: { table: string; id: string; before?: () => Promise<void> }) => {
+      if (before) await before();
       const { error } = await (supabase as any).from(table).delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { refresh(); toast.success("Usunięto"); },
+    onSuccess: () => refresh(),
     onError: (e: any) => toast.error(e.message),
   });
+  const stockRollup = () => {
+    qc.invalidateQueries({ queryKey: ["stock"] });
+    qc.invalidateQueries({ queryKey: ["stock-balance"] });
+    qc.invalidateQueries({ queryKey: ["stock-events"] });
+  };
+  const supLeft = (id: string) => balances.find((b) => b.s.id === id)?.left ?? 0;
+
+  // ---------- Usuwanie z potwierdzeniem + przeliczeniem salda ----------
+  const removeWagon = (w: any, reverseStock: boolean) => {
+    const hs = (hauls.data ?? []).filter((h) => h.wagon_id === w.id);
+    const booked = hs.filter((h) => h.stock_event_id);
+    const tons = hs.reduce((a, h) => a + Number(h.tons), 0);
+    const units = hs.reduce((a, h) => a + Number(h.units), 0);
+    delRow.mutate(
+      {
+        table: "import_wagons", id: w.id,
+        before: async () => {
+          if (!reverseStock) return;
+          for (const h of booked) await delStock({ data: { id: h.stock_event_id, reason: `Usunięto wagon ${w.wagon_number}` } });
+        },
+      },
+      {
+        onSuccess: () => {
+          if (reverseStock && booked.length) stockRollup();
+          const rev = reverseStock && booked.length ? `, cofnięto ${kursy(booked.length)} przyjęć na magazyn` : "";
+          toast.success(`Usunięto wagon ${w.wagon_number} (${kursy(hs.length)}, ${t2(tons)} (${bb(units)}))${rev} — u dostawcy ${t2(supLeft(w.supplier_id) + tons)} do odebrania.`);
+        },
+      },
+    );
+  };
+  const removeHaul = (w: any, h: any, reverseStock: boolean) => {
+    const tons = Number(h.tons), units = Number(h.units);
+    delRow.mutate(
+      {
+        table: "import_hauls", id: h.id,
+        before: async () => {
+          if (reverseStock && h.stock_event_id) await delStock({ data: { id: h.stock_event_id, reason: `Usunięto kurs wagonu ${w.wagon_number} (${h.haul_date})` } });
+        },
+      },
+      {
+        onSuccess: () => {
+          if (reverseStock && h.stock_event_id) stockRollup();
+          const rev = reverseStock && h.stock_event_id ? ", przyjęcie PZ cofnięte" : "";
+          toast.success(`Usunięto kurs ${h.haul_date} (${t2(tons)} (${bb(units)}))${rev} — wagon mniejszy o ${t2(tons)}, u dostawcy ${t2(supLeft(w.supplier_id) + tons)} do odebrania.`);
+        },
+      },
+    );
+  };
 
   // ---------- Wagony ----------
   const [wag, setWag] = useState({ supplier_id: "", wagon_number: "", arrival_date: today, declared_tons: "" });
@@ -259,7 +311,7 @@ export function ImportsTab() {
                   <TableCell>{p.reference ?? ""}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {p.file_path && <Button size="icon" variant="ghost" title="Potwierdzenie" onClick={() => openFile(p.file_path)}><Paperclip className="h-4 w-4" /></Button>}
-                    <Button size="icon" variant="ghost" onClick={() => confirm("Usunąć przelew?") && delRow.mutate({ table: "import_payments", id: p.id })}><Trash2 className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => setDelPay(p)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -293,26 +345,55 @@ export function ImportsTab() {
             <WagonCard key={w.id} wagon={w} supplierName={supName(w.supplier_id)}
               hauls={(hauls.data ?? []).filter((h) => h.wagon_id === w.id)}
               plnPerTon={balances.find((b) => b.s.id === w.supplier_id)?.plnPerTon ?? 0}
+              leftTons={supLeft(w.supplier_id)}
               costs={(wcosts.data ?? []).filter((c) => c.wagon_id === w.id)}
               onToggle={(perTon: number) => toggleWag.mutate({ w, perTon })}
-              onDelete={() => confirm("Usunąć wagon razem z kursami? Przyjęcia na magazyn zostaną.") && delRow.mutate({ table: "import_wagons", id: w.id })}
-              onDeleteHaul={(id) => confirm("Usunąć kurs? Jeśli był zaksięgowany, przyjęcie w magazynie zostanie — usuń je ręcznie.") && delRow.mutate({ table: "import_hauls", id })}
+              onDelete={(reverseStock: boolean) => removeWagon(w, reverseStock)}
+              onDeleteHaul={(h: any, reverseStock: boolean) => removeHaul(w, h, reverseStock)}
               addStock={addStock} refresh={refresh} />
           ))}
           {wagons.data?.length === 0 && <p className="text-sm text-muted-foreground">Brak wagonów.</p>}
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={!!delPay}
+        onOpenChange={(v) => !v && setDelPay(null)}
+        title="Usunąć przelew?"
+        confirmLabel="Usuń przelew"
+        pending={delRow.isPending}
+        description={delPay && (
+          <>
+            <p>{delPay.paid_at} · {supName(delPay.supplier_id)} · <b>{money(Number(delPay.amount), delPay.currency)}</b> za {t2(Number(delPay.tons))} ({money(Number(delPay.amount) / Number(delPay.tons), delPay.currency)}/t).</p>
+            <p>Po usunięciu u dostawcy zostanie <b>{t2(supLeft(delPay.supplier_id) + Number(delPay.tons))}</b> do odebrania.</p>
+            {delPay.file_path && <p>Dołączone potwierdzenie przelewu też zostanie usunięte.</p>}
+          </>
+        )}
+        onConfirm={() => {
+          if (!delPay) return;
+          const p = delPay;
+          setDelPay(null);
+          delRow.mutate(
+            { table: "import_payments", id: p.id },
+            { onSuccess: () => toast.success(`Usunięto przelew — do odebrania u dostawcy: ${t2(supLeft(p.supplier_id) + Number(p.tons))}`) },
+          );
+        }}
+      />
     </div>
   );
 }
 
-function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onDelete, onDeleteHaul, addStock, refresh }: {
-  wagon: any; supplierName: string; hauls: any[]; costs: any[]; plnPerTon: number;
-  onToggle: (perTon: number) => void; onDelete: () => void; onDeleteHaul: (id: string) => void;
+function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, leftTons, onToggle, onDelete, onDeleteHaul, addStock, refresh }: {
+  wagon: any; supplierName: string; hauls: any[]; costs: any[]; plnPerTon: number; leftTons: number;
+  onToggle: (perTon: number) => void; onDelete: (reverseStock: boolean) => void; onDeleteHaul: (haul: any, reverseStock: boolean) => void;
   addStock: any; refresh: () => void;
 }) {
   const closed = wagon.status === "zamkniety";
   const [open, setOpen] = useState(false);
+  const [delW, setDelW] = useState(false);
+  const [delH, setDelH] = useState<any | null>(null);
+  const [revStock, setRevStock] = useState(false);
+  const [impact, setImpact] = useState<{ booked: number; tons: number; units: number; consumed: number } | null>(null);
   const [ew, setEw] = useState<{ wagon_number: string; arrival_date: string; declared_tons: string } | null>(null);
   const saveWagon = useMutation({
     mutationFn: async () => {
@@ -356,6 +437,39 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onD
     ? (plnPerTon * sumT + costs.reduce((a, x) => a + Number(x.amount) * (x.currency === "PLN" ? 1 : Number(x.exchange_rate ?? 0)), 0)
        + (Number(wagon.fuel_cost_per_haul ?? 0) || 0) * hauls.length) / sumT
     : 0;
+
+  // Ile przyjęć na magazyn (i wydań FIFO z tych partii) zależy od wskazanych zdarzeń
+  const stockImpact = async (eventIds: string[]) => {
+    const booked = hauls.filter((h) => h.stock_event_id && eventIds.includes(h.stock_event_id));
+    let consumed = 0;
+    if (eventIds.length) {
+      const { data: lots } = await supabase.from("stock_lots").select("id").in("stock_event_id", eventIds);
+      const lotIds = (lots ?? []).map((l: any) => l.id);
+      if (lotIds.length) {
+        const { count } = await supabase.from("stock_lot_consumptions").select("id", { count: "exact", head: true }).in("lot_id", lotIds);
+        consumed = count ?? 0;
+      }
+    }
+    return {
+      booked: booked.length,
+      tons: booked.reduce((a, h) => a + Number(h.tons), 0),
+      units: booked.reduce((a, h) => a + Number(h.units), 0),
+      consumed,
+    };
+  };
+  const openWagonDelete = async () => {
+    const ids = hauls.map((h) => h.stock_event_id).filter(Boolean) as string[];
+    const info = await stockImpact(ids);
+    setImpact(info);
+    setRevStock(info.booked > 0 && info.consumed === 0);
+    setDelW(true);
+  };
+  const openHaulDelete = async (x: any) => {
+    const info = await stockImpact(x.stock_event_id ? [x.stock_event_id] : []);
+    setImpact(info);
+    setRevStock(info.booked > 0 && info.consumed === 0);
+    setDelH(x);
+  };
 
   const addHaul = useMutation({
     mutationFn: async () => {
@@ -421,7 +535,7 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onD
           <Button size="sm" variant={closed ? "outline" : "default"} onClick={() => onToggle(realPerTon)}>
             {closed ? <><LockOpen className="h-4 w-4 mr-1" />Otwórz do korekty</> : <><Lock className="h-4 w-4 mr-1" />Zamknij wagon</>}
           </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" onClick={openWagonDelete}><Trash2 className="h-4 w-4" /></Button>
         </div>
       </div>
       {open && hauls.length > 0 && (
@@ -440,7 +554,7 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onD
                 <TableCell className="text-right whitespace-nowrap">
                   {x.weight_report_path && <Button size="icon" variant="ghost" title="Raport wagowy" onClick={() => openFile(x.weight_report_path)}><Paperclip className="h-4 w-4" /></Button>}
                   {!closed && <Button size="icon" variant="ghost" title="Edytuj" onClick={() => startEdit(x)}><Pencil className="h-4 w-4" /></Button>}
-                  {!closed && <Button size="icon" variant="ghost" onClick={() => onDeleteHaul(x.id)}><Trash2 className="h-4 w-4" /></Button>}
+                  {!closed && <Button size="icon" variant="ghost" onClick={() => openHaulDelete(x)}><Trash2 className="h-4 w-4" /></Button>}
                 </TableCell>
               </TableRow>
             ))}
@@ -466,6 +580,64 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, onToggle, onD
       )}
       {open && <WagonCosts wagon={wagon} costs={costs} sumT={sumT} haulsCount={hauls.length} plnPerTon={plnPerTon} refresh={refresh} />}
       <WagonSummary wagon={wagon} costs={costs} sumT={sumT} haulsCount={hauls.length} plnPerTon={plnPerTon} />
+
+      <ConfirmDeleteDialog
+        open={delW}
+        onOpenChange={setDelW}
+        title={`Usunąć wagon ${wagon.wagon_number}?`}
+        confirmLabel="Usuń wagon"
+        onConfirm={() => { setDelW(false); onDelete(revStock); }}
+        description={
+          <>
+            <p>Zniknie {kursy(hauls.length)} · <b>{t2(sumT)} ({bb(sumU)})</b>{costs.length > 0 ? ` oraz ${costs.length} kosztów wagonu` : ""}.</p>
+            <p>Po usunięciu u dostawcy {supplierName} zostanie <b>{t2(leftTons + sumT)}</b> do odebrania.</p>
+            {closed && <p>Wagon jest zamknięty — jeśli nie cofniesz przyjęć, wycena FIFO tych partii zostanie w Magazynie.</p>}
+          </>
+        }
+      >
+        {impact && impact.booked > 0 && (
+          <label className="flex items-start gap-2 rounded-md border p-3 text-sm cursor-pointer">
+            <Checkbox checked={revStock} onCheckedChange={(v) => setRevStock(!!v)} className="mt-0.5" />
+            <span>
+              Cofnij przyjęcia na magazyn ({kursy(impact.booked)} · {t2(impact.tons)} ({bb(impact.units)}))
+              {impact.consumed > 0 && (
+                <span className="block text-xs text-destructive mt-1">
+                  Te partie mają już {impact.consumed} wydań — cofnięcie usunie też ich historię FIFO.
+                </span>
+              )}
+            </span>
+          </label>
+        )}
+      </ConfirmDeleteDialog>
+
+      <ConfirmDeleteDialog
+        open={!!delH}
+        onOpenChange={(v) => !v && setDelH(null)}
+        title="Usunąć kurs?"
+        confirmLabel="Usuń kurs"
+        onConfirm={() => { const x = delH; setDelH(null); if (x) onDeleteHaul(x, revStock); }}
+        description={delH && (
+          <>
+            <p>{delH.haul_date} · {[delH.vehicle, delH.driver].filter(Boolean).join(" · ") || "bez auta i kierowcy"} · <b>{t2(Number(delH.tons))} ({bb(Number(delH.units))})</b>.</p>
+            <p>Wagon {wagon.wagon_number} zostanie przeliczony na <b>{t2(sumT - Number(delH.tons))} ({bb(sumU - Number(delH.units))})</b>, a u dostawcy <b>{t2(leftTons + Number(delH.tons))}</b> do odebrania.</p>
+            {delH.post_to_stock && <p>Kurs był zaksięgowany na magazyn (PZ).</p>}
+          </>
+        )}
+      >
+        {delH?.stock_event_id && (
+          <label className="flex items-start gap-2 rounded-md border p-3 text-sm cursor-pointer">
+            <Checkbox checked={revStock} onCheckedChange={(v) => setRevStock(!!v)} className="mt-0.5" />
+            <span>
+              Cofnij przyjęcie na magazyn ({t2(Number(delH.tons))} ({bb(Number(delH.units))}))
+              {impact && impact.consumed > 0 && (
+                <span className="block text-xs text-destructive mt-1">
+                  Ta partia ma już {impact.consumed} wydań — cofnięcie usunie też ich historię FIFO.
+                </span>
+              )}
+            </span>
+          </label>
+        )}
+      </ConfirmDeleteDialog>
     </div>
   );
 }
@@ -488,6 +660,7 @@ function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
   });
   const empty = { kind: "clo", description: "", amount: "", currency: "PLN", exchange_rate: "" };
   const [c, setC] = useState(empty);
+  const [delC, setDelC] = useState<any | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState<any | null>(null);
   const [fuel, setFuel] = useState<string>(wagon.fuel_cost_per_haul != null ? String(wagon.fuel_cost_per_haul) : "");
@@ -551,7 +724,7 @@ function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
                 <TableCell className="text-right whitespace-nowrap">
                   {x.file_path && <Button size="icon" variant="ghost" title="Faktura" onClick={() => openFile(x.file_path)}><Paperclip className="h-4 w-4" /></Button>}
                   {!closed && <Button size="icon" variant="ghost" title="Edytuj" onClick={() => { setEditing(x); setC({ kind: x.kind, description: x.description ?? "", amount: String(x.amount), currency: x.currency, exchange_rate: x.exchange_rate != null ? String(x.exchange_rate) : "" }); setFile(null); }}><Pencil className="h-4 w-4" /></Button>}
-                  {!closed && <Button size="icon" variant="ghost" onClick={() => confirm("Usunąć koszt?") && del.mutate(x.id)}><Trash2 className="h-4 w-4" /></Button>}
+                  {!closed && <Button size="icon" variant="ghost" onClick={() => setDelC(x)}><Trash2 className="h-4 w-4" /></Button>}
                 </TableCell>
               </TableRow>
             ))}
@@ -587,6 +760,27 @@ function WagonCosts({ wagon, costs, sumT, haulsCount, plnPerTon, refresh }: {
             onBlur={() => { const v = fuel.trim() ? num(fuel) : null; if (v !== (wagon.fuel_cost_per_haul != null ? Number(wagon.fuel_cost_per_haul) : null)) saveWagon({ fuel_cost_per_haul: v }); }} /></div>
         <div className="text-sm text-muted-foreground">Paliwo razem: <b className="text-foreground">{pln(fuelTotal)}</b> ({kursy(haulsCount)})</div>
       </div>
+
+      <ConfirmDeleteDialog
+        open={!!delC}
+        onOpenChange={(v) => !v && setDelC(null)}
+        title="Usunąć koszt wagonu?"
+        confirmLabel="Usuń koszt"
+        description={delC && (
+          <>
+            <p>{COST_KINDS[delC.kind] ?? delC.kind}{delC.description ? ` — ${delC.description}` : ""} · <b>{money(Number(delC.amount), delC.currency)}</b>{delC.currency !== "PLN" ? ` (${pln(costPln(delC))})` : ""}.</p>
+            <p>Koszt wagonu przeliczy się: <b>{pln(sumT > 0 ? (goods + extra - costPln(delC) + fuelTotal) / sumT : 0)}/t</b>{closed ? " (wagon zamknięty — zapisana wycena FIFO zostanie bez zmian)" : ""}.</p>
+            {delC.file_path && <p>Dołączona faktura też zostanie usunięta.</p>}
+          </>
+        )}
+        onConfirm={() => {
+          if (!delC) return;
+          const x = delC;
+          setDelC(null);
+          const after = sumT > 0 ? (goods + extra - costPln(x) + fuelTotal) / sumT : 0;
+          del.mutate(x.id, { onSuccess: () => toast.success(`Usunięto koszt — koszt wagonu: ${pln(after)}/t`) });
+        }}
+      />
     </div>
   );
 }
