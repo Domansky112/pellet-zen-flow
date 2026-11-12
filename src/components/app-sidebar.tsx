@@ -51,6 +51,7 @@ const SETTINGS_SECTIONS = [
   { value: "assets", label: "Środki trwałe", icon: Wrench },
   { value: "affiliates", label: "Afiliacje", icon: Handshake },
   { value: "corrections", label: "Korekty", icon: Wallet },
+  { value: "imports", label: "Import i przelewy", icon: Wallet },
 ] as const;
 
 export function AppSidebar() {
