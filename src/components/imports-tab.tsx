@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, Lock, LockOpen, Paperclip, Train, Truck } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Lock, LockOpen, Paperclip, Train, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { addStockEvent } from "@/lib/stock.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -316,6 +316,13 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
   const empty = { haul_date: today, vehicle: "", driver: "", units: "", tons: "", post: false };
   const [h, setH] = useState(empty);
   const [file, setFile] = useState<File | null>(null);
+  const [editing, setEditing] = useState<any | null>(null);
+  const startEdit = (x: any) => {
+    setEditing(x);
+    setH({ haul_date: x.haul_date, vehicle: x.vehicle ?? "", driver: x.driver ?? "", units: String(x.units ?? ""), tons: String(x.tons ?? ""), post: !!x.post_to_stock });
+    setFile(null);
+  };
+  const cancelEdit = () => { setEditing(null); setH(empty); setFile(null); };
   const sumT = hauls.reduce((a, x) => a + Number(x.tons), 0);
   const sumU = hauls.reduce((a, x) => a + Number(x.units), 0);
 
@@ -324,9 +331,9 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
       const tons = num(h.tons), units = num(h.units || "0");
       if (!(tons > 0)) throw new Error("Podaj tonaż");
       if (!(units >= 0)) throw new Error("Podaj liczbę Big Bagów");
-      const weight_report_path = file ? await uploadFile(`wagony/${wagon.id}`, file) : null;
-      let stock_event_id: string | null = null;
-      if (h.post) {
+      const weight_report_path = file ? await uploadFile(`wagony/${wagon.id}`, file) : (editing?.weight_report_path ?? null);
+      let stock_event_id: string | null = editing?.stock_event_id ?? null;
+      if (h.post && !stock_event_id) {
         const ev = await addStock({ data: {
           product: "pellet_bigbag", txn_type: "przyjecie", quantity: tons, units,
           reference: `Wagon ${wagon.wagon_number}`, supplier: supplierName,
@@ -335,13 +342,22 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
         } });
         stock_event_id = ev?.id ?? null;
       }
-      const { error } = await (supabase as any).from("import_hauls").insert({
+      const row = {
         wagon_id: wagon.id, haul_date: h.haul_date, vehicle: h.vehicle.trim() || null, driver: h.driver.trim() || null,
-        units, tons, weight_report_path, post_to_stock: h.post, stock_event_id,
-      });
+        units, tons, weight_report_path, post_to_stock: h.post || !!stock_event_id, stock_event_id,
+      };
+      const { error } = editing
+        ? await (supabase as any).from("import_hauls").update(row).eq("id", editing.id)
+        : await (supabase as any).from("import_hauls").insert(row);
       if (error) throw error;
     },
-    onSuccess: () => { setH({ ...empty, vehicle: h.vehicle, driver: h.driver }); setFile(null); refresh(); toast.success(h.post ? "Kurs dodany i przyjęty na magazyn" : "Kurs dodany"); },
+    onSuccess: () => {
+      const wasEdit = !!editing;
+      if (wasEdit && editing.stock_event_id && (Number(editing.tons) !== num(h.tons) || Number(editing.units) !== num(h.units || "0")))
+        toast.warning("Kurs był już przyjęty na magazyn — zrób korektę w Magazynie, jeśli zmieniłeś tonaż/sztuki.");
+      setEditing(null); setH({ ...empty, vehicle: h.vehicle, driver: h.driver }); setFile(null); refresh();
+      toast.success(wasEdit ? "Kurs zaktualizowany" : h.post ? "Kurs dodany i przyjęty na magazyn" : "Kurs dodany");
+    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -376,6 +392,7 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
                 <TableCell>{x.post_to_stock ? <Badge>Przyjęte (PZ)</Badge> : <span className="text-muted-foreground text-xs">nie księgowano</span>}</TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   {x.weight_report_path && <Button size="icon" variant="ghost" title="Raport wagowy" onClick={() => openFile(x.weight_report_path)}><Paperclip className="h-4 w-4" /></Button>}
+                  {!closed && <Button size="icon" variant="ghost" title="Edytuj" onClick={() => startEdit(x)}><Pencil className="h-4 w-4" /></Button>}
                   {!closed && <Button size="icon" variant="ghost" onClick={() => onDeleteHaul(x.id)}><Trash2 className="h-4 w-4" /></Button>}
                 </TableCell>
               </TableRow>
@@ -393,9 +410,10 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
           <div className="space-y-1"><Label className="text-xs">Raport wagowy</Label><Input type="file" accept=".pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></div>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox checked={h.post} onCheckedChange={(v) => setH({ ...h, post: !!v })} />Zaksięguj na magazyn (PZ)
+              <Checkbox checked={h.post} disabled={!!editing?.stock_event_id} onCheckedChange={(v) => setH({ ...h, post: !!v })} />Zaksięguj na magazyn (PZ)
             </label>
-            <Button className="w-full" size="sm" onClick={() => addHaul.mutate()} disabled={addHaul.isPending}><Truck className="h-4 w-4 mr-1" />Dodaj kurs</Button>
+            <Button className="w-full" size="sm" onClick={() => addHaul.mutate()} disabled={addHaul.isPending}><Truck className="h-4 w-4 mr-1" />{editing ? "Zapisz zmiany" : "Dodaj kurs"}</Button>
+            {editing && <Button className="w-full" size="sm" variant="ghost" onClick={cancelEdit}><X className="h-4 w-4 mr-1" />Anuluj edycję</Button>}
           </div>
         </div>
       )}
