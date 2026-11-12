@@ -106,22 +106,38 @@ export function ImportsTab() {
   const emptyPay = { supplier_id: "", paid_at: today, amount: "", currency: "EUR", tons: "", exchange_rate: "", reference: "", notes: "" };
   const [pay, setPay] = useState(emptyPay);
   const [payFile, setPayFile] = useState<File | null>(null);
+  const [payFile2, setPayFile2] = useState<File | null>(null);
+  const [editPay, setEditPay] = useState<any | null>(null);
   const [delPay, setDelPay] = useState<any | null>(null);
   const perTon = num(pay.amount) > 0 && num(pay.tons) > 0 ? num(pay.amount) / num(pay.tons) : 0;
+  const resetPayForm = () => { setPay({ ...emptyPay, supplier_id: pay.supplier_id, currency: pay.currency }); setPayFile(null); setPayFile2(null); setEditPay(null); };
+  const startEditPay = (p: any) => {
+    setEditPay(p);
+    setPay({
+      supplier_id: p.supplier_id, paid_at: p.paid_at, amount: String(p.amount), currency: p.currency,
+      tons: String(p.tons), exchange_rate: p.exchange_rate != null ? String(p.exchange_rate) : "",
+      reference: p.reference ?? "", notes: p.notes ?? "",
+    });
+    setPayFile(null); setPayFile2(null);
+  };
   const addPay = useMutation({
     mutationFn: async () => {
       if (!pay.supplier_id) throw new Error("Wybierz dostawcę");
       if (!(num(pay.amount) > 0)) throw new Error("Podaj kwotę");
       if (!(num(pay.tons) > 0)) throw new Error("Podaj liczbę ton");
-      const file_path = payFile ? await uploadFile("przelewy", payFile) : null;
-      const { error } = await (supabase as any).from("import_payments").insert({
+      const file_path = payFile ? await uploadFile("przelewy", payFile) : (editPay?.file_path ?? null);
+      const file_path_2 = payFile2 ? await uploadFile("przelewy", payFile2) : (editPay?.file_path_2 ?? null);
+      const row = {
         supplier_id: pay.supplier_id, paid_at: pay.paid_at, amount: num(pay.amount), currency: pay.currency,
         tons: num(pay.tons), exchange_rate: pay.exchange_rate ? num(pay.exchange_rate) : null,
-        reference: pay.reference.trim() || null, notes: pay.notes.trim() || null, file_path,
-      });
+        reference: pay.reference.trim() || null, notes: pay.notes.trim() || null, file_path, file_path_2,
+      };
+      const { error } = editPay
+        ? await (supabase as any).from("import_payments").update(row).eq("id", editPay.id)
+        : await (supabase as any).from("import_payments").insert(row);
       if (error) throw error;
     },
-    onSuccess: () => { setPay({ ...emptyPay, supplier_id: pay.supplier_id, currency: pay.currency }); setPayFile(null); refresh(); toast.success("Zapisano przelew"); },
+    onSuccess: () => { resetPayForm(); refresh(); toast.success(editPay ? "Zaktualizowano przelew" : "Zapisano przelew"); },
     onError: (e: any) => toast.error(e.message),
   });
   const delRow = useMutation({
@@ -292,9 +308,21 @@ export function ImportsTab() {
               <div className="space-y-1"><Label>Kurs do PLN (opcjonalnie)</Label><Input inputMode="decimal" placeholder="np. 4,28" value={pay.exchange_rate} onChange={(e) => setPay({ ...pay, exchange_rate: e.target.value })} /></div>
             )}
             <div className="space-y-1"><Label>Tytuł / nr przelewu</Label><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Potwierdzenie (PDF/zdjęcie)</Label><Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile(e.target.files?.[0] ?? null)} /></div>
+            <div className="space-y-1">
+              <Label>Potwierdzenie 1 (PDF/zdjęcie)</Label>
+              <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile(e.target.files?.[0] ?? null)} />
+              {editPay?.file_path && !payFile && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path)}>Zachowuję obecny plik — podgląd</button>}
+            </div>
+            <div className="space-y-1">
+              <Label>Potwierdzenie 2 (opcjonalnie)</Label>
+              <Input type="file" accept=".pdf,image/*" onChange={(e) => setPayFile2(e.target.files?.[0] ?? null)} />
+              {editPay?.file_path_2 && !payFile2 && <button type="button" className="text-xs text-primary underline" onClick={() => openFile(editPay.file_path_2)}>Zachowuję obecny plik — podgląd</button>}
+            </div>
           </div>
-          <div className="flex justify-end"><Button onClick={() => addPay.mutate()} disabled={addPay.isPending}>{addPay.isPending ? "Zapisuję…" : "Zapisz przelew"}</Button></div>
+          <div className="flex justify-end gap-2">
+            {editPay && <Button variant="outline" onClick={resetPayForm}><X className="h-4 w-4 mr-1" />Anuluj edycję</Button>}
+            <Button onClick={() => addPay.mutate()} disabled={addPay.isPending}>{addPay.isPending ? "Zapisuję…" : editPay ? "Zapisz zmiany" : "Zapisz przelew"}</Button>
+          </div>
           <Table>
             <TableHeader><TableRow>
               <TableHead>Data</TableHead><TableHead>Dostawca</TableHead><TableHead className="text-right">Kwota</TableHead>
@@ -310,7 +338,9 @@ export function ImportsTab() {
                   <TableCell className="text-right">{money(Number(p.amount) / Number(p.tons), p.currency)}</TableCell>
                   <TableCell>{p.reference ?? ""}</TableCell>
                   <TableCell className="text-right whitespace-nowrap">
-                    {p.file_path && <Button size="icon" variant="ghost" title="Potwierdzenie" onClick={() => openFile(p.file_path)}><Paperclip className="h-4 w-4" /></Button>}
+                    {p.file_path && <Button size="icon" variant="ghost" title="Potwierdzenie 1" onClick={() => openFile(p.file_path)}><Paperclip className="h-4 w-4" /></Button>}
+                    {p.file_path_2 && <Button size="icon" variant="ghost" title="Potwierdzenie 2" onClick={() => openFile(p.file_path_2)}><Paperclip className="h-4 w-4 text-muted-foreground" /></Button>}
+                    <Button size="icon" variant="ghost" title="Edytuj" onClick={() => startEditPay(p)}><Pencil className="h-4 w-4" /></Button>
                     <Button size="icon" variant="ghost" onClick={() => setDelPay(p)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
