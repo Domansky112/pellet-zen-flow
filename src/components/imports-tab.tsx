@@ -299,6 +299,19 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
   addStock: any; refresh: () => void;
 }) {
   const closed = wagon.status === "zamkniety";
+  const [ew, setEw] = useState<{ wagon_number: string; arrival_date: string; declared_tons: string } | null>(null);
+  const saveWagon = useMutation({
+    mutationFn: async () => {
+      if (!ew || !ew.wagon_number.trim()) throw new Error("Podaj numer wagonu");
+      const { error } = await (supabase as any).from("import_wagons").update({
+        wagon_number: ew.wagon_number.trim(), arrival_date: ew.arrival_date,
+        declared_tons: ew.declared_tons ? num(ew.declared_tons) : null,
+      }).eq("id", wagon.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { setEw(null); refresh(); toast.success("Wagon zaktualizowany"); },
+    onError: (e: any) => toast.error(e.message),
+  });
   const today = new Date().toISOString().slice(0, 10);
   const fleet = useQuery({
     queryKey: ["import-fleet"],
@@ -364,11 +377,22 @@ function WagonCard({ wagon, supplierName, hauls, plnPerTon, onToggle, onDelete, 
   return (
     <div className="rounded-lg border p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2 justify-between">
+        {ew ? (
+          <div className="flex items-end gap-2 flex-wrap">
+            <div className="space-y-1"><Label className="text-xs">Nr wagonu</Label><Input className="w-36" value={ew.wagon_number} onChange={(e) => setEw({ ...ew, wagon_number: e.target.value })} /></div>
+            <div className="space-y-1"><Label className="text-xs">Data przyjazdu</Label><Input type="date" value={ew.arrival_date} onChange={(e) => setEw({ ...ew, arrival_date: e.target.value })} /></div>
+            <div className="space-y-1"><Label className="text-xs">Tony wg dok.</Label><Input className="w-28" inputMode="decimal" value={ew.declared_tons} onChange={(e) => setEw({ ...ew, declared_tons: e.target.value })} /></div>
+            <Button size="sm" onClick={() => saveWagon.mutate()} disabled={saveWagon.isPending}>Zapisz</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEw(null)}><X className="h-4 w-4" /></Button>
+          </div>
+        ) : (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold">Wagon {wagon.wagon_number}</span>
           <span className="text-sm text-muted-foreground">{supplierName} · {wagon.arrival_date}</span>
+          <Button size="icon" variant="ghost" title="Edytuj wagon" onClick={() => setEw({ wagon_number: wagon.wagon_number ?? "", arrival_date: wagon.arrival_date, declared_tons: wagon.declared_tons != null ? String(wagon.declared_tons) : "" })}><Pencil className="h-4 w-4" /></Button>
           {closed ? <Badge variant="secondary">Zamknięty</Badge> : <Badge variant="outline">Otwarty</Badge>}
         </div>
+        )}
         <div className="flex items-center gap-2 text-sm">
           <span>Zwiezione: <b>{t2(sumT)} ({bb(sumU)})</b>{wagon.declared_tons ? ` z ${t2(Number(wagon.declared_tons))}` : ""}</span>
           <Button size="sm" variant={closed ? "outline" : "default"} onClick={onToggle}>
