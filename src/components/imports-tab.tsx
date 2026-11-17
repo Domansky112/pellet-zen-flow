@@ -259,13 +259,29 @@ export function ImportsTab() {
       const close = w.status !== "zamkniety";
       const { error } = await (supabase as any).from("import_wagons").update({ status: close ? "zamkniety" : "otwarty", closed_at: close ? new Date().toISOString() : null }).eq("id", w.id);
       if (error) throw error;
+      if (close) {
+        // PZ dla kursów oznaczonych do księgowania — z ceną po wszystkich kosztach wagonu
+        const pending = (hauls.data ?? []).filter((h: any) => h.wagon_id === w.id && h.post_to_stock && !h.stock_event_id);
+        for (const h of pending) {
+          const ev = await addStock({ data: {
+            product: "pellet_bigbag", txn_type: "przyjecie", quantity: Number(h.tons), units: Number(h.units),
+            reference: `Wagon ${w.wagon_number}`, supplier: supName(w.supplier_id),
+            unit_price: perTon > 0 ? Math.round(perTon * 100) / 100 : null, vat_rate: 0,
+            note: `Import — wagon ${w.wagon_number}${h.vehicle ? `, ${h.vehicle}` : ""}`,
+          } });
+          if (ev?.id) {
+            const { error: e3 } = await (supabase as any).from("import_hauls").update({ stock_event_id: ev.id }).eq("id", h.id);
+            if (e3) throw e3;
+          }
+        }
+      }
       if (close && perTon > 0) {
         const { error: e2 } = await (supabase as any).rpc("apply_import_wagon_cost", { _wagon_id: w.id, _cost_per_ton: perTon });
         if (e2) throw e2;
       }
       return { close, perTon };
     },
-    onSuccess: (r) => { refresh(); if (r.close && r.perTon > 0) toast.success(`Wagon zamknięty — koszt ${money(r.perTon, "zł")}/t naliczony do FIFO`); },
+    onSuccess: (r) => { refresh(); if (r.close && r.perTon > 0) toast.success(`Wagon zamknięty — koszt ${money(r.perTon, "zł")}/t naliczony do FIFO, przyjęcia zaksięgowane po tej cenie`); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -556,7 +572,7 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, leftTons, onT
       if (!(units >= 0)) throw new Error("Podaj liczbę Big Bagów");
       const weight_report_path = file ? await uploadFile(`wagony/${wagon.id}`, file) : (editing?.weight_report_path ?? null);
       let stock_event_id: string | null = editing?.stock_event_id ?? null;
-      if (h.post && !stock_event_id) {
+      if (h.post && !stock_event_id && wagon.status === "zamkniety") {
         const ev = await addStock({ data: {
           product: "pellet_bigbag", txn_type: "przyjecie", quantity: tons, units,
           reference: `Wagon ${wagon.wagon_number}`, supplier: supplierName,
@@ -628,7 +644,7 @@ function WagonCard({ wagon, supplierName, hauls, costs, plnPerTon, leftTons, onT
                 <TableCell>{x.haul_date}</TableCell>
                 <TableCell>{[x.vehicle, x.driver].filter(Boolean).join(" · ") || "—"}</TableCell>
                 <TableCell className="text-right">{t2(Number(x.tons))} ({bb(Number(x.units))})</TableCell>
-                <TableCell>{x.post_to_stock ? <Badge>Przyjęte (PZ)</Badge> : <span className="text-muted-foreground text-xs">nie księgowano</span>}</TableCell>
+                <TableCell>{x.post_to_stock && x.stock_event_id ? <Badge>Przyjęte (PZ)</Badge> : x.post_to_stock ? <Badge variant="outline">PZ przy zamknięciu</Badge> : <span className="text-muted-foreground text-xs">nie księgowano</span>}</TableCell>
                 <TableCell className="text-right whitespace-nowrap">
                   {x.weight_report_path && <Button size="icon" variant="ghost" title="Raport wagowy" onClick={() => openFile(x.weight_report_path)}><Paperclip className="h-4 w-4" /></Button>}
                   {!closed && <Button size="icon" variant="ghost" title="Edytuj" onClick={() => startEdit(x)}><Pencil className="h-4 w-4" /></Button>}
